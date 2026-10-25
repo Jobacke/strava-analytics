@@ -203,8 +203,11 @@ DEINE AUFGABE ALS MEIN TRAINER:
    - Dauer (in Minuten)
    - Konkrete Intensitätsvorgaben (Ziel-Herzfrequenzzone und Wattbereiche basierend auf meiner FTP/HFmax)
    - Konkreter Ablauf (z.B. Warmup, Hauptteil mit Intervallen und Pausen, Cooldown)
-3. ZWIFT-TRAININGSOPTIONEN:
-   Kannst Du mir für die kommende Woche die entsprechenden Trainingsoptionen bei Zwift herausfinden und empfehlen? (z.B. konkrete Workouts aus der Zwift-Bibliothek, passende RoboPacer-Gruppen für Z2-Grundlagenfahrten oder empfohlene Zwift-Strecken/Events, die exakt zu den Einheiten dieses 7-Tage-Plans passen).
+3. KONKRETE ZWIFT-EVENTS & WORKOUT-EMPFEHLUNGEN FÜR JEDEN TAG:
+   Schlage mir für jeden Trainingstag der kommenden Woche konkrete Zwift-Events oder Workouts vor, die ich direkt in Zwift bzw. der Zwift Companion App auswählen und fahren kann:
+   - Für Grundlagentage (Z2): Konkrete Zwift RoboPacer-Gruppen (z.B. "Bernie" ~1.5 W/kg, "Miguel" ~1.8 W/kg, "Maria" ~2.2 W/kg) oder bewährte Social Group Rides (z.B. BMTR, Pack, 3R Endurance Rides).
+   - Für Intervall- & Schwellentage: Exakter Name des Workouts aus der Zwift-Bibliothek (z.B. unter "60-90 Minutes to Burn", "FTP Builder" oder "Zwift Academy") oder passende Zwift-Rennen/Time Trials.
+   - Nenne jeweils die empfohlene Leistungskategorie (A, B, C oder D basierend auf meinem W/kg-Verhältnis) und die empfohlene Zwift-Welt/Strecke (z.B. Tempus Fugit in Watopia für gleichmäßiges Pacing ohne störende Steigungen).
 4. REGENERATION & ERNÄHRUNG: 3 wichtige Praxistipps für diesen Trainingsblock.`;
   }, [stats, hrDistribution, settings, sportFilter, stravaConfig, filteredActivities]);
 
