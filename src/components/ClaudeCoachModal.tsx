@@ -33,14 +33,29 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Handle Copy & Open Claude
-  const handleOpenClaude = () => {
+  // Handle Copy & Open Claude Native App (macOS & iOS)
+  const handleOpenClaudeApp = () => {
     navigator.clipboard.writeText(prompt);
     setCopied(true);
     setTimeout(() => setCopied(false), 3000);
 
-    // Open Claude.ai new chat with query parameter
-    // On Mac and iPhone with Claude installed, this seamlessly triggers Claude
+    // Direct deep-link to native Claude App on macOS and iOS
+    const appUrl = `claude://claude.ai/new?q=${encodeURIComponent(prompt)}`;
+    
+    // Trigger deep-link via invisible element to avoid opening blank browser tab
+    const a = document.createElement('a');
+    a.href = appUrl;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  // Fallback to browser web interface
+  const handleOpenClaudeWeb = () => {
+    navigator.clipboard.writeText(prompt);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000);
+
     const claudeUrl = `https://claude.ai/new?q=${encodeURIComponent(prompt)}`;
     window.open(claudeUrl, '_blank');
   };
@@ -151,30 +166,45 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
 
             <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
               <button
-                onClick={handleOpenClaude}
+                onClick={handleOpenClaudeApp}
                 className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xs shadow-lg shadow-amber-500/25 transition flex items-center justify-center gap-2"
+                title="Startet direkt die native Claude App auf macOS oder iOS"
               >
-                <ExternalLink className="w-4 h-4" />
-                <span>Claude öffnen & Plan generieren</span>
+                <Zap className="w-4 h-4 text-white" />
+                <span>In Claude-App starten</span>
+              </button>
+
+              <button
+                onClick={handleOpenClaudeWeb}
+                className="py-3 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 transition flex items-center justify-center gap-1.5"
+                title="Falls du Claude lieber im Browser-Tab öffnen möchtest"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                <span>Im Browser</span>
               </button>
 
               <button
                 onClick={handleCopyOnly}
-                className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition flex items-center justify-center gap-2"
+                className="py-3 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition flex items-center justify-center gap-1.5"
+                title="Nur Text in Zwischenablage kopieren"
               >
                 {copied ? (
                   <>
-                    <Check className="w-4 h-4 text-emerald-400" />
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
                     <span className="text-emerald-400">Kopiert!</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-4 h-4 text-slate-400" />
-                    <span>Nur Prompt kopieren</span>
+                    <Copy className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Kopieren</span>
                   </>
                 )}
               </button>
             </div>
+
+            <p className="text-[11px] text-amber-300/80 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20">
+              💡 <strong>Tipp:</strong> Klick auf „In Claude-App starten“ bringt direkt deine installierte Claude-App auf dem Mac oder iPhone in den Vordergrund. Der vollständige Trainings- und Zwift-Prompt ist bereits in deiner Zwischenablage – drücke in Claude einfach <strong>Cmd + V</strong> (oder auf dem iPhone „Einsetzen“)!
+            </p>
           </div>
 
           {/* Generated Plan View if present */}
