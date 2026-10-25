@@ -32,7 +32,7 @@ import { ActivityList } from './components/ActivityList';
 import { ActivityDetailModal } from './components/ActivityDetailModal';
 import { StravaConnectModal } from './components/StravaConnectModal';
 import { UserSettingsModal } from './components/UserSettingsModal';
-import { ClaudeCoachModal } from './components/ClaudeCoachModal';
+import { ClaudeCoachModal, ClaudeCoachMode } from './components/ClaudeCoachModal';
 import { APP_VERSION } from './version';
 import { subDays, parseISO, isAfter } from 'date-fns';
 
@@ -54,6 +54,7 @@ export function App() {
   const [isConnectModalOpen, setIsConnectModalOpen] = useState<boolean>(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
   const [isClaudeModalOpen, setIsClaudeModalOpen] = useState<boolean>(false);
+  const [claudeModalMode, setClaudeModalMode] = useState<ClaudeCoachMode>('analysis');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [oauthStatus, setOauthStatus] = useState<string | null>(null);
 
@@ -159,8 +160,72 @@ export function App() {
     };
   }, [filteredActivities]);
 
-  // Comprehensive prompt tailored for Claude 3.5 Sonnet & Claude App
-  const claudePrompt = useMemo(() => {
+  // Prompt 1: Reine Leistungsdiagnose & Datenanalyse (ohne Trainingsplan, ohne Zwift-Workouts)
+  const claudeAnalysisPrompt = useMemo(() => {
+    const athleteName = stravaConfig?.athleteName || 'Johannes Backhaus';
+    const recentSample = filteredActivities.slice(0, 7).map(a => {
+      const dist = a.distance > 0 ? `${(a.distance / 1000).toFixed(1)} km` : 'Indoor Rolle (Kickr Core)';
+      const dur = Math.round(a.moving_time / 60);
+      const hr = a.average_heartrate ? `, Ø Puls: ${Math.round(a.average_heartrate)} bpm` : '';
+      const maxHr = a.max_heartrate ? `, Max: ${Math.round(a.max_heartrate)} bpm` : '';
+      const watts = a.average_watts ? `, Ø Leistung: ${Math.round(a.average_watts)} W` : '';
+      return `• ${a.start_date.split('T')[0]}: ${a.name} (${dist}, ${dur} min${hr}${maxHr}${watts})`;
+    }).join('\n');
+
+    return `Du bist mein persönlicher Sportwissenschaftler und Leistungsdiagnostiker.
+Hier sind meine aktuellen, echten Leistungs- und Belastungsdaten aus meiner Trainingsanalyse für Athlet "${athleteName}":
+
+LEISTUNGSPROFIL & AKTUELLE BELASTUNGSDATEN (Coggan & Banister Modell):
+- Sportarten: ${sportFilter === 'ALL' ? 'Radsport (Wahoo Kickr Core) & Laufsport' : sportFilter === 'Ride' ? 'Radsport (Wahoo Kickr Core Smart-Trainer)' : 'Laufsport'}
+- Wochenvolumen (letzte 7 Tage): ${stats.weeklyHours} Stunden (${stats.weeklyKm} km, ${stats.kmDeltaPercent >= 0 ? '+' : ''}${stats.kmDeltaPercent}% vs. Vorwoche)
+- Verletzungs- & Überlastungsradar (ACWR): ${stats.currentACWR.toFixed(2)} (Optimalbereich: 0.85 - 1.25)
+- Chronische Fitness (CTL, 42-Tage-Basis): ${stats.currentFitnessCTL}
+- Akute Ermüdung (ATL, 7 Tage): ${stats.currentFatigueATL}
+- Form & Frische (TSB = CTL - ATL): ${stats.currentFormTSB > 0 ? '+' : ''}${stats.currentFormTSB}
+- Ruhetage in den letzten 14 Tagen: ${stats.restDaysLast14}
+- Herzfrequenz-Zonen-Verteilung (letzte 30 Tage):
+  • Zone 1-2 (Grundlagenbasis GA1): ${hrDistribution.polarizedScore}%
+  • Zone 3 (Tempo / Grauzone): ${hrDistribution.junkZonePercentage}%
+  • Zone 4-5 (Schwelle & VO2max): ${hrDistribution.z4 + hrDistribution.z5}%
+- Physiologische Parameter:
+  • Maximale Herzfrequenz (HFmax): ${settings.maxHeartRate} bpm
+  • Ruhepuls: ${settings.restingHeartRate} bpm
+  • FTP-Schwellenleistung (Rad): ${settings.ftpWatts || 250} Watt
+  • Körpergewicht: ${settings.weightKg || 75} kg (Leistungsgewicht: ${((settings.ftpWatts || 250) / (settings.weightKg || 75)).toFixed(2)} W/kg)
+
+LETZTE DOKUMENTIERTE EINHEITEN (INDOOR & OUTDOOR):
+${recentSample || '• Wahoo Kickr Core Indoor-Einheiten mit Leistungsmesser'}
+
+DEINE AUFGABE ALS SPORTWISSENSCHAFTLICHER ANALYST:
+Analysiere ausschließlich diese vorliegenden Daten tiefgehend und ziehe fundierte sportwissenschaftliche Schlussfolgerungen.
+WICHTIGE VORGABE: Bitte erstelle KEINEN 7-Tage-Trainingsplan und KEINE benutzerdefinierten Zwift-Workouts oder .zwo-Dateien. Konzentriere dich zu 100 % auf die Auswertung des Ist-Zustands, Trends und strategische Erkenntnisse!
+
+Bitte strukturiere deine Analyse präzise wie folgt:
+
+1. EXECUTIVE SUMMARY:
+   Prägnante 3-Satz-Zusammenfassung meines aktuellen Leistungs- und Erholungszustands.
+
+2. BELASTUNGS- & ERHOLUNGSANALYSE (Coggan/Banister & ACWR):
+   - Wie ist das Verhältnis von akuter Belastung (ATL = ${stats.currentFatigueATL}) zu chronischer Fitness (CTL = ${stats.currentFitnessCTL})?
+   - Beurteilung des ACWR-Wertes (${stats.currentACWR.toFixed(2)}): Liege ich im "Sweet Spot", droht Überlastung oder bin ich unterfordert?
+   - Formwert (TSB = ${stats.currentFormTSB > 0 ? '+' : ''}${stats.currentFormTSB}): Bin ich wettkampffrisch, ermüdet oder in einer stabilen Aufbauphase?
+
+3. INTENSITÄTSVERTEILUNG & POLARISIERUNG (80/20-Prinzip):
+   - Bewertung der Herzfrequenz-Verteilung (GA1: ${hrDistribution.polarizedScore}%, Grauzone Z3: ${hrDistribution.junkZonePercentage}%, Intensiv Z4/Z5: ${hrDistribution.z4 + hrDistribution.z5}%).
+   - Ist mein Grundlagentraining effizient oder verbringe ich zu viel Zeit in der unproduktiven "Grauzone"?
+
+4. AEROBE EFFIZIENZ & INDOOR-TRAINING (Wahoo Kickr Core):
+   - Schlussfolgerungen aus den Watt- und Pulswerten meiner jüngsten Indoor-Einheiten.
+   - Gibt es Anzeichen für kardiovaskuläre Drift oder gesteigerte aerobe Effizienz?
+
+5. SCHLUSSFOLGERUNGEN & STRATEGISCHE EMPFEHLUNGEN:
+   - 3 größte Stärken in meinem aktuellen Trainingsbild.
+   - 2 potenzielle Risikofaktoren oder "blinde Flecken".
+   - 3 strategische Hebel für die nächsten 3-4 Wochen, um meine Leistungsfähigkeit gezielt zu steigern.`;
+  }, [stats, hrDistribution, settings, sportFilter, stravaConfig, filteredActivities]);
+
+  // Prompt 2: Strukturierter 7-Tage-Trainingsplan & Zwift .zwo-Workouts
+  const claudePlanPrompt = useMemo(() => {
     const athleteName = stravaConfig?.athleteName || 'Johannes Backhaus';
     const recentSample = filteredActivities.slice(0, 5).map(a => {
       const dist = a.distance > 0 ? `${(a.distance / 1000).toFixed(1)} km` : 'Indoor Rolle (Kickr Core)';
@@ -215,7 +280,7 @@ DEINE AUFGABE ALS MEIN TRAINER:
    Erstelle vom fertigen 7-Tage-Trainingsplan bitte zusätzlich ein übersichtliches, formatiertes Dokument (oder Claude-Artifact / PDF-Download-Vorlage), sodass ich ihn direkt als PDF-Datei auf meinem Mac und iPhone abspeichern, ausdrucken und jederzeit während der Trainingswoche griffbereit nachlesen kann.`;
   }, [stats, hrDistribution, settings, sportFilter, stravaConfig, filteredActivities]);
 
-  const athleteSummary = claudePrompt;
+  const athleteSummary = claudeAnalysisPrompt;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
@@ -269,8 +334,11 @@ DEINE AUFGABE ALS MEIN TRAINER:
         {/* Smart Training Coach Insights */}
         <CoachInsights
           insights={insights}
-          athleteSummary={athleteSummary}
-          onOpenClaudeModal={() => setIsClaudeModalOpen(true)}
+          athleteSummary={claudeAnalysisPrompt}
+          onOpenClaudeModal={(mode) => {
+            setClaudeModalMode(mode);
+            setIsClaudeModalOpen(true);
+          }}
         />
 
         {/* Charts Grid: Fitness Curve & HR Polarized Distribution */}
@@ -324,7 +392,9 @@ DEINE AUFGABE ALS MEIN TRAINER:
       <ClaudeCoachModal
         isOpen={isClaudeModalOpen}
         onClose={() => setIsClaudeModalOpen(false)}
-        prompt={claudePrompt}
+        analysisPrompt={claudeAnalysisPrompt}
+        planPrompt={claudePlanPrompt}
+        initialMode={claudeModalMode}
       />
 
       {/* Footer */}
