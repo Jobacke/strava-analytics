@@ -16,7 +16,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   onSaveSettings,
 }) => {
   const [formData, setFormData] = useState<UserAthleteSettings>({ ...settings });
-  const [selectedIcon, setSelectedIcon] = useState(() => localStorage.getItem('strava_pulse_selected_icon') || 'speed-flame');
+  const [selectedIcon, setSelectedIcon] = useState(() => localStorage.getItem('strava_pulse_selected_icon') || 'kickr-pulse');
 
   if (!isOpen) return null;
 
