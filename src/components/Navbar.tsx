@@ -40,10 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-orange-400 via-amber-300 to-white bg-clip-text text-transparent">
-                  STRAVA PULSE
-                </span>
-                <span className="px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20">
-                  Analytics & Coach
+                  ANALYTICS
                 </span>
                 <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded-md bg-slate-800 text-amber-400 border border-amber-500/30 shadow-sm" title="App Version">
                   {APP_VERSION}

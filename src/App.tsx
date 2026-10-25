@@ -330,7 +330,7 @@ DEINE AUFGABE ALS MEIN TRAINER:
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-6 mt-12 text-center text-xs text-slate-500">
         <p className="flex items-center justify-center gap-2">
-          <span>Strava Pulse</span>
+          <span>Analytics</span>
           <span className="text-amber-400 font-mono font-bold px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[11px]">
             {APP_VERSION}
           </span>
