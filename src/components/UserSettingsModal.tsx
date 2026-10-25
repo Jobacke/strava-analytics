@@ -16,14 +16,14 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   onSaveSettings,
 }) => {
   const [formData, setFormData] = useState<UserAthleteSettings>({ ...settings });
-  const [selectedIcon, setSelectedIcon] = useState(() => localStorage.getItem('strava_pulse_selected_icon') || 'design-1');
+  const [selectedIcon, setSelectedIcon] = useState(() => localStorage.getItem('strava_pulse_selected_icon') || 'speed-flame');
 
   if (!isOpen) return null;
 
   const iconOptions = [
-    { id: 'design-1', title: 'Cyber Pulse Neon', subtitle: 'Neon-Glow & 3D Speed', path: '/icons/design-1-cyber-neon.jpg' },
-    { id: 'design-2', title: '3D Frosted Glass', subtitle: 'Luxury Apple Design', path: '/icons/design-2-frosted-glass.jpg' },
-    { id: 'design-3', title: 'Turbo Apex Kinetic', subtitle: 'Matte Titanium & Sharp', path: '/icons/design-3-turbo-apex.jpg' },
+    { id: 'speed-flame', title: 'Speed Flame', subtitle: 'Sculpted 3D Minimalist', path: '/icons/speed-flame.jpg' },
+    { id: 'kickr-pulse', title: 'Kickr & Pulse', subtitle: 'Smart Trainer & Bio-Hub', path: '/icons/kickr-pulse.jpg' },
+    { id: 'prism-apex', title: 'Prism Apex', subtitle: 'Faceted Gradient Summit', path: '/icons/prism-apex.jpg' },
   ];
 
   const handleChooseIcon = (id: string, path: string) => {
