@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserAthleteSettings } from '../types/strava';
-import { X, Sliders, Heart, Target, Zap, Weight } from 'lucide-react';
+import { X, Sliders, Heart, Target, Zap, Weight, Smartphone, Check } from 'lucide-react';
 
 interface UserSettingsModalProps {
   isOpen: boolean;
@@ -16,8 +16,24 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   onSaveSettings,
 }) => {
   const [formData, setFormData] = useState<UserAthleteSettings>({ ...settings });
+  const [selectedIcon, setSelectedIcon] = useState(() => localStorage.getItem('strava_pulse_selected_icon') || 'design-1');
 
   if (!isOpen) return null;
+
+  const iconOptions = [
+    { id: 'design-1', title: 'Cyber Pulse Neon', subtitle: 'Neon-Glow & 3D Speed', path: '/icons/design-1-cyber-neon.jpg' },
+    { id: 'design-2', title: '3D Frosted Glass', subtitle: 'Luxury Apple Design', path: '/icons/design-2-frosted-glass.jpg' },
+    { id: 'design-3', title: 'Turbo Apex Kinetic', subtitle: 'Matte Titanium & Sharp', path: '/icons/design-3-turbo-apex.jpg' },
+  ];
+
+  const handleChooseIcon = (id: string, path: string) => {
+    setSelectedIcon(id);
+    localStorage.setItem('strava_pulse_selected_icon', id);
+    const touchIcon = document.querySelector("link[rel='apple-touch-icon']");
+    if (touchIcon) touchIcon.setAttribute('href', path);
+    const fav = document.querySelector("link[rel='icon']");
+    if (fav) fav.setAttribute('href', path);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,6 +139,41 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                 onChange={(e) => setFormData({ ...formData, weightKg: parseInt(e.target.value) || 75 })}
                 className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-orange-500"
               />
+            </div>
+          </div>
+
+          {/* App Icon Selection for iPhone & Mac Home Screen */}
+          <div className="pt-2 border-t border-slate-800 space-y-2">
+            <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Smartphone className="w-3.5 h-3.5 text-orange-400" />
+                App-Icon für iPhone & Mac Home-Button
+              </span>
+              <span className="text-[10px] text-slate-500">Klick zum Aktivieren</span>
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {iconOptions.map((opt) => (
+                <div
+                  key={opt.id}
+                  onClick={() => handleChooseIcon(opt.id, opt.path)}
+                  className={`p-2 rounded-xl border text-center cursor-pointer transition flex flex-col items-center relative ${
+                    selectedIcon === opt.id
+                      ? 'bg-orange-500/10 border-orange-500 text-white shadow-md shadow-orange-500/10'
+                      : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 text-slate-400'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-xl overflow-hidden mb-1.5 shadow-md relative">
+                    <img src={opt.path} alt={opt.title} className="w-full h-full object-cover" />
+                    {selectedIcon === opt.id && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                        <Check className="w-5 h-5 text-emerald-400" />
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-[10px] font-bold block leading-tight">{opt.title}</span>
+                  <span className="text-[8px] text-slate-500 mt-0.5 block">{opt.subtitle}</span>
+                </div>
+              ))}
             </div>
           </div>
 
