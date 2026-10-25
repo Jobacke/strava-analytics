@@ -208,7 +208,9 @@ DEINE AUFGABE ALS MEIN TRAINER:
    - Für Grundlagentage (Z2): Konkrete Zwift RoboPacer-Gruppen (z.B. "Bernie" ~1.5 W/kg, "Miguel" ~1.8 W/kg, "Maria" ~2.2 W/kg) oder bewährte Social Group Rides (z.B. BMTR, Pack, 3R Endurance Rides).
    - Für Intervall- & Schwellentage: Exakter Name des Workouts aus der Zwift-Bibliothek (z.B. unter "60-90 Minutes to Burn", "FTP Builder" oder "Zwift Academy") oder passende Zwift-Rennen/Time Trials.
    - Nenne jeweils die empfohlene Leistungskategorie (A, B, C oder D basierend auf meinem W/kg-Verhältnis) und die empfohlene Zwift-Welt/Strecke (z.B. Tempus Fugit in Watopia für gleichmäßiges Pacing ohne störende Steigungen).
-4. REGENERATION & ERNÄHRUNG: 3 wichtige Praxistipps für diesen Trainingsblock.`;
+4. REGENERATION & ERNÄHRUNG: 3 wichtige Praxistipps für diesen Trainingsblock.
+5. PDF-DATEI / DOKUMENT ZUM NACHLESEN:
+   Erstelle vom fertigen 7-Tage-Trainingsplan bitte zusätzlich ein übersichtliches, formatiertes Dokument (oder Claude-Artifact / PDF-Download-Vorlage), sodass ich ihn direkt als PDF-Datei auf meinem Mac und iPhone abspeichern, ausdrucken und jederzeit während der Trainingswoche griffbereit nachlesen kann.`;
   }, [stats, hrDistribution, settings, sportFilter, stravaConfig, filteredActivities]);
 
   const athleteSummary = claudePrompt;

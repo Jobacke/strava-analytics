@@ -214,15 +214,47 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                 <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
                   <Calendar className="w-4 h-4" /> Dein 7-Tage-Trainingsplan von Claude
                 </span>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(generatedPlan);
-                    alert('Trainingsplan in die Zwischenablage kopiert!');
-                  }}
-                  className="text-xs text-slate-400 hover:text-white flex items-center gap-1"
-                >
-                  <Copy className="w-3.5 h-3.5" /> Plan kopieren
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const printWindow = window.open('', '_blank');
+                      if (printWindow) {
+                        printWindow.document.write(`
+                          <!DOCTYPE html>
+                          <html>
+                            <head>
+                              <title>7-Tage-Trainingsplan & Zwift - Strava Pulse</title>
+                              <style>
+                                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #0f172a; line-height: 1.6; }
+                                h1 { font-size: 20px; color: #ea580c; border-bottom: 2px solid #fdba74; padding-bottom: 8px; margin-bottom: 20px; }
+                                pre { white-space: pre-wrap; font-family: inherit; font-size: 13px; }
+                              </style>
+                            </head>
+                            <body>
+                              <h1>⚡ 7-Tage-Trainingsplan & Zwift-Events &bull; Strava Pulse</h1>
+                              <pre>${generatedPlan}</pre>
+                            </body>
+                          </html>
+                        `);
+                        printWindow.document.close();
+                        printWindow.focus();
+                        printWindow.print();
+                      }
+                    }}
+                    className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 transition"
+                  >
+                    Als PDF speichern
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedPlan);
+                      alert('Trainingsplan in die Zwischenablage kopiert!');
+                    }}
+                    className="text-xs text-slate-400 hover:text-white flex items-center gap-1"
+                  >
+                    <Copy className="w-3.5 h-3.5" /> Plan kopieren
+                  </button>
+                </div>
               </div>
               <div className="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed font-sans max-h-80 overflow-y-auto pr-2">
                 {generatedPlan}
