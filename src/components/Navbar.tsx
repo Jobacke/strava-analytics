@@ -1,6 +1,7 @@
 import React from 'react';
 import { Activity, Sliders, Upload, RefreshCw, Zap, ShieldCheck } from 'lucide-react';
 import { StravaConfig } from '../services/stravaApi';
+import { APP_VERSION } from '../version';
 
 interface NavbarProps {
   isDemoMode: boolean;
@@ -43,6 +44,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
                 <span className="px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20">
                   Analytics & Coach
+                </span>
+                <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded-md bg-slate-800 text-amber-400 border border-amber-500/30 shadow-sm" title="App Version">
+                  {APP_VERSION}
                 </span>
               </div>
               <p className="text-xs text-slate-400 hidden sm:block">

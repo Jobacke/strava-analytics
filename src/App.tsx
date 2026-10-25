@@ -33,6 +33,7 @@ import { ActivityDetailModal } from './components/ActivityDetailModal';
 import { StravaConnectModal } from './components/StravaConnectModal';
 import { UserSettingsModal } from './components/UserSettingsModal';
 import { ClaudeCoachModal } from './components/ClaudeCoachModal';
+import { APP_VERSION } from './version';
 import { subDays, parseISO, isAfter } from 'date-fns';
 
 export function App() {
@@ -202,7 +203,9 @@ DEINE AUFGABE ALS MEIN TRAINER:
    - Dauer (in Minuten)
    - Konkrete Intensitätsvorgaben (Ziel-Herzfrequenzzone und Wattbereiche basierend auf meiner FTP/HFmax)
    - Konkreter Ablauf (z.B. Warmup, Hauptteil mit Intervallen und Pausen, Cooldown)
-3. 3 WICHTIGE REGENERATIONS- & ERNÄHRUNGSTIPPS für diesen Trainingsblock.`;
+3. ZWIFT-TRAININGSOPTIONEN:
+   Kannst Du mir für die kommende Woche die entsprechenden Trainingsoptionen bei Zwift herausfinden und empfehlen? (z.B. konkrete Workouts aus der Zwift-Bibliothek, passende RoboPacer-Gruppen für Z2-Grundlagenfahrten oder empfohlene Zwift-Strecken/Events, die exakt zu den Einheiten dieses 7-Tage-Plans passen).
+4. REGENERATION & ERNÄHRUNG: 3 wichtige Praxistipps für diesen Trainingsblock.`;
   }, [stats, hrDistribution, settings, sportFilter, stravaConfig, filteredActivities]);
 
   const athleteSummary = claudePrompt;
@@ -319,8 +322,12 @@ DEINE AUFGABE ALS MEIN TRAINER:
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-6 mt-12 text-center text-xs text-slate-500">
-        <p>
-          Strava Pulse &bull; Smarte Trainingsauswertung & Belastungssteuerung für Ausdauersportler &bull; Lokale Datenverarbeitung
+        <p className="flex items-center justify-center gap-2">
+          <span>Strava Pulse</span>
+          <span className="text-amber-400 font-mono font-bold px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[11px]">
+            {APP_VERSION}
+          </span>
+          <span>&bull; Smarte Trainingsauswertung & Belastungssteuerung für Ausdauersportler &bull; Lokale Datenverarbeitung</span>
         </p>
       </footer>
     </div>
