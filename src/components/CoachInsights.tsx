@@ -5,9 +5,14 @@ import { AlertTriangle, CheckCircle2, Info, Flame, Sparkles, Copy, Check, Chevro
 interface CoachInsightsProps {
   insights: CoachInsight[];
   athleteSummary: string;
+  onOpenClaudeModal?: () => void;
 }
 
-export const CoachInsights: React.FC<CoachInsightsProps> = ({ insights, athleteSummary }) => {
+export const CoachInsights: React.FC<CoachInsightsProps> = ({
+  insights,
+  athleteSummary,
+  onOpenClaudeModal,
+}) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopyPrompt = () => {
@@ -63,24 +68,37 @@ export const CoachInsights: React.FC<CoachInsightsProps> = ({ insights, athleteS
           </div>
         </div>
 
-        {/* Copy AI Coach Prompt Button */}
-        <button
-          onClick={handleCopyPrompt}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 transition shrink-0"
-          title="Kopiert deine aktuellen Trainingsdaten als Prompt für ein KI-Gespräch"
-        >
-          {copied ? (
-            <>
-              <Check className="w-4 h-4 text-emerald-400" />
-              <span className="text-emerald-400">Trainings-Prompt kopiert!</span>
-            </>
-          ) : (
-            <>
-              <Copy className="w-4 h-4 text-orange-400" />
-              <span>Prompt für KI-Coach kopieren</span>
-            </>
+        {/* AI Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {onOpenClaudeModal && (
+            <button
+              onClick={onOpenClaudeModal}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold shadow-lg shadow-orange-500/20 transition"
+              title="Öffnet Claude auf deinem Mac oder iPhone zur Erstellung eines 7-Tage-Trainingsplans"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>7-Tage-Plan mit Claude erstellen</span>
+            </button>
           )}
-        </button>
+
+          <button
+            onClick={handleCopyPrompt}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 border border-slate-700 transition"
+            title="Kopiert deine Trainingsdaten in die Zwischenablage"
+          >
+            {copied ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-emerald-400">Kopiert</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5 text-slate-400" />
+                <span className="hidden sm:inline">Prompt kopieren</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Insights Cards List */}

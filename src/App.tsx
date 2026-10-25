@@ -32,6 +32,7 @@ import { ActivityList } from './components/ActivityList';
 import { ActivityDetailModal } from './components/ActivityDetailModal';
 import { StravaConnectModal } from './components/StravaConnectModal';
 import { UserSettingsModal } from './components/UserSettingsModal';
+import { ClaudeCoachModal } from './components/ClaudeCoachModal';
 import { subDays, parseISO, isAfter } from 'date-fns';
 
 export function App() {
@@ -51,6 +52,7 @@ export function App() {
   const [selectedActivity, setSelectedActivity] = useState<StravaActivity | null>(null);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState<boolean>(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
+  const [isClaudeModalOpen, setIsClaudeModalOpen] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [oauthStatus, setOauthStatus] = useState<string | null>(null);
 
@@ -156,21 +158,54 @@ export function App() {
     };
   }, [filteredActivities]);
 
-  // Text summary for AI prompt export
-  const athleteSummary = useMemo(() => {
-    return `Hier ist mein aktuelles Trainingsprofil aus Strava Pulse:
-- Sportarten: ${sportFilter === 'ALL' ? 'Laufen & Radfahren' : sportFilter}
-- Wochenumfang (letzte 7 Tage): ${stats.weeklyKm} km (${stats.kmDeltaPercent >= 0 ? '+' : ''}${stats.kmDeltaPercent}% vs Vorwoche)
-- Verletzungsradar (ACWR): ${stats.currentACWR.toFixed(2)}
-- Aktuelle Fitness (CTL, 42-Tage-Basis): ${stats.currentFitnessCTL}
-- Aktuelle Ermüdung (ATL, 7 Tage): ${stats.currentFatigueATL}
-- Form / Frische (TSB): ${stats.currentFormTSB > 0 ? '+' : ''}${stats.currentFormTSB}
-- Ruhetage in den letzten 14 Tagen: ${stats.restDaysLast14}
-- HF-Zonen-Verteilung (letzte 30 Tage): Z1-Z2: ${hrDistribution.polarizedScore}%, Z3 (Tempo): ${hrDistribution.junkZonePercentage}%, Z4-Z5 (Schwelle/VO2max): ${hrDistribution.z4 + hrDistribution.z5}%
-- Maximale Herzfrequenz: ${settings.maxHeartRate} bpm, Ruhepuls: ${settings.restingHeartRate} bpm
+  // Comprehensive prompt tailored for Claude 3.5 Sonnet & Claude App
+  const claudePrompt = useMemo(() => {
+    const athleteName = stravaConfig?.athleteName || 'Johannes Backhaus';
+    const recentSample = filteredActivities.slice(0, 5).map(a => {
+      const dist = a.distance > 0 ? `${(a.distance / 1000).toFixed(1)} km` : 'Indoor Rolle (Kickr Core)';
+      const dur = Math.round(a.moving_time / 60);
+      const hr = a.average_heartrate ? `, Ø Puls: ${Math.round(a.average_heartrate)} bpm` : '';
+      const watts = a.average_watts ? `, Ø Leistung: ${Math.round(a.average_watts)} W` : '';
+      return `• ${a.start_date.split('T')[0]}: ${a.name} (${dist}, ${dur} min${hr}${watts})`;
+    }).join('\n');
 
-Bitte analysiere diesen Zustand sportwissenschaftlich und erstelle mir einen optimalen Trainings- und Erholungsplan für die nächste Woche.`;
-  }, [stats, hrDistribution, settings, sportFilter]);
+    return `Du bist mein persönlicher Sportwissenschaftler und Ausdauertrainer.
+Hier sind meine aktuellen, echten Leistungs- und Belastungsdaten aus meiner Strava-Trainingsanalyse für Athlet "${athleteName}":
+
+LEISTUNGSPROFIL & AKTUELLE BELASTUNG (Coggan & Banister Modell):
+- Sportarten: ${sportFilter === 'ALL' ? 'Radsport (Wahoo Kickr Core) & Laufsport' : sportFilter === 'Ride' ? 'Radsport (Wahoo Kickr Core Smart-Trainer)' : 'Laufsport'}
+- Wochenvolumen (letzte 7 Tage): ${stats.weeklyHours} Stunden (${stats.weeklyKm} km, ${stats.kmDeltaPercent >= 0 ? '+' : ''}${stats.kmDeltaPercent}% vs. Vorwoche)
+- Verletzungs- & Überlastungsradar (ACWR): ${stats.currentACWR.toFixed(2)} (Optimalbereich: 0.85 - 1.25)
+- Chronische Fitness (CTL, 42-Tage-Basis): ${stats.currentFitnessCTL}
+- Akute Ermüdung (ATL, 7 Tage): ${stats.currentFatigueATL}
+- Form & Frische (TSB = CTL - ATL): ${stats.currentFormTSB > 0 ? '+' : ''}${stats.currentFormTSB}
+- Ruhetage in den letzten 14 Tagen: ${stats.restDaysLast14}
+- Herzfrequenz-Zonen-Verteilung (letzte 30 Tage):
+  • Zone 1-2 (Grundlagenbasis GA1): ${hrDistribution.polarizedScore}%
+  • Zone 3 (Tempo / Grauzone): ${hrDistribution.junkZonePercentage}%
+  • Zone 4-5 (Schwelle & VO2max): ${hrDistribution.z4 + hrDistribution.z5}%
+- Physiologische Parameter:
+  • Maximale Herzfrequenz (HFmax): ${settings.maxHeartRate} bpm
+  • Ruhepuls: ${settings.restingHeartRate} bpm
+  • FTP-Schwellenleistung (Rad): ${settings.ftpWatts || 250} Watt
+
+LETZTE DOKUMENTIERTE EINHEITEN:
+${recentSample || '• Wahoo Kickr Core Indoor-Einheiten mit Leistungsmesser'}
+
+DEINE AUFGABE ALS MEIN TRAINER:
+1. STATUS-DIAGNOSE: Beurteile kurz meinen aktuellen Erholungs- und Formzustand (Überlastungsrisiko, Polarisation 80/20, Regeneration).
+2. KONKRETER 7-TAGE-TRAININGSPLAN (Kommende 7 Tage, Tag für Tag von Tag 1 bis Tag 7):
+   Erstelle einen strukturierten, abwechslungsreichen Plan. Mein primäres Rad-Trainingsgerät ist der Wahoo Kickr Core Smart-Trainer.
+   Bitte gib für JEDEN Tag an:
+   - Wochentag & Trainingsziel
+   - Typ der Einheit (z.B. Z2 Grundlagenausdauer auf der Rolle, Sweet-Spot-Intervalle, VO2max-Reize, Erholungsfahrt oder Ruhetag)
+   - Dauer (in Minuten)
+   - Konkrete Intensitätsvorgaben (Ziel-Herzfrequenzzone und Wattbereiche basierend auf meiner FTP/HFmax)
+   - Konkreter Ablauf (z.B. Warmup, Hauptteil mit Intervallen und Pausen, Cooldown)
+3. 3 WICHTIGE REGENERATIONS- & ERNÄHRUNGSTIPPS für diesen Trainingsblock.`;
+  }, [stats, hrDistribution, settings, sportFilter, stravaConfig, filteredActivities]);
+
+  const athleteSummary = claudePrompt;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
@@ -225,6 +260,7 @@ Bitte analysiere diesen Zustand sportwissenschaftlich und erstelle mir einen opt
         <CoachInsights
           insights={insights}
           athleteSummary={athleteSummary}
+          onOpenClaudeModal={() => setIsClaudeModalOpen(true)}
         />
 
         {/* Charts Grid: Fitness Curve & HR Polarized Distribution */}
@@ -272,6 +308,13 @@ Bitte analysiere diesen Zustand sportwissenschaftlich und erstelle mir einen opt
         onClose={() => setIsSettingsModalOpen(false)}
         settings={settings}
         onSaveSettings={handleSaveSettings}
+      />
+
+      {/* Claude AI Coach Modal */}
+      <ClaudeCoachModal
+        isOpen={isClaudeModalOpen}
+        onClose={() => setIsClaudeModalOpen(false)}
+        prompt={claudePrompt}
       />
 
       {/* Footer */}
