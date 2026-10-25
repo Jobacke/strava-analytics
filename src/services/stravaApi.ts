@@ -142,7 +142,7 @@ export async function getValidAccessToken(): Promise<string> {
 /**
  * Fetch activities directly from Strava API with multi-page support
  */
-export async function fetchStravaActivities(maxActivities = 400): Promise<StravaActivity[]> {
+export async function fetchStravaActivities(maxActivities = 1000): Promise<StravaActivity[]> {
   const token = await getValidAccessToken();
   const allActivities: StravaActivity[] = [];
   const perPage = 200; // Strava maximum per_page
@@ -186,6 +186,7 @@ export async function fetchStravaActivities(maxActivities = 400): Promise<Strava
       average_watts: a.average_watts,
       weighted_average_watts: a.weighted_average_watts,
       suffer_score: a.suffer_score,
+      trainer: a.trainer || a.type === 'VirtualRide',
     }));
 
     allActivities.push(...parsed);

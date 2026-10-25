@@ -5,6 +5,7 @@ import { UserAthleteSettings } from '../types/strava';
 interface OverviewMetricsProps {
   stats: {
     weeklyKm: number;
+    weeklyHours: number;
     prevWeeklyKm: number;
     kmDeltaPercent: number;
     restDaysLast14: number;
@@ -154,9 +155,16 @@ export const OverviewMetrics: React.FC<OverviewMetricsProps> = ({
             </div>
           </div>
           <div className="flex items-baseline justify-between">
-            <span className="text-3xl font-extrabold text-white tracking-tight">
-              {stats.weeklyKm} <span className="text-lg font-normal text-slate-400">km</span>
-            </span>
+            <div>
+              <span className="text-3xl font-extrabold text-white tracking-tight">
+                {stats.weeklyKm} <span className="text-lg font-normal text-slate-400">km</span>
+              </span>
+              {stats.weeklyHours > 0 && (
+                <span className="text-xs text-slate-400 block mt-0.5">
+                  {stats.weeklyHours} h Trainingszeit
+                </span>
+              )}
+            </div>
             <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${
               stats.kmDeltaPercent >= 0 ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 bg-slate-800'
             }`}>

@@ -10,6 +10,7 @@ export function analyzeTrainingCoach(
   hrDistribution: HeartRateZoneDistribution;
   stats: {
     weeklyKm: number;
+    weeklyHours: number;
     prevWeeklyKm: number;
     kmDeltaPercent: number;
     restDaysLast14: number;
@@ -39,6 +40,7 @@ export function analyzeTrainingCoach(
       hrDistribution: { z1: 20, z2: 60, z3: 10, z4: 7, z5: 3, totalTimeSec: 0, polarizedScore: 80, junkZonePercentage: 10 },
       stats: {
         weeklyKm: 0,
+        weeklyHours: 0,
         prevWeeklyKm: 0,
         kmDeltaPercent: 0,
         restDaysLast14: 0,
@@ -67,8 +69,14 @@ export function analyzeTrainingCoach(
     return isAfter(d, prev7DaysDate) && !isAfter(d, last7DaysDate);
   });
 
-  const weeklyKm = Math.round(last7DaysActivities.reduce((acc, a) => acc + a.distance / 1000, 0) * 10) / 10;
-  const prevWeeklyKm = Math.round(prev7DaysActivities.reduce((acc, a) => acc + a.distance / 1000, 0) * 10) / 10;
+  let weeklyKm = Math.round(last7DaysActivities.reduce((acc, a) => acc + a.distance / 1000, 0) * 10) / 10;
+  const weeklyHours = Math.round(last7DaysActivities.reduce((acc, a) => acc + a.moving_time / 3600, 0) * 10) / 10;
+  let prevWeeklyKm = Math.round(prev7DaysActivities.reduce((acc, a) => acc + a.distance / 1000, 0) * 10) / 10;
+
+  // If mostly indoor training without distance sensor, estimate km from hours (25 km/h)
+  if (weeklyKm <= 0 && weeklyHours > 0) {
+    weeklyKm = Math.round(weeklyHours * 25 * 10) / 10;
+  }
 
   let kmDeltaPercent = 0;
   if (prevWeeklyKm > 5) {
@@ -241,6 +249,7 @@ export function analyzeTrainingCoach(
     hrDistribution,
     stats: {
       weeklyKm,
+      weeklyHours,
       prevWeeklyKm,
       kmDeltaPercent,
       restDaysLast14,

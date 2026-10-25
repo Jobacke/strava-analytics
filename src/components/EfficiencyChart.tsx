@@ -41,7 +41,9 @@ export const EfficiencyChart: React.FC<EfficiencyChartProps> = ({ activities }) 
           </div>
           <div className="flex justify-between text-slate-300">
             <span>Distanz:</span>
-            <span className="font-semibold text-white">{item.distanceKm} km</span>
+            <span className="font-semibold text-white">
+              {item.distanceKm === 'Indoor' ? 'Indoor (Rolle)' : `${item.distanceKm} km`}
+            </span>
           </div>
           <div className="flex justify-between text-slate-300">
             <span>Pace / Speed:</span>

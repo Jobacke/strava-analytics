@@ -7,6 +7,8 @@ import {
 import {
   DEFAULT_SETTINGS,
   calculateFitnessAndFatigue,
+  isCyclingActivity,
+  isRunningActivity,
 } from './utils/trainingMath';
 import { analyzeTrainingCoach } from './utils/coachEngine';
 import { generateMockActivities } from './data/mockActivities';
@@ -60,6 +62,8 @@ export function App() {
 
   const filteredActivities = useMemo(() => {
     if (sportFilter === 'ALL') return baseActivities;
+    if (sportFilter === 'Ride') return baseActivities.filter(isCyclingActivity);
+    if (sportFilter === 'Run') return baseActivities.filter(isRunningActivity);
     return baseActivities.filter(a => a.type === sportFilter);
   }, [baseActivities, sportFilter]);
 
@@ -77,7 +81,7 @@ export function App() {
           setStravaConfig(config);
           setIsDemoMode(false);
           setOauthStatus('Synchronisiere Aktivitäten...');
-          const activities = await fetchStravaActivities(400);
+          const activities = await fetchStravaActivities(1000);
           setUserActivities(activities);
           saveStoredActivities(activities);
           setOauthStatus(`Erfolgreich! ${activities.length} Aktivitäten geladen.`);
@@ -98,7 +102,7 @@ export function App() {
     try {
       setIsSyncing(true);
       setOauthStatus('Lade neueste Aktivitäten von Strava...');
-      const activities = await fetchStravaActivities(400);
+      const activities = await fetchStravaActivities(1000);
       setUserActivities(activities);
       saveStoredActivities(activities);
       setIsDemoMode(false);

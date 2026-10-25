@@ -32,17 +32,64 @@ export function formatDuration(seconds: number): string {
 }
 
 /**
+ * Check if an activity is cycling (outdoor, indoor, Kickr, trainer, virtual)
+ */
+export function isCyclingActivity(a: StravaActivity): boolean {
+  const t = (a.type || '').toLowerCase();
+  const st = (a.sport_type || '').toLowerCase();
+  const name = (a.name || '').toLowerCase();
+
+  return (
+    t.includes('ride') ||
+    t.includes('bike') ||
+    t.includes('cycle') ||
+    t === 'virtualride' ||
+    st.includes('ride') ||
+    st.includes('bike') ||
+    st.includes('cycle') ||
+    st === 'virtualride' ||
+    st === 'indoorcycling' ||
+    a.trainer === true ||
+    name.includes('kickr') ||
+    name.includes('wahoo') ||
+    name.includes('zwift') ||
+    name.includes('rolle') ||
+    name.includes('fahrt') ||
+    name.includes('spinning') ||
+    name.includes('erg')
+  );
+}
+
+/**
+ * Check if an activity is running (outdoor, treadmill, trail)
+ */
+export function isRunningActivity(a: StravaActivity): boolean {
+  const t = (a.type || '').toLowerCase();
+  const st = (a.sport_type || '').toLowerCase();
+
+  return (
+    t === 'run' ||
+    t === 'virtualrun' ||
+    t === 'trailrun' ||
+    st.includes('run')
+  );
+}
+
+/**
  * Format speed in m/s to Pace (min/km) for running or km/h for cycling
  */
-export function formatPace(metersPerSecond: number, sport: string): string {
-  if (!metersPerSecond || metersPerSecond <= 0) return '-';
-
+export function formatPace(metersPerSecond: number, sport: string, watts?: number): string {
   if (sport === 'Run' || sport === 'VirtualRun' || sport === 'Walk' || sport === 'Hike') {
+    if (!metersPerSecond || metersPerSecond <= 0) return '-';
     const secPerKm = 1000 / metersPerSecond;
     const mins = Math.floor(secPerKm / 60);
     const secs = Math.floor(secPerKm % 60);
     return `${mins}:${secs.toString().padStart(2, '0')} min/km`;
   } else {
+    if (!metersPerSecond || metersPerSecond <= 0) {
+      if (watts && watts > 0) return `${Math.round(watts)} W`;
+      return 'Indoor (Rolle)';
+    }
     const kmh = metersPerSecond * 3.6;
     return `${kmh.toFixed(1)} km/h`;
   }
@@ -250,26 +297,45 @@ export function calculateFitnessAndFatigue(
 }
 
 /**
- * Calculate Aerobic Efficiency (Speed / HR) for Runs & Rides over time
+ * Calculate Aerobic Efficiency (Speed or Watts / HR) for Runs & Rides over time
  */
 export function calculateAerobicEfficiency(activities: StravaActivity[]) {
   const eligible = activities
-    .filter(a => (a.type === 'Run' || a.type === 'Ride') && a.average_heartrate && a.average_heartrate > 100 && a.distance > 3000)
+    .filter(a => {
+      const isSport = isCyclingActivity(a) || isRunningActivity(a);
+      const hasHr = a.average_heartrate && a.average_heartrate > 90;
+      const hasLength = a.distance > 2000 || a.moving_time > 600; // at least 10 min or 2km
+      return isSport && hasHr && hasLength;
+    })
     .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
 
   return eligible.map(a => {
-    const speedKmh = a.average_speed * 3.6;
-    const efficiency = a.average_heartrate ? (speedKmh / a.average_heartrate) * 100 : 0;
+    let speedKmh = a.average_speed * 3.6;
+    let efficiency = 0;
+
+    if (a.average_watts && a.average_watts > 50 && a.average_heartrate) {
+      // For cycling with power meter/Kickr: Watts per bpm * 10
+      efficiency = (a.average_watts / a.average_heartrate) * 10;
+    } else if (speedKmh > 0 && a.average_heartrate) {
+      // Speed per bpm
+      efficiency = (speedKmh / a.average_heartrate) * 100;
+    } else if (a.moving_time > 0 && a.average_heartrate) {
+      // Fallback: estimate 25 km/h for indoor
+      efficiency = (25 / a.average_heartrate) * 100;
+      speedKmh = 25;
+    }
+
     return {
       date: format(parseISO(a.start_date), 'dd.MM'),
       fullDate: format(parseISO(a.start_date), 'yyyy-MM-dd'),
       name: a.name,
-      sport: a.type,
-      efficiency: Math.round(efficiency * 10) / 10, // Index: speed per 100 bpm
+      sport: isCyclingActivity(a) ? 'Ride' : 'Run',
+      efficiency: Math.round(efficiency * 10) / 10,
       avgHr: Math.round(a.average_heartrate || 0),
       avgSpeed: Math.round(speedKmh * 10) / 10,
-      paceStr: formatPace(a.average_speed, a.type),
-      distanceKm: (a.distance / 1000).toFixed(1),
+      avgWatts: a.average_watts ? Math.round(a.average_watts) : undefined,
+      paceStr: formatPace(a.average_speed, a.type, a.average_watts),
+      distanceKm: a.distance > 0 ? (a.distance / 1000).toFixed(1) : 'Indoor',
     };
   });
 }

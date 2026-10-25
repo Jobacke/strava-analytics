@@ -10,6 +10,7 @@ import {
   Legend,
 } from 'recharts';
 import { StravaActivity } from '../types/strava';
+import { isCyclingActivity, isRunningActivity } from '../utils/trainingMath';
 import { startOfWeek, endOfWeek, subWeeks, format, isWithinInterval, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -41,13 +42,18 @@ export const VolumeChart: React.FC<VolumeChartProps> = ({ activities }) => {
     activities.forEach((act) => {
       const actDate = parseISO(act.start_date);
       if (isWithinInterval(actDate, { start: wStart, end: wEnd })) {
-        const km = act.distance / 1000;
+        let km = act.distance / 1000;
         const hrs = act.moving_time / 3600;
 
-        if (act.type === 'Run' || act.type === 'VirtualRun') {
+        // If indoor workout without distance, estimate ~25 km/h for the distance chart
+        if (km <= 0 && isCyclingActivity(act) && hrs > 0) {
+          km = Math.round(hrs * 25 * 10) / 10;
+        }
+
+        if (isRunningActivity(act)) {
           runKm += km;
           runHours += hrs;
-        } else if (act.type === 'Ride' || act.type === 'VirtualRide') {
+        } else if (isCyclingActivity(act)) {
           rideKm += km;
           rideHours += hrs;
         } else {

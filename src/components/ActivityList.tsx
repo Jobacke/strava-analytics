@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StravaActivity } from '../types/strava';
-import { formatPace, formatDuration } from '../utils/trainingMath';
+import { formatPace, formatDuration, isCyclingActivity } from '../utils/trainingMath';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Search, ChevronRight, Heart, Mountain, Zap } from 'lucide-react';
@@ -86,8 +86,9 @@ export const ActivityList: React.FC<ActivityListProps> = ({ activities, onSelect
             {filtered.slice(0, visibleCount).map((act) => {
               const dateStr = format(parseISO(act.start_date), 'd. MMM yyyy, HH:mm', { locale: de });
               const distKm = (act.distance / 1000).toFixed(2);
-              const pace = formatPace(act.average_speed, act.type);
+              const pace = formatPace(act.average_speed, act.type, act.average_watts);
               const duration = formatDuration(act.moving_time);
+              const isIndoor = isCyclingActivity(act) && (act.distance <= 0 || act.trainer);
 
               return (
                 <tr
@@ -99,7 +100,14 @@ export const ActivityList: React.FC<ActivityListProps> = ({ activities, onSelect
                     <div className="flex items-center gap-2">
                       <span className="text-base">{getSportIcon(act.type)}</span>
                       <div>
-                        <div className="font-semibold text-slate-200">{act.type}</div>
+                        <div className="font-semibold text-slate-200 flex items-center gap-1.5">
+                          <span>{act.type}</span>
+                          {isIndoor && (
+                            <span className="px-1.5 py-0.2 text-[9px] font-medium bg-blue-500/20 text-blue-300 rounded border border-blue-500/30">
+                              Rolle
+                            </span>
+                          )}
+                        </div>
                         <div className="text-[11px] text-slate-400">{dateStr}</div>
                       </div>
                     </div>
@@ -108,9 +116,15 @@ export const ActivityList: React.FC<ActivityListProps> = ({ activities, onSelect
                     {act.name}
                   </td>
                   <td className="py-3 px-3 text-right font-semibold text-slate-200 whitespace-nowrap">
-                    {act.distance > 0 ? `${distKm} km` : '-'}
+                    {act.distance > 0 ? (
+                      `${distKm} km`
+                    ) : isIndoor ? (
+                      <span className="text-blue-400 text-[11px]">Indoor Rolle</span>
+                    ) : (
+                      '-'
+                    )}
                   </td>
-                  <td className="py-3 px-3 text-right text-slate-300 whitespace-nowrap">
+                  <td className="py-3 px-3 text-right text-slate-300 whitespace-nowrap font-medium">
                     {duration}
                   </td>
                   <td className="py-3 px-3 text-right font-mono text-slate-300 whitespace-nowrap">
