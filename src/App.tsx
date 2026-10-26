@@ -34,7 +34,7 @@ import { StravaConnectModal } from './components/StravaConnectModal';
 import { UserSettingsModal } from './components/UserSettingsModal';
 import { ClaudeCoachModal, ClaudeCoachMode } from './components/ClaudeCoachModal';
 import { APP_VERSION } from './version';
-import { subDays, parseISO, isAfter } from 'date-fns';
+import { subDays, parseISO, isAfter, addDays, format } from 'date-fns';
 
 export function App() {
   const [stravaConfig, setStravaConfig] = useState<StravaConfig | null>(() => getStoredStravaConfig());
@@ -228,6 +228,20 @@ Bitte strukturiere deine Analyse präzise wie folgt:
    - 3 strategische Hebel für die nächsten 3-4 Wochen, um meine Leistungsfähigkeit gezielt zu steigern.`;
   }, [stats, hrDistribution, settings, sportFilter, stravaConfig, filteredActivities]);
 
+  // Dynamische Datums- und Titelberechnung für den 7-Tage-Trainingsplan
+  const planDateRange = useMemo(() => {
+    const athleteName = stravaConfig?.athleteName || 'Johannes Backhaus';
+    const today = new Date();
+    const day1 = format(today, 'dd.MM.yyyy');
+    const day7 = format(addDays(today, 6), 'dd.MM.yyyy');
+    const title = `Trainingsplan für ${athleteName} vom ${day1} - ${day7}`;
+    return {
+      day1,
+      day7,
+      title,
+    };
+  }, [stravaConfig]);
+
   // Prompt 2: Strukturierter 7-Tage-Trainingsplan & Zwift .zwo-Workouts
   const claudePlanPrompt = useMemo(() => {
     const athleteName = stravaConfig?.athleteName || 'Johannes Backhaus';
@@ -286,13 +300,16 @@ DEINE AUFGABE ALS MEIN TRAINER:
      Gib für jede Radeinheit den vollständigen Code im offiziellen Zwift-Workout-Format (.zwo XML-Codeblock) aus, sodass ich die Datei bei Bedarf manuell kopieren kann.
 5. REGENERATION & ERNÄHRUNG: 3 wichtige Praxistipps für diesen Trainingsblock.
 6. DOKUMENT & PDF ZUM NACHLESEN:
-   • FÜR ANTIGRAVITY:
-     Speichere den fertigen 7-Tage-Trainingsplan bitte zusätzlich als übersichtliche, formatierte Markdown-Datei unter:
-     /Users/johannes/Documents/Zwift/Trainingspläne/Trainingsplan_Johannes_Backhaus_7Tage.md
-     (oder erstelle daraus direkt eine PDF im selben Ordner).
+   • TITEL & FORMAT DER TRAININGSPLANÜBERSICHT:
+     Die Trainingsplanübersicht MUSS exakt folgendes Format als Hauptüberschrift und Dateiname haben:
+     "${planDateRange.title}"
+   • FÜR ANTIGRAVITY (Mac Desktop-Workflow):
+     Speichere die fertige Trainingsplanübersicht bitte als formatierte Markdown-Datei exakt unter folgendem Pfad ab:
+     /Users/johannes/Documents/Zwift/Trainingspläne/${planDateRange.title}.md
+     (oder erstelle daraus direkt die entsprechende PDF mit demselben Namen im selben Ordner).
    • FÜR CLAUDE:
-     Erstelle eine saubere Vorschau / PDF-Vorlage zum Nachlesen.`;
-  }, [stats, hrDistribution, settings, sportFilter, stravaConfig, filteredActivities]);
+     Verwende ebenfalls exakt die Hauptüberschrift "${planDateRange.title}" für das erstellte Dokument.`;
+  }, [stats, hrDistribution, settings, sportFilter, stravaConfig, filteredActivities, planDateRange]);
 
   const athleteSummary = claudeAnalysisPrompt;
 
@@ -409,6 +426,7 @@ DEINE AUFGABE ALS MEIN TRAINER:
         analysisPrompt={claudeAnalysisPrompt}
         planPrompt={claudePlanPrompt}
         initialMode={claudeModalMode}
+        planTitle={planDateRange.title}
       />
 
       {/* Footer */}

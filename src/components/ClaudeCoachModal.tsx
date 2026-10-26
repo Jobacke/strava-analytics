@@ -22,6 +22,7 @@ interface ClaudeCoachModalProps {
   analysisPrompt: string;
   planPrompt: string;
   initialMode?: ClaudeCoachMode;
+  planTitle?: string;
 }
 
 export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
@@ -30,6 +31,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
   analysisPrompt,
   planPrompt,
   initialMode = 'analysis',
+  planTitle = 'Trainingsplan für Johannes Backhaus',
 }) => {
   const [activeTab, setActiveTab] = useState<ClaudeCoachMode>(initialMode);
   const [copiedAntigravity, setCopiedAntigravity] = useState(false);
@@ -343,7 +345,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                     onClick={() => {
                       const printWindow = window.open('', '_blank');
                       if (printWindow) {
-                        const title = isAnalysis ? 'Leistungsanalyse & Diagnose - Analytics' : '7-Tage-Trainingsplan & Zwift - Analytics';
+                        const title = isAnalysis ? 'Leistungsanalyse & Diagnose - Analytics' : planTitle;
                         printWindow.document.write(`
                           <!DOCTYPE html>
                           <html>
