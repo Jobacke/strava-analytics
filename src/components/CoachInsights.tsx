@@ -75,19 +75,19 @@ export const CoachInsights: React.FC<CoachInsightsProps> = ({
               <button
                 onClick={() => onOpenClaudeModal('analysis')}
                 className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold shadow-lg shadow-cyan-500/20 transition"
-                title="Auswertung und Schlussfolgerungen aus deinen Trainingsdaten mit Claude (ohne Trainingsplan)"
+                title="Auswertung und Schlussfolgerungen aus deinen Trainingsdaten mit Antigravity oder Claude"
               >
                 <BarChart3 className="w-4 h-4" />
-                <span>Datenanalyse mit Claude</span>
+                <span>Datenanalyse mit KI</span>
               </button>
 
               <button
                 onClick={() => onOpenClaudeModal('plan')}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold shadow-lg shadow-orange-500/20 transition"
-                title="7-Tage-Trainingsplan & benutzerdefinierte Zwift-Workouts mit Claude erstellen"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold shadow-lg shadow-orange-500/20 transition"
+                title="7-Tage-Trainingsplan & automatische .zwo-Ablage in Zwift mit Antigravity"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>7-Tage-Plan & Zwift</span>
+                <span>7-Tage-Plan & Zwift (.zwo Auto)</span>
               </button>
             </>
           )}

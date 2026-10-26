@@ -200,6 +200,10 @@ DEINE AUFGABE ALS SPORTWISSENSCHAFTLICHER ANALYST:
 Analysiere ausschließlich diese vorliegenden Daten tiefgehend und ziehe fundierte sportwissenschaftliche Schlussfolgerungen.
 WICHTIGE VORGABE: Bitte erstelle KEINEN 7-Tage-Trainingsplan und KEINE benutzerdefinierten Zwift-Workouts oder .zwo-Dateien. Konzentriere dich zu 100 % auf die Auswertung des Ist-Zustands, Trends und strategische Erkenntnisse!
 
+SPEICHERORT FÜR ANTIGRAVITY (Mac):
+Da du direkten Dateisystemzugriff hast, speichere deinen ausführlichen Analysebericht mit allen Erkenntnissen und Empfehlungen bitte direkt als formatierte Markdown-Datei unter folgendem Pfad ab:
+/Users/johannes/Documents/Zwift/Trainingspläne/Leistungsanalyse_Johannes_Backhaus.md
+
 Bitte strukturiere deine Analyse präzise wie folgt:
 
 1. EXECUTIVE SUMMARY:
@@ -274,10 +278,20 @@ DEINE AUFGABE ALS MEIN TRAINER:
    - Für Intervall- & Schwellentage: Exakter Name des Workouts aus der Zwift-Bibliothek (z.B. unter "60-90 Minutes to Burn", "FTP Builder" oder "Zwift Academy") oder passende Zwift-Rennen/Time Trials.
    - Nenne jeweils die empfohlene Leistungskategorie (A, B, C oder D basierend auf meinem W/kg-Verhältnis) und die empfohlene Zwift-Welt/Strecke (z.B. Tempus Fugit in Watopia für gleichmäßiges Pacing ohne störende Steigungen).
 4. BENUTZERDEFINIERTE ZWIFT-WORKOUTS ALS DATEI (.ZWO):
-   Bitte erstelle mir für die Trainingstage mit Radtraining die entsprechenden benutzerdefinierten Workouts in Zwift als Datei zur Verfügung. Gib für jede Radeinheit den vollständigen Code im offiziellen Zwift-Workout-Format (.zwo XML-Datei oder als Claude-Artifact) aus, sodass ich die Dateien direkt in meinen Zwift-Workouts-Ordner kopieren und mit automatischer ERG-Steuerung auf meinem Wahoo Kickr Core abfahren kann.
+   • ANWEISUNG FÜR ANTIGRAVITY (Mac - Direkte Auto-Ablage):
+     Da du direkten Dateisystemzugriff auf meinem Mac hast, erstelle für JEDEN Trainingstag mit Radtraining die vollständige .zwo XML-Datei und speichere sie DIREKT mit deinen Datei-Werkzeugen in folgendem Ordner ab:
+     /Users/johannes/Documents/Zwift/Workouts/1304674/
+     (Verwende saubere Dateinamen, z.B. JB_Tag2_Di_Erholung_45.zwo, JB_Tag3_Mi_Grundlage_60.zwo, JB_Tag4_Do_VO2max_4x3.zwo, JB_Tag6_Sa_Lange_Grundlage_90.zwo, JB_Tag7_So_SweetSpot_2x15.zwo).
+   • ANWEISUNG FÜR CLAUDE (iPhone / Web):
+     Gib für jede Radeinheit den vollständigen Code im offiziellen Zwift-Workout-Format (.zwo XML-Codeblock) aus, sodass ich die Datei bei Bedarf manuell kopieren kann.
 5. REGENERATION & ERNÄHRUNG: 3 wichtige Praxistipps für diesen Trainingsblock.
-6. PDF-DATEI / DOKUMENT ZUM NACHLESEN:
-   Erstelle vom fertigen 7-Tage-Trainingsplan bitte zusätzlich ein übersichtliches, formatiertes Dokument (oder Claude-Artifact / PDF-Download-Vorlage), sodass ich ihn direkt als PDF-Datei auf meinem Mac und iPhone abspeichern, ausdrucken und jederzeit während der Trainingswoche griffbereit nachlesen kann.`;
+6. DOKUMENT & PDF ZUM NACHLESEN:
+   • FÜR ANTIGRAVITY:
+     Speichere den fertigen 7-Tage-Trainingsplan bitte zusätzlich als übersichtliche, formatierte Markdown-Datei unter:
+     /Users/johannes/Documents/Zwift/Trainingspläne/Trainingsplan_Johannes_Backhaus_7Tage.md
+     (oder erstelle daraus direkt eine PDF im selben Ordner).
+   • FÜR CLAUDE:
+     Erstelle eine saubere Vorschau / PDF-Vorlage zum Nachlesen.`;
   }, [stats, hrDistribution, settings, sportFilter, stravaConfig, filteredActivities]);
 
   const athleteSummary = claudeAnalysisPrompt;

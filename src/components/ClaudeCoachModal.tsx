@@ -5,12 +5,13 @@ import {
   ExternalLink,
   Copy,
   Check,
-  Calendar,
   Zap,
   Key,
   BarChart3,
   Send,
   FileText,
+  FolderDown,
+  Terminal,
 } from 'lucide-react';
 
 export type ClaudeCoachMode = 'analysis' | 'plan';
@@ -31,7 +32,9 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
   initialMode = 'analysis',
 }) => {
   const [activeTab, setActiveTab] = useState<ClaudeCoachMode>(initialMode);
-  const [copied, setCopied] = useState(false);
+  const [copiedAntigravity, setCopiedAntigravity] = useState(false);
+  const [copiedClaude, setCopiedClaude] = useState(false);
+  const [copiedGeneric, setCopiedGeneric] = useState(false);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('claude_api_key') || '');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedResult, setGeneratedResult] = useState<string | null>(null);
@@ -51,16 +54,14 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
   const currentPrompt = activeTab === 'analysis' ? analysisPrompt : planPrompt;
   const isAnalysis = activeTab === 'analysis';
 
-  // Handle Copy & Open Claude Native App (macOS & iOS)
-  const handleOpenClaudeApp = () => {
+  // 1. Antigravity Desktop Launcher (Auto File-Saving)
+  const handleOpenAntigravity = () => {
     navigator.clipboard.writeText(currentPrompt);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 3000);
+    setCopiedAntigravity(true);
+    setTimeout(() => setCopiedAntigravity(false), 3500);
 
-    // Direct deep-link to native Claude App on macOS and iOS
-    const appUrl = `claude://claude.ai/new?q=${encodeURIComponent(currentPrompt)}`;
-    
-    // Trigger deep-link via invisible element to avoid opening blank browser tab
+    // Deep-link to Antigravity on macOS
+    const appUrl = 'antigravity://';
     const a = document.createElement('a');
     a.href = appUrl;
     document.body.appendChild(a);
@@ -68,11 +69,25 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
     document.body.removeChild(a);
   };
 
-  // Fallback to browser web interface
+  // 2. Claude Native App Launcher (macOS & iOS)
+  const handleOpenClaudeApp = () => {
+    navigator.clipboard.writeText(currentPrompt);
+    setCopiedClaude(true);
+    setTimeout(() => setCopiedClaude(false), 3000);
+
+    const appUrl = `claude://claude.ai/new?q=${encodeURIComponent(currentPrompt)}`;
+    const a = document.createElement('a');
+    a.href = appUrl;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  // 3. Fallback to browser web interface
   const handleOpenClaudeWeb = () => {
     navigator.clipboard.writeText(currentPrompt);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 3000);
+    setCopiedClaude(true);
+    setTimeout(() => setCopiedClaude(false), 3000);
 
     const claudeUrl = `https://claude.ai/new?q=${encodeURIComponent(currentPrompt)}`;
     window.open(claudeUrl, '_blank');
@@ -80,14 +95,14 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
 
   const handleCopyOnly = () => {
     navigator.clipboard.writeText(currentPrompt);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    setCopiedGeneric(true);
+    setTimeout(() => setCopiedGeneric(false), 2500);
   };
 
   // Optional Direct In-App Generation if user provides Anthropic API Key
   const handleGenerateInApp = async () => {
     if (!apiKey.trim()) {
-      setErrorMsg('Bitte gib einen Anthropic API-Key ein oder nutze den oberen Button "In Claude-App starten".');
+      setErrorMsg('Bitte gib einen Anthropic API-Key ein oder nutze den oberen Button "In Antigravity starten".');
       return;
     }
 
@@ -118,14 +133,14 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
 
       if (!response.ok) {
         const err = await response.text();
-        throw new Error(`Claude API Fehler (${response.status}): ${err}`);
+        throw new Error(`API Fehler (${response.status}): ${err}`);
       }
 
       const data = await response.json();
       const text = data.content?.[0]?.text || 'Keine Antwort erhalten.';
       setGeneratedResult(text);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Fehler beim Abrufen von Claude.');
+      setErrorMsg(err.message || 'Fehler beim Abrufen der KI-Antwort.');
     } finally {
       setIsGenerating(false);
     }
@@ -140,23 +155,23 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg ${
               isAnalysis 
                 ? 'bg-gradient-to-tr from-cyan-600 to-blue-500 shadow-cyan-500/20' 
-                : 'bg-gradient-to-tr from-amber-600 to-orange-500 shadow-orange-500/20'
+                : 'bg-gradient-to-tr from-orange-600 to-amber-500 shadow-orange-500/20'
             }`}>
               {isAnalysis ? <BarChart3 className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-bold text-white">
-                  {isAnalysis ? 'Claude KI Datenanalyse & Diagnose' : 'Claude KI Trainingsplan & Zwift'}
+                  {isAnalysis ? 'KI Datenanalyse & Leistungsdiagnose' : 'KI Trainingsplan & Zwift-Workouts'}
                 </h2>
-                <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                  Claude App / Pro
+                <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-slate-800 text-amber-400 border border-amber-500/30">
+                  Antigravity & Claude
                 </span>
               </div>
               <p className="text-xs text-slate-400">
                 {isAnalysis
                   ? 'Reine Leistungsanalyse, Erholungsstatus & strategische Schlüsse (ohne Trainingsplan)'
-                  : 'Wissenschaftlicher 7-Tage-Trainingsplan mit benutzerdefinierten Zwift .zwo-Workouts'}
+                  : 'Automatisierte Erstellung von 7-Tage-Plan & Zwift .zwo-Dateien direkt im richtigen Ordner'}
               </p>
             </div>
           </div>
@@ -196,80 +211,64 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
             <Sparkles className="w-3.5 h-3.5" />
             <span>2. 7-Tage-Plan & Zwift</span>
             <span className="text-[10px] py-0.5 px-1.5 rounded bg-orange-500/10 text-orange-300 border border-orange-500/20 font-normal">
-              Mit .zwo & PDF
+              Auto .zwo-Ablage
             </span>
           </button>
         </div>
 
         {/* Modal Body */}
         <div className="p-6 space-y-6 flex-1">
-          {/* Main Action: 1-Click Launch Claude App */}
-          <div className={`p-5 rounded-2xl border shadow-lg space-y-3 ${
-            isAnalysis
-              ? 'bg-gradient-to-br from-cyan-950/30 via-slate-950 to-slate-900 border-cyan-500/30'
-              : 'bg-gradient-to-br from-amber-950/40 via-slate-950 to-slate-900 border-amber-500/30'
-          }`}>
+          {/* PRIMARY METHOD: Antigravity Desktop with Direct File Saving */}
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-orange-950/40 via-slate-950 to-slate-900 border border-orange-500/40 shadow-xl space-y-3 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
+
             <div className="flex items-start justify-between">
               <div>
-                <span className={`text-xs font-bold uppercase tracking-wider block mb-1 ${
-                  isAnalysis ? 'text-cyan-400' : 'text-amber-400'
-                }`}>
-                  Empfohlene Methode (Für Mac & iPhone)
+                <span className="text-[11px] font-extrabold text-orange-400 uppercase tracking-wider flex items-center gap-1.5 mb-1">
+                  <Terminal className="w-3.5 h-3.5 text-orange-400" />
+                  Empfohlen auf dem Mac &bull; Direkte Dateispeicherung
                 </span>
                 <h3 className="text-base font-extrabold text-white">
-                  {isAnalysis ? 'Datenanalyse in deiner Claude-App öffnen' : 'Trainingsplan in deiner Claude-App öffnen'}
+                  In Antigravity starten (Vollautomatisch)
                 </h3>
               </div>
-              <div className={`p-2 rounded-xl border ${
-                isAnalysis
-                  ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
-                  : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-              }`}>
-                <Zap className="w-5 h-5" />
+              <div className="p-2 rounded-xl bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                <FolderDown className="w-5 h-5" />
               </div>
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed">
               {isAnalysis ? (
                 <>
-                  Übergibt Deine <strong>Wahoo Kickr Core Leistungsdaten</strong>, <strong>ACWR-Scores</strong>, <strong>CTL/ATL/TSB-Werte</strong> und <strong>Pulszonen</strong> an Claude zur reinen <strong>Diagnose und Formulierung von Schlussfolgerungen</strong> – ohne Trainingsplan und ohne Zwift-Dateien.
+                  Antigravity analysiert Deine Daten tiefgehend und legt den fertigen Bericht direkt unter <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong> als Markdown-Datei auf Deinem Mac ab.
                 </>
               ) : (
                 <>
-                  Öffnet deinen Claude-Account zur Erstellung eines <strong>7-Tage-Trainingsplans</strong> mit konkreten <strong>Zwift-Events</strong>, <strong>benutzerdefinierten .zwo-Dateien</strong> und <strong>PDF-Export</strong>.
+                  Antigravity schreibt alle <strong>.zwo XML-Dateien</strong> vollautomatisch direkt in Dein Zwift-Verzeichnis <strong><code>~/Documents/Zwift/Workouts/1304674/</code></strong> und speichert den <strong>7-Tage-Plan</strong> unter <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong>. Kein manueller Download nötig!
                 </>
               )}
             </p>
 
             <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
               <button
-                onClick={handleOpenClaudeApp}
-                className={`flex-1 py-3 px-4 rounded-xl text-white font-bold text-xs shadow-lg transition flex items-center justify-center gap-2 ${
-                  isAnalysis
-                    ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 shadow-cyan-500/25'
-                    : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-amber-500/25'
-                }`}
-                title="Startet direkt die native Claude App auf macOS oder iOS"
+                onClick={handleOpenAntigravity}
+                className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs shadow-lg shadow-orange-500/30 transition flex items-center justify-center gap-2 group"
+                title="Kopiert den Prompt und öffnet Antigravity direkt auf deinem Mac"
               >
-                <Zap className="w-4 h-4 text-white" />
-                <span>In Claude-App starten</span>
-              </button>
-
-              <button
-                onClick={handleOpenClaudeWeb}
-                className="py-3 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 transition flex items-center justify-center gap-1.5"
-                title="Falls du Claude lieber im Browser-Tab öffnen möchtest"
-              >
-                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-                <span>Im Browser</span>
+                <Zap className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
+                <span>
+                  {copiedAntigravity
+                    ? '✓ In Zwischenablage kopiert & Antigravity geöffnet!'
+                    : 'In Antigravity öffnen & Prompt übergeben'}
+                </span>
               </button>
 
               <button
                 onClick={handleCopyOnly}
-                className="py-3 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition flex items-center justify-center gap-1.5"
+                className="py-3 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition flex items-center justify-center gap-1.5 shrink-0"
                 title="Nur Text in Zwischenablage kopieren"
               >
-                {copied ? (
+                {copiedGeneric ? (
                   <>
                     <Check className="w-3.5 h-3.5 text-emerald-400" />
                     <span className="text-emerald-400">Kopiert!</span>
@@ -277,19 +276,58 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                 ) : (
                   <>
                     <Copy className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Kopieren</span>
+                    <span>Nur Kopieren</span>
                   </>
                 )}
               </button>
             </div>
 
-            <p className={`text-[11px] p-2.5 rounded-lg border ${
-              isAnalysis
-                ? 'text-cyan-300/90 bg-cyan-500/10 border-cyan-500/20'
-                : 'text-amber-300/80 bg-amber-500/10 border-amber-500/20'
-            }`}>
-              💡 <strong>Tipp:</strong> Klick auf „In Claude-App starten“ bringt direkt deine installierte Claude-App in den Vordergrund. Der vollständige Prompt liegt bereits in deiner Zwischenablage – drücke in Claude einfach <strong>Cmd + V</strong> (oder auf dem iPhone „Einsetzen“)!
+            <p className="text-[11px] text-orange-200/90 bg-orange-500/10 p-2.5 rounded-lg border border-orange-500/20">
+              💡 <strong>So einfach geht's:</strong> Der Klick bringt Antigravity in den Vordergrund und hat den kompletten Befehl kopiert. Drücke in Antigravity einfach <strong>Cmd + V</strong> und <strong>Enter</strong> – die Dateien liegen sofort am richtigen Platz!
             </p>
+          </div>
+
+          {/* SECONDARY METHOD: Claude App (iPhone & Web) */}
+          <div className="p-4.5 rounded-2xl bg-slate-950/70 border border-slate-800/80 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Alternative Methode (Für iPhone & Claude App)
+                </span>
+                <h4 className="text-xs font-bold text-slate-200">
+                  In Claude starten (Unterwegs auf dem Smartphone oder im Browser)
+                </h4>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                Claude iOS / Mac
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Startet deine native Claude-App auf dem iPhone oder Mac oder öffnet Claude im Webbrowser.
+            </p>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={handleOpenClaudeApp}
+                className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition flex items-center justify-center gap-1.5"
+                title="Startet direkt die native Claude App auf macOS oder iOS"
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-400" />
+                <span>
+                  {copiedClaude ? '✓ Kopiert & Claude gestartet' : 'In Claude-App starten'}
+                </span>
+              </button>
+
+              <button
+                onClick={handleOpenClaudeWeb}
+                className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 transition flex items-center justify-center gap-1.5"
+                title="Falls du Claude lieber im Browser-Tab öffnen möchtest"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                <span>Im Browser</span>
+              </button>
+            </div>
           </div>
 
           {/* Generated Result View if present */}
@@ -298,7 +336,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
                   <FileText className="w-4 h-4" /> 
-                  {isAnalysis ? 'Claude Leistungsdiagnose & Auswertung' : 'Dein 7-Tage-Trainingsplan von Claude'}
+                  {isAnalysis ? 'KI Leistungsdiagnose & Auswertung' : 'Dein 7-Tage-Trainingsplan'}
                 </span>
                 <div className="flex items-center gap-2">
                   <button
@@ -330,7 +368,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                     }}
                     className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 transition"
                   >
-                    Als PDF speichern
+                    Als PDF drucken
                   </button>
                   <button
                     onClick={() => {
@@ -353,10 +391,10 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
           <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/60">
             <div className="p-3 bg-slate-950 flex items-center justify-between text-xs text-slate-400 border-b border-slate-800/80">
               <span className="font-semibold text-slate-300">
-                {isAnalysis ? 'Vorschau des Analyse-Prompts (ohne Trainingsplan)' : 'Vorschau des Trainingsplan- & Zwift-Prompts'}
+                {isAnalysis ? 'Vorschau des Analyse-Prompts (inkl. Antigravity-Speicherpfad)' : 'Vorschau des Trainingsplan-Prompts (inkl. Zwift /1304674/ Pfad)'}
               </span>
               <span className="text-[11px] text-slate-500">
-                {isAnalysis ? 'Reine Datenauswertung' : 'Plan + Zwift + .zwo'}
+                {isAnalysis ? 'Diagnose & Bericht' : 'Plan + Auto .zwo'}
               </span>
             </div>
             <div className="p-3 text-[11px] font-mono text-slate-300 max-h-36 overflow-y-auto whitespace-pre-wrap leading-relaxed">
@@ -364,12 +402,12 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
             </div>
           </div>
 
-          {/* Option 2: Direct API Key Generation */}
+          {/* Option 3: Direct API Key Generation */}
           <div className="pt-2 border-t border-slate-800 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                 <Key className="w-3.5 h-3.5 text-slate-400" />
-                Optional: Antwort direkt hier in der App generieren
+                Optional: Antwort direkt hier in der Web-App generieren
               </span>
               <span className="text-[10px] text-slate-500">Mit persönlichem Anthropic API-Key</span>
             </div>
@@ -380,14 +418,14 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                 placeholder="sk-ant-api03-..."
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                className="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500"
+                className="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-orange-500"
               />
               <button
                 onClick={handleGenerateInApp}
                 disabled={isGenerating}
                 className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white border border-slate-700 transition flex items-center gap-1.5 shrink-0"
               >
-                <Send className="w-3.5 h-3.5 text-cyan-400" />
+                <Send className="w-3.5 h-3.5 text-orange-400" />
                 <span>{isGenerating ? 'Generiere...' : 'Direkt laden'}</span>
               </button>
             </div>
