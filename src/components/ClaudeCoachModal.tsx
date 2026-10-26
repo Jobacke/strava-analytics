@@ -12,6 +12,9 @@ import {
   FileText,
   FolderDown,
   Terminal,
+  ChevronDown,
+  ChevronRight,
+  Smartphone,
 } from 'lucide-react';
 
 export type ClaudeCoachMode = 'analysis' | 'plan';
@@ -37,6 +40,8 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
   const [copiedAntigravity, setCopiedAntigravity] = useState(false);
   const [copiedClaude, setCopiedClaude] = useState(false);
   const [copiedGeneric, setCopiedGeneric] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('claude_api_key') || '');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedResult, setGeneratedResult] = useState<string | null>(null);
@@ -48,6 +53,8 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
       setActiveTab(initialMode);
       setGeneratedResult(null);
       setErrorMsg(null);
+      setShowPreview(false);
+      setShowApiKeyInput(false);
     }
   }, [isOpen, initialMode]);
 
@@ -149,47 +156,47 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
-        {/* Header */}
-        <div className="p-6 border-b border-slate-800 flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg ${
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden max-h-[94vh]">
+        {/* Compact Header */}
+        <div className="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+          <div className="flex items-center gap-2.5">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-md ${
               isAnalysis 
                 ? 'bg-gradient-to-tr from-cyan-600 to-blue-500 shadow-cyan-500/20' 
                 : 'bg-gradient-to-tr from-orange-600 to-amber-500 shadow-orange-500/20'
             }`}>
-              {isAnalysis ? <BarChart3 className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
+              {isAnalysis ? <BarChart3 className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-white">
+                <h2 className="text-sm sm:text-base font-bold text-white tracking-tight">
                   {isAnalysis ? 'KI Datenanalyse & Leistungsdiagnose' : 'KI Trainingsplan & Zwift-Workouts'}
                 </h2>
-                <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-slate-800 text-amber-400 border border-amber-500/30">
-                  Antigravity & Claude
+                <span className="hidden sm:inline px-1.5 py-0.5 text-[9px] font-bold uppercase rounded-md bg-slate-800 text-amber-400 border border-amber-500/30">
+                  Antigravity &bull; Zwift Auto-Sync
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-[11px] text-slate-400 leading-tight">
                 {isAnalysis
-                  ? 'Reine Leistungsanalyse, Erholungsstatus & strategische Schlüsse (ohne Trainingsplan)'
-                  : 'Automatisierte Erstellung von 7-Tage-Plan & Zwift .zwo-Dateien direkt im richtigen Ordner'}
+                  ? 'Reine Leistungsanalyse & Formtrends direkt als Dokument auf deinem Mac'
+                  : 'Schreibt .zwo-Dateien direkt nach ~/Documents/Zwift/Workouts/1304674/'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition"
+            className="p-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Tab Switcher: Mode Selection */}
-        <div className="px-6 pt-4 pb-0 bg-slate-900/60 border-b border-slate-800 flex gap-2">
+        {/* Compact Tab Switcher */}
+        <div className="px-5 pt-2 pb-0 bg-slate-900/60 border-b border-slate-800 flex gap-2">
           <button
             onClick={() => setActiveTab('analysis')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border-b-2 transition ${
               isAnalysis
                 ? 'border-cyan-400 text-cyan-300 bg-cyan-950/20'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -197,14 +204,14 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
           >
             <BarChart3 className="w-3.5 h-3.5" />
             <span>1. Datenanalyse & Diagnose</span>
-            <span className="text-[10px] py-0.5 px-1.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-normal">
+            <span className="text-[9px] py-0.2 px-1 rounded bg-cyan-500/10 text-cyan-300 font-normal">
               Ohne Plan
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('plan')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border-b-2 transition ${
               !isAnalysis
                 ? 'border-orange-400 text-orange-300 bg-orange-950/20'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -212,62 +219,55 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>2. 7-Tage-Plan & Zwift</span>
-            <span className="text-[10px] py-0.5 px-1.5 rounded bg-orange-500/10 text-orange-300 border border-orange-500/20 font-normal">
-              Auto .zwo-Ablage
+            <span className="text-[9px] py-0.2 px-1 rounded bg-orange-500/10 text-orange-300 font-normal">
+              Auto .zwo
             </span>
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-6 space-y-6 flex-1">
-          {/* PRIMARY METHOD: Antigravity Desktop with Direct File Saving */}
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-orange-950/40 via-slate-950 to-slate-900 border border-orange-500/40 shadow-xl space-y-3 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
-
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="text-[11px] font-extrabold text-orange-400 uppercase tracking-wider flex items-center gap-1.5 mb-1">
-                  <Terminal className="w-3.5 h-3.5 text-orange-400" />
-                  Empfohlen auf dem Mac &bull; Direkte Dateispeicherung
-                </span>
-                <h3 className="text-base font-extrabold text-white">
-                  In Antigravity starten (Vollautomatisch)
-                </h3>
-              </div>
-              <div className="p-2 rounded-xl bg-orange-500/20 text-orange-400 border border-orange-500/30">
-                <FolderDown className="w-5 h-5" />
+        {/* Modal Body - Optimized for zero-scroll on Mac */}
+        <div className="p-4 sm:p-5 space-y-3 flex-1 overflow-y-auto">
+          {/* PRIMARY METHOD: Antigravity Desktop (Streamlined) */}
+          <div className="p-3.5 sm:p-4 rounded-xl bg-gradient-to-br from-orange-950/35 via-slate-950 to-slate-900 border border-orange-500/35 shadow-lg space-y-2.5 relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-extrabold text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Terminal className="w-3.5 h-3.5 text-orange-400" />
+                Empfohlen auf dem Mac &bull; Direkte Dateispeicherung
+              </span>
+              <div className="p-1 rounded-md bg-orange-500/20 text-orange-400">
+                <FolderDown className="w-3.5 h-3.5" />
               </div>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-slate-300 leading-snug">
               {isAnalysis ? (
                 <>
-                  Antigravity analysiert Deine Daten tiefgehend und legt den fertigen Bericht direkt unter <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong> als Markdown-Datei auf Deinem Mac ab.
+                  Antigravity analysiert Deine Belastungsdaten und speichert den Bericht direkt als Markdown-Datei unter <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong> ab.
                 </>
               ) : (
                 <>
-                  Antigravity schreibt alle <strong>.zwo XML-Dateien</strong> vollautomatisch direkt in Dein Zwift-Verzeichnis <strong><code>~/Documents/Zwift/Workouts/1304674/</code></strong> und speichert den <strong>7-Tage-Plan</strong> unter <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong>. Kein manueller Download nötig!
+                  Antigravity schreibt alle <strong>.zwo XML-Dateien</strong> vollautomatisch nach <strong><code>~/Documents/Zwift/Workouts/1304674/</code></strong> und den <strong>7-Tage-Plan</strong> nach <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong>.
                 </>
               )}
             </p>
 
-            <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+            <div className="pt-1 flex gap-2">
               <button
                 onClick={handleOpenAntigravity}
-                className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs shadow-lg shadow-orange-500/30 transition flex items-center justify-center gap-2 group"
+                className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs shadow-md shadow-orange-500/25 transition flex items-center justify-center gap-2"
                 title="Kopiert den Prompt und öffnet Antigravity direkt auf deinem Mac"
               >
-                <Zap className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
+                <Zap className="w-3.5 h-3.5 text-white" />
                 <span>
                   {copiedAntigravity
-                    ? '✓ In Zwischenablage kopiert & Antigravity geöffnet!'
+                    ? '✓ Kopiert & Antigravity geöffnet!'
                     : 'In Antigravity öffnen & Prompt übergeben'}
                 </span>
               </button>
 
               <button
                 onClick={handleCopyOnly}
-                className="py-3 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition flex items-center justify-center gap-1.5 shrink-0"
+                className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition flex items-center justify-center gap-1.5 shrink-0"
                 title="Nur Text in Zwischenablage kopieren"
               >
                 {copiedGeneric ? (
@@ -284,61 +284,120 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
               </button>
             </div>
 
-            <p className="text-[11px] text-orange-200/90 bg-orange-500/10 p-2.5 rounded-lg border border-orange-500/20">
-              💡 <strong>So einfach geht's:</strong> Der Klick bringt Antigravity in den Vordergrund und hat den kompletten Befehl kopiert. Drücke in Antigravity einfach <strong>Cmd + V</strong> und <strong>Enter</strong> – die Dateien liegen sofort am richtigen Platz!
+            <p className="text-[10px] text-orange-200/80 bg-orange-500/10 px-2 py-1.5 rounded-lg border border-orange-500/20">
+              💡 <strong>Schnellstart:</strong> Nach dem Klick in Antigravity einfach <strong>Cmd + V</strong> und <strong>Enter</strong> drücken.
             </p>
           </div>
 
-          {/* SECONDARY METHOD: Claude App (iPhone & Web) */}
-          <div className="p-4.5 rounded-2xl bg-slate-950/70 border border-slate-800/80 space-y-2.5">
-            <div className="flex items-center justify-between">
+          {/* SECONDARY METHOD: Claude App (Compact Horizontal Bar) */}
+          <div className="px-3.5 py-2.5 rounded-xl bg-slate-950/60 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Smartphone className="w-3.5 h-3.5 text-slate-400" />
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Alternative Methode (Für iPhone & Claude App)
+                <span className="text-xs font-semibold text-slate-200 block">
+                  Für iPhone & Claude App
                 </span>
-                <h4 className="text-xs font-bold text-slate-200">
-                  In Claude starten (Unterwegs auf dem Smartphone oder im Browser)
-                </h4>
+                <span className="text-[10px] text-slate-400">
+                  Ideal für unterwegs oder im Browser
+                </span>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                Claude iOS / Mac
-              </span>
             </div>
 
-            <p className="text-xs text-slate-400">
-              Startet deine native Claude-App auf dem iPhone oder Mac oder öffnet Claude im Webbrowser.
-            </p>
-
-            <div className="flex gap-2 pt-1">
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={handleOpenClaudeApp}
-                className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition flex items-center justify-center gap-1.5"
-                title="Startet direkt die native Claude App auf macOS oder iOS"
+                className="py-1.5 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition flex items-center gap-1"
+                title="Startet native Claude App auf Mac oder iPhone"
               >
-                <Zap className="w-3.5 h-3.5 text-amber-400" />
-                <span>
-                  {copiedClaude ? '✓ Kopiert & Claude gestartet' : 'In Claude-App starten'}
-                </span>
+                <Zap className="w-3 h-3 text-amber-400" />
+                <span>{copiedClaude ? '✓ Kopiert' : 'In Claude-App'}</span>
               </button>
 
               <button
                 onClick={handleOpenClaudeWeb}
-                className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 transition flex items-center justify-center gap-1.5"
-                title="Falls du Claude lieber im Browser-Tab öffnen möchtest"
+                className="py-1.5 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition flex items-center gap-1"
+                title="Im Browser öffnen"
               >
-                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-                <span>Im Browser</span>
+                <ExternalLink className="w-3 h-3 text-slate-400" />
+                <span>Browser</span>
               </button>
             </div>
           </div>
 
+          {/* Collapsible Prompt Preview Accordion */}
+          <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40">
+            <button
+              onClick={() => setShowPreview(!showPreview)}
+              className="w-full px-3 py-2 flex items-center justify-between text-xs text-slate-400 hover:text-slate-200 bg-slate-950/60 transition text-left"
+            >
+              <span className="flex items-center gap-1.5 font-semibold text-slate-300">
+                {showPreview ? <ChevronDown className="w-3.5 h-3.5 text-orange-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
+                {isAnalysis ? 'Prompt-Vorschau (Datenanalyse)' : 'Prompt-Vorschau (Trainingsplan & Zwift Pfad)'}
+              </span>
+              <span className="text-[10px] text-slate-500">
+                {showPreview ? 'Einklappen' : 'Klick zum Einsehen'}
+              </span>
+            </button>
+
+            {showPreview && (
+              <div className="p-3 text-[10px] font-mono text-slate-300 max-h-36 overflow-y-auto whitespace-pre-wrap leading-relaxed border-t border-slate-800/80 bg-slate-950">
+                {currentPrompt}
+              </div>
+            )}
+          </div>
+
+          {/* Collapsible In-App API Generation */}
+          <div className="pt-0.5">
+            {!showApiKeyInput ? (
+              <button
+                onClick={() => setShowApiKeyInput(true)}
+                className="text-[11px] text-slate-500 hover:text-slate-300 flex items-center gap-1 transition"
+              >
+                <Key className="w-3 h-3 text-slate-500" />
+                <span>Optional: Anthropic API-Key hinterlegen (Antwort direkt hier laden)</span>
+              </button>
+            ) : (
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span className="font-semibold text-slate-300 flex items-center gap-1">
+                    <Key className="w-3 h-3 text-orange-400" /> Anthropic API-Key
+                  </span>
+                  <button
+                    onClick={() => setShowApiKeyInput(false)}
+                    className="text-slate-500 hover:text-slate-300"
+                  >
+                    Einklappen
+                  </button>
+                </div>
+                <div className="flex gap-1.5">
+                  <input
+                    type="password"
+                    placeholder="sk-ant-api03-..."
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="flex-1 px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-orange-500"
+                  />
+                  <button
+                    onClick={handleGenerateInApp}
+                    disabled={isGenerating}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white border border-slate-700 transition flex items-center gap-1 shrink-0"
+                  >
+                    <Send className="w-3 h-3 text-orange-400" />
+                    <span>{isGenerating ? 'Lade...' : 'Generieren'}</span>
+                  </button>
+                </div>
+                {errorMsg && <p className="text-[11px] text-red-400">{errorMsg}</p>}
+              </div>
+            )}
+          </div>
+
           {/* Generated Result View if present */}
           {generatedResult && (
-            <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
                   <FileText className="w-4 h-4" /> 
-                  {isAnalysis ? 'KI Leistungsdiagnose & Auswertung' : 'Dein 7-Tage-Trainingsplan'}
+                  {isAnalysis ? 'KI Leistungsdiagnose & Auswertung' : planTitle}
                 </span>
                 <div className="flex items-center gap-2">
                   <button
@@ -368,9 +427,9 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                         printWindow.print();
                       }
                     }}
-                    className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 transition"
+                    className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 transition"
                   >
-                    Als PDF drucken
+                    PDF
                   </button>
                   <button
                     onClick={() => {
@@ -379,70 +438,25 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                     }}
                     className="text-xs text-slate-400 hover:text-white flex items-center gap-1"
                   >
-                    <Copy className="w-3.5 h-3.5" /> Kopieren
+                    <Copy className="w-3 h-3" /> Kopieren
                   </button>
                 </div>
               </div>
-              <div className="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed font-sans max-h-80 overflow-y-auto pr-2">
+              <div className="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed font-sans max-h-48 overflow-y-auto pr-1">
                 {generatedResult}
               </div>
             </div>
           )}
-
-          {/* Prompt Preview Accordion */}
-          <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/60">
-            <div className="p-3 bg-slate-950 flex items-center justify-between text-xs text-slate-400 border-b border-slate-800/80">
-              <span className="font-semibold text-slate-300">
-                {isAnalysis ? 'Vorschau des Analyse-Prompts (inkl. Antigravity-Speicherpfad)' : 'Vorschau des Trainingsplan-Prompts (inkl. Zwift /1304674/ Pfad)'}
-              </span>
-              <span className="text-[11px] text-slate-500">
-                {isAnalysis ? 'Diagnose & Bericht' : 'Plan + Auto .zwo'}
-              </span>
-            </div>
-            <div className="p-3 text-[11px] font-mono text-slate-300 max-h-36 overflow-y-auto whitespace-pre-wrap leading-relaxed">
-              {currentPrompt}
-            </div>
-          </div>
-
-          {/* Option 3: Direct API Key Generation */}
-          <div className="pt-2 border-t border-slate-800 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5 text-slate-400" />
-                Optional: Antwort direkt hier in der Web-App generieren
-              </span>
-              <span className="text-[10px] text-slate-500">Mit persönlichem Anthropic API-Key</span>
-            </div>
-
-            <div className="flex gap-2">
-              <input
-                type="password"
-                placeholder="sk-ant-api03-..."
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                className="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-orange-500"
-              />
-              <button
-                onClick={handleGenerateInApp}
-                disabled={isGenerating}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white border border-slate-700 transition flex items-center gap-1.5 shrink-0"
-              >
-                <Send className="w-3.5 h-3.5 text-orange-400" />
-                <span>{isGenerating ? 'Generiere...' : 'Direkt laden'}</span>
-              </button>
-            </div>
-
-            {errorMsg && (
-              <p className="text-xs text-red-400">{errorMsg}</p>
-            )}
-          </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-slate-800 flex justify-end">
+        {/* Compact Footer */}
+        <div className="px-5 py-2.5 border-t border-slate-800 flex items-center justify-between bg-slate-900/90 text-xs">
+          <span className="text-[11px] text-slate-500">
+            {isAnalysis ? 'Modus: Reine Datenauswertung' : 'Modus: 7-Tage-Plan + .zwo XML'}
+          </span>
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition"
+            className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white transition"
           >
             Schließen
           </button>
