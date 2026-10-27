@@ -92,7 +92,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
     return {
       prompt: analysisPrompt,
       title: `Leistungsanalyse für ${athleteName} (${analysisLookback} Tage)`,
-      filename: `Leistungsanalyse_${analysisLookback}Tage.md`,
+      filename: `Leistungsanalyse_${analysisLookback}Tage.pdf`,
     };
   }, [stats, hrDistribution, settings, filteredActivities, athleteName, analysisLookback, analysisPrompt]);
 
@@ -112,7 +112,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
     return {
       prompt: planPrompt,
       title: planTitle,
-      filename: `${planTitle}.md`,
+      filename: `${planTitle}.pdf`,
       day1: '',
       dayEnd: '',
     };
@@ -276,7 +276,8 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                     }`}
                   >
                     <span>{days} Tage</span>
-                    {days === 14 && <span className="text-[9px] text-cyan-400/80 font-normal">(Optimum)</span>}
+                    {days === 7 && <span className="text-[9px] text-slate-400 font-normal">(1 Woche)</span>}
+                    {days === 14 && <span className="text-[9px] text-cyan-400/80 font-normal">(2 Wochen)</span>}
                   </button>
                 ))}
               </div>
@@ -354,7 +355,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-extrabold text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Terminal className="w-3.5 h-3.5 text-orange-400" />
-                Empfohlen auf dem Mac &bull; Direkte Dateispeicherung
+                Empfohlen auf dem Mac &bull; Direkte PDF- &amp; Dateiablage
               </span>
               <div className="p-1 rounded-md bg-orange-500/20 text-orange-400">
                 <FolderDown className="w-3.5 h-3.5" />
@@ -364,11 +365,11 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
             <p className="text-xs text-slate-300 leading-snug">
               {isAnalysis ? (
                 <>
-                  Antigravity analysiert die Rad-Daten der letzten <strong>{analysisLookback} Tage</strong> und speichert den Bericht direkt als <strong><code>{currentFilename}</code></strong> unter <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong> ab.
+                  Antigravity analysiert die Rad-Daten der letzten <strong>{analysisLookback} Tage</strong> und speichert die Analyse direkt als PDF (<strong><code>{currentFilename}</code></strong>) im Ordner <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong> ab.
                 </>
               ) : (
                 <>
-                  Antigravity erstellt alle <strong>.zwo XML-Dateien</strong> für die kommenden <strong>{planHorizon} Tage</strong> direkt in <strong><code>~/Documents/Zwift/Workouts/1304674/</code></strong> und speichert den Plan als <strong><code>{currentFilename}</code></strong>.
+                  Antigravity erstellt alle <strong>.zwo XML-Dateien</strong> für die kommenden <strong>{planHorizon} Tage</strong> direkt in <strong><code>~/Documents/Zwift/Workouts/1304674/</code></strong> und speichert den Plan als PDF (<strong><code>{currentFilename}</code></strong>) unter <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong>.
                 </>
               )}
             </p>

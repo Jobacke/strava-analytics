@@ -66,8 +66,11 @@ export function buildAnalysisPrompt(options: PromptBuilderOptions): { prompt: st
   const { lookbackDays, athleteName, stats, hrDistribution, settings, filteredActivities } = options;
   const lookback = getLookbackStats(filteredActivities, lookbackDays);
   const sample = formatActivitiesSample(lookback.activities, 10);
+  const weekLabel = lookbackDays === 7 ? '1 Woche / 7 Tage' : lookbackDays === 14 ? '2 Wochen / 14 Tage' : `${lookbackDays} Tage`;
   const title = `Leistungsanalyse für ${athleteName} (Letzte ${lookbackDays} Tage)`;
-  const filename = `Leistungsanalyse_${athleteName.replace(/\s+/g, '_')}_${lookbackDays}Tage.md`;
+  const baseName = `Leistungsanalyse_${athleteName.replace(/\s+/g, '_')}_${lookbackDays}Tage`;
+  const mdFilename = `${baseName}.md`;
+  const filename = `${baseName}.pdf`;
 
   const runNote = lookback.runningCount > 0 
     ? `\n- Ergänzende Laufeinheiten im Zeitraum: ${lookback.runningCount} (nur als aktive Erholung/Alternative)` 
@@ -76,7 +79,7 @@ export function buildAnalysisPrompt(options: PromptBuilderOptions): { prompt: st
   const prompt = `Du bist mein persönlicher Sportwissenschaftler und Leistungsdiagnostiker für den Radsport.
 Hier sind meine aktuellen, echten Leistungs- und Belastungsdaten aus meiner Trainingsanalyse für Athlet "${athleteName}":
 
-LEISTUNGSPROFIL & BELASTUNGSDATEN (Coggan & Banister Modell - Basis: Letzte ${lookbackDays} Tage Radsport):
+LEISTUNGSPROFIL & BELASTUNGSDATEN (Coggan & Banister Modell - Basis: Letzte ${lookbackDays} Tage / ${weekLabel} Radsport):
 - Sportarten-Fokus: 100 % RADSPORT (Wahoo Kickr Core Indoor Smart-Trainer & Rennrad Outdoor)
 - Rad-Trainingsvolumen (letzte ${lookbackDays} Tage): ${lookback.hours} Stunden (${lookback.km} km in ${lookback.count} Radeinheiten, ${lookback.elevation} Höhenmeter)${runNote}
 - Wochenvolumen (letzte 7 Tage Referenz): ${stats.weeklyHours} Stunden (${stats.weeklyKm} km, ${stats.kmDeltaPercent >= 0 ? '+' : ''}${stats.kmDeltaPercent}% vs. Vorwoche)
@@ -99,13 +102,17 @@ DOKUMENTIERTE RADEINHEITEN DER LETZTEN ${lookbackDays} TAGE:
 ${sample}
 
 DEINE AUFGABE ALS SPORTWISSENSCHAFTLICHER ANALYST:
-Analysiere ausschließlich diese vorliegenden Daten der letzten ${lookbackDays} Tage tiefgehend und ziehe fundierte sportwissenschaftliche Schlussfolgerungen für meine Rad-Leistungsfähigkeit.
+Analysiere ausschließlich diese vorliegenden Daten der letzten ${lookbackDays} Tage (${weekLabel}) tiefgehend und ziehe fundierte sportwissenschaftliche Schlussfolgerungen für meine Rad-Leistungsfähigkeit.
 WICHTIGE VORGABE: Bitte erstelle KEINEN Trainingsplan und KEINE benutzerdefinierten Zwift-Workouts oder .zwo-Dateien. Konzentriere dich zu 100 % auf die Auswertung des Ist-Zustands, Trends und strategische Erkenntnisse!
 (Laufeinheiten fließen nicht in die Trainingspläne ein; sie dienen höchstens als allgemeine Ausgleichsbewegung).
 
-SPEICHERORT FÜR ANTIGRAVITY (Mac):
-Da du direkten Dateisystemzugriff hast, speichere deinen ausführlichen Analysebericht mit allen Erkenntnissen und Empfehlungen bitte direkt als formatierte Markdown-Datei unter folgendem Pfad ab:
-/Users/johannes/Documents/Zwift/Trainingspläne/${filename}
+SPEICHERORT & VERBINDLICHE PDF-ABLAGE FÜR ANTIGRAVITY (Mac):
+Da du direkten Dateisystemzugriff auf meinem Mac hast, lege die erstellte Trainingsanalyse (egal ob 1-Wochen-, 2-Wochen- oder 30-Tage-Analyse) IMMER direkt als fertig formatierte PDF-Datei im Ordner Trainingspläne ab:
+1. Speichere deinen Analysebericht zunächst als Markdown-Datei unter:
+   /Users/johannes/Documents/Zwift/Trainingspläne/${mdFilename}
+2. Wandle die Datei anschließend SOFORT mit dem vorhandenen Konvertierungsskript in eine druckreife PDF-Datei um (wobei die temporäre .md-Datei direkt bereinigt wird):
+   python3 "/Users/johannes/Library/CloudStorage/OneDrive-Backhaus/Antigravity/Strava/scripts/md_to_pdf.py" "/Users/johannes/Documents/Zwift/Trainingspläne/${mdFilename}" --remove-md
+Damit liegt die Analyse sofort als "${filename}" im Ordner "/Users/johannes/Documents/Zwift/Trainingspläne/" zum jederzeitigen Nachlesen bereit!
 
 Bitte strukturiere deine Analyse präzise wie folgt:
 
@@ -145,7 +152,8 @@ export function buildPlanPrompt(options: PromptBuilderOptions): { prompt: string
   const day1 = format(today, 'dd.MM.yyyy');
   const dayEnd = format(addDays(today, planDays - 1), 'dd.MM.yyyy');
   const title = `Trainingsplan für ${athleteName} vom ${day1} - ${dayEnd}`;
-  const filename = `${title}.md`;
+  const mdFilename = `${title}.md`;
+  const filename = `${title}.pdf`;
 
   const isTwoWeeks = planDays === 14;
 
@@ -202,14 +210,16 @@ DEINE AUFGABE ALS MEIN RADTRAINER:
    • ANWEISUNG FÜR CLAUDE (iPhone / Web):
      Gib für jede Radeinheit den vollständigen Code im offiziellen Zwift-Workout-Format (.zwo XML-Codeblock) aus, sodass ich die Datei bei Bedarf manuell kopieren kann.
 5. REGENERATION & ERNÄHRUNG: 3 wichtige Praxistipps für diesen ${planDays}-Tage-Trainingsblock auf dem Kickr Core (inkl. optionaler kurzer Laufeinheiten als Rekom).
-6. DOKUMENT & PDF ZUM NACHLESEN:
+6. DOKUMENT & DIREKTE PDF-ABLAGE ZUM NACHLESEN:
    • TITEL & FORMAT DER TRAININGSPLANÜBERSICHT:
      Die Trainingsplanübersicht MUSS exakt folgendes Format als Hauptüberschrift und Dateiname haben:
      "${title}"
-   • FÜR ANTIGRAVITY (Mac Desktop-Workflow):
-     Speichere die fertige Trainingsplanübersicht bitte als formatierte Markdown-Datei exakt unter folgendem Pfad ab:
-     /Users/johannes/Documents/Zwift/Trainingspläne/${filename}
-     (oder erstelle daraus direkt die entsprechende PDF mit demselben Namen im selben Ordner).
+   • FÜR ANTIGRAVITY (Mac Desktop-Workflow - Verbindliche PDF-Ablage):
+     1. Speichere die fertige Trainingsplanübersicht zunächst als Markdown-Datei unter:
+        /Users/johannes/Documents/Zwift/Trainingspläne/${mdFilename}
+     2. Wandle die Datei anschließend SOFORT mit dem vorhandenen Konvertierungsskript in eine druckreife PDF-Datei um (wobei die temporäre .md-Datei direkt bereinigt wird):
+        python3 "/Users/johannes/Library/CloudStorage/OneDrive-Backhaus/Antigravity/Strava/scripts/md_to_pdf.py" "/Users/johannes/Documents/Zwift/Trainingspläne/${mdFilename}" --remove-md
+     Damit liegt der Plan sofort als "${filename}" im Ordner "/Users/johannes/Documents/Zwift/Trainingspläne/" zum Nachlesen bereit!
    • FÜR CLAUDE:
      Verwende ebenfalls exakt die Hauptüberschrift "${title}" für das erstellte Dokument.`;
 
