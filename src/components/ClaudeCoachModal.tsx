@@ -6,10 +6,7 @@ import {
   Copy,
   Check,
   Zap,
-  Key,
   BarChart3,
-  Send,
-  FileText,
   FolderDown,
   Terminal,
   ChevronDown,
@@ -67,20 +64,12 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
   const [copiedClaude, setCopiedClaude] = useState(false);
   const [copiedGeneric, setCopiedGeneric] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('claude_api_key') || '');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedResult, setGeneratedResult] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Sync activeTab if initialMode changes when opened
   useEffect(() => {
     if (isOpen) {
       setActiveTab(initialMode);
-      setGeneratedResult(null);
-      setErrorMsg(null);
       setShowPreview(false);
-      setShowApiKeyInput(false);
       setHasManualEdits(false);
     }
   }, [isOpen, initialMode]);
@@ -130,7 +119,6 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
   }, [stats, hrDistribution, settings, filteredActivities, athleteName, planLookback, planHorizon, planPrompt, planTitle]);
 
   const currentGeneratedPrompt = isAnalysis ? dynamicAnalysis.prompt : dynamicPlan.prompt;
-  const currentTitle = isAnalysis ? dynamicAnalysis.title : dynamicPlan.title;
   const currentFilename = isAnalysis ? dynamicAnalysis.filename : dynamicPlan.filename;
 
   // Sync edited prompt with newly generated template if no manual edits were made
@@ -198,53 +186,6 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
     navigator.clipboard.writeText(promptToUse);
     setCopiedGeneric(true);
     setTimeout(() => setCopiedGeneric(false), 2500);
-  };
-
-  // Optional Direct In-App Generation if user provides Anthropic API Key
-  const handleGenerateInApp = async () => {
-    if (!apiKey.trim()) {
-      setErrorMsg('Bitte gib einen Anthropic API-Key ein oder nutze den oberen Button "In Antigravity starten".');
-      return;
-    }
-
-    try {
-      setIsGenerating(true);
-      setErrorMsg(null);
-      localStorage.setItem('claude_api_key', apiKey.trim());
-
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey.trim(),
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20241022',
-          max_tokens: 3000,
-          messages: [
-            {
-              role: 'user',
-              content: promptToUse,
-            },
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`API Fehler (${response.status}): ${err}`);
-      }
-
-      const data = await response.json();
-      const text = data.content?.[0]?.text || 'Keine Antwort erhalten.';
-      setGeneratedResult(text);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Fehler beim Abrufen der KI-Antwort.');
-    } finally {
-      setIsGenerating(false);
-    }
   };
 
   return (
@@ -567,107 +508,6 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
               </div>
             )}
           </div>
-
-          {/* Collapsible In-App API Generation */}
-          <div className="pt-0.5">
-            {!showApiKeyInput ? (
-              <button
-                onClick={() => setShowApiKeyInput(true)}
-                className="text-[11px] text-slate-500 hover:text-slate-300 flex items-center gap-1 transition"
-              >
-                <Key className="w-3 h-3 text-slate-500" />
-                <span>Optional: Anthropic API-Key hinterlegen (Antwort direkt in Web-App laden)</span>
-              </button>
-            ) : (
-              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
-                  <span className="font-semibold text-slate-300 flex items-center gap-1">
-                    <Key className="w-3 h-3 text-orange-400" /> Anthropic API-Key
-                  </span>
-                  <button
-                    onClick={() => setShowApiKeyInput(false)}
-                    className="text-slate-500 hover:text-slate-300"
-                  >
-                    Einklappen
-                  </button>
-                </div>
-                <div className="flex gap-1.5">
-                  <input
-                    type="password"
-                    placeholder="sk-ant-api03-..."
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    className="flex-1 px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-orange-500"
-                  />
-                  <button
-                    onClick={handleGenerateInApp}
-                    disabled={isGenerating}
-                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white border border-slate-700 transition flex items-center gap-1 shrink-0"
-                  >
-                    <Send className="w-3 h-3 text-orange-400" />
-                    <span>{isGenerating ? 'Lade...' : 'Generieren'}</span>
-                  </button>
-                </div>
-                {errorMsg && <p className="text-[11px] text-red-400">{errorMsg}</p>}
-              </div>
-            )}
-          </div>
-
-          {/* Generated Result View if present */}
-          {generatedResult && (
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                  <FileText className="w-4 h-4" /> 
-                  {currentTitle}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      const printWindow = window.open('', '_blank');
-                      if (printWindow) {
-                        printWindow.document.write(`
-                          <!DOCTYPE html>
-                          <html>
-                            <head>
-                              <title>${currentTitle}</title>
-                              <style>
-                                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #0f172a; line-height: 1.6; }
-                                h1 { font-size: 20px; color: #ea580c; border-bottom: 2px solid #fdba74; padding-bottom: 8px; margin-bottom: 20px; }
-                                pre { white-space: pre-wrap; font-family: inherit; font-size: 13px; }
-                              </style>
-                            </head>
-                            <body>
-                              <h1>⚡ ${currentTitle}</h1>
-                              <pre>${generatedResult}</pre>
-                            </body>
-                          </html>
-                        `);
-                        printWindow.document.close();
-                        printWindow.focus();
-                        printWindow.print();
-                      }
-                    }}
-                    className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 transition"
-                  >
-                    PDF
-                  </button>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(generatedResult);
-                      alert('In die Zwischenablage kopiert!');
-                    }}
-                    className="text-xs text-slate-400 hover:text-white flex items-center gap-1"
-                  >
-                    <Copy className="w-3 h-3" /> Kopieren
-                  </button>
-                </div>
-              </div>
-              <div className="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed font-sans max-h-48 overflow-y-auto pr-1">
-                {generatedResult}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Compact Footer */}
