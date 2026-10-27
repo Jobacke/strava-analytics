@@ -23,20 +23,10 @@ export function analyzeTrainingCoach(
   const insights: CoachInsight[] = [];
   const now = new Date();
 
-  // If no data, return baseline
+  // If no data, return empty insights (no placeholder box)
   if (activities.length === 0 || dailyLoads.length === 0) {
     return {
-      insights: [
-        {
-          id: 'welcome',
-          type: 'info',
-          category: 'volume',
-          title: 'Bereit für deine Trainingsanalyse',
-          description: 'Verbinde dein Strava-Konto oder lade deine Aktivitäten hoch, um personalisierte Coaching-Tipps zu erhalten.',
-          recommendation: 'Starte mit einem Klick auf "Strava verbinden" oder nutze den Demomodus.',
-          priority: 1,
-        },
-      ],
+      insights: [],
       hrDistribution: { z1: 20, z2: 60, z3: 10, z4: 7, z5: 3, totalTimeSec: 0, polarizedScore: 80, junkZonePercentage: 10 },
       stats: {
         weeklyKm: 0,
@@ -172,8 +162,8 @@ export function analyzeTrainingCoach(
       priority: 1,
       metricValue: `${hrDistribution.junkZonePercentage}% Z3`,
       title: 'Grauzonen-Falle erkannt (Zu viel Zone 3)',
-      description: `${hrDistribution.junkZonePercentage}% deiner Trainingszeit lag in Zone 3 (mittlerer Puls). Das ist der typische Ausdauerfehler: zu anstrengend für optimale aerobe Fettstoffwechselanpassung, aber zu langsam für VO2max-Reize.`,
-      recommendation: 'Trainiere polarisierter: Laufe Grundlagenläufe bewusst 30-45s langsamer (Zone 1-2, Sprechtempo). Spare deine Energie, um bei Intervallen (Zone 4-5) wirklich intensiv zu pushen.',
+      description: `${hrDistribution.junkZonePercentage}% deiner Trainingszeit lag in Zone 3. Zu intensiv für optimale Grundlagen-Regeneration, aber zu unterschwellig für maximale VO2max-Reize.`,
+      recommendation: 'Fahre Grundlagenfahrten konsequent in Zone 1–2 und spare deine Körner für gezielte Intervalle (Zone 4–5) auf Zwift oder der Straße.',
     });
   } else if (hrDistribution.polarizedScore >= 75) {
     insights.push({
@@ -182,9 +172,9 @@ export function analyzeTrainingCoach(
       category: 'intensity',
       priority: 3,
       metricValue: `${hrDistribution.polarizedScore}% Z1/Z2`,
-      title: 'Vorbildliches polarisiertes Grundlagentraining',
-      description: `${hrDistribution.polarizedScore}% deines Volumens findet in der aeroben Basis (Z1/Z2) statt. Das schont das vegetative Nervensystem und stärkt die mitochondriale Dichte.`,
-      recommendation: 'Ausgezeichnete Basis! Du hast genug aerobe Reserven für harte Schwelleneinheiten.',
+      title: 'Starkes polarisiertes Grundlagentraining',
+      description: `${hrDistribution.polarizedScore}% deiner Radzeit liegt sauber in der aeroben Basis (Z1/Z2). Das ökonomisiert den Fettstoffwechsel und schont das zentrale Nervensystem.`,
+      recommendation: 'Perfekte Basis für gezielte Schwellen- oder VO2max-Workouts auf dem Wahoo Kickr Core.',
     });
   }
 
