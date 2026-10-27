@@ -144,13 +144,13 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
   // Final prompt to send/copy: edited version if user modified it, else active generated template
   const promptToUse = hasManualEdits ? editedPrompt : currentGeneratedPrompt;
 
-  // 1. Antigravity Desktop Launcher (Auto File-Saving)
+  // 1. Antigravity Desktop Launcher (Auto File-Saving + Auto Prompt Entry)
   const handleOpenAntigravity = () => {
     navigator.clipboard.writeText(promptToUse);
     setCopiedAntigravity(true);
     setTimeout(() => setCopiedAntigravity(false), 3500);
 
-    const appUrl = 'antigravity://';
+    const appUrl = `antigravity://prompt?q=${encodeURIComponent(promptToUse)}`;
     const a = document.createElement('a');
     a.href = appUrl;
     document.body.appendChild(a);
@@ -378,12 +378,12 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
               <button
                 onClick={handleOpenAntigravity}
                 className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs shadow-md shadow-orange-500/25 transition flex items-center justify-center gap-2"
-                title="Kopiert den (ggf. angepassten) Prompt und öffnet Antigravity direkt auf deinem Mac"
+                title="Öffnet Antigravity auf deinem Mac und trägt den (ggf. angepassten) Prompt direkt in das Chat-Eingabefeld ein"
               >
                 <Zap className="w-3.5 h-3.5 text-white" />
                 <span>
                   {copiedAntigravity
-                    ? '✓ Kopiert & Antigravity geöffnet!'
+                    ? '✓ Prompt in Antigravity eingetragen!'
                     : 'In Antigravity öffnen & Prompt übergeben'}
                 </span>
               </button>
@@ -408,7 +408,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
             </div>
 
             <p className="text-[10px] text-orange-200/80 bg-orange-500/10 px-2 py-1 rounded-md border border-orange-500/20">
-              💡 <strong>Schnellstart:</strong> Nach dem Klick in Antigravity einfach <strong>Cmd + V</strong> und <strong>Enter</strong> drücken.
+              💡 <strong>Direkt-Übergabe:</strong> Der Prompt wird automatisch in das Eingabefeld von Antigravity eingetragen – einfach <strong>Enter</strong> drücken (Fallback: <strong>Cmd + V</strong>).
             </p>
           </div>
 
