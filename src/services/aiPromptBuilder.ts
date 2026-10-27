@@ -66,11 +66,13 @@ export function buildAnalysisPrompt(options: PromptBuilderOptions): { prompt: st
   const { lookbackDays, athleteName, stats, hrDistribution, settings, filteredActivities } = options;
   const lookback = getLookbackStats(filteredActivities, lookbackDays);
   const sample = formatActivitiesSample(lookback.activities, 10);
+  const today = new Date();
+  const startDay = format(subDays(today, lookbackDays - 1), 'dd.MM.yyyy');
+  const endDay = format(today, 'dd.MM.yyyy');
   const weekLabel = lookbackDays === 7 ? '1 Woche / 7 Tage' : lookbackDays === 14 ? '2 Wochen / 14 Tage' : `${lookbackDays} Tage`;
-  const title = `Leistungsanalyse für ${athleteName} (Letzte ${lookbackDays} Tage)`;
-  const baseName = `Leistungsanalyse_${athleteName.replace(/\s+/g, '_')}_${lookbackDays}Tage`;
-  const mdFilename = `${baseName}.md`;
-  const filename = `${baseName}.pdf`;
+  const title = `Leistungsanalyse für ${athleteName} vom ${startDay} - ${endDay}`;
+  const mdFilename = `${title}.md`;
+  const filename = `${title}.pdf`;
 
   const runNote = lookback.runningCount > 0 
     ? `\n- Ergänzende Laufeinheiten im Zeitraum: ${lookback.runningCount} (nur als aktive Erholung/Alternative)` 
@@ -79,7 +81,7 @@ export function buildAnalysisPrompt(options: PromptBuilderOptions): { prompt: st
   const prompt = `Du bist mein persönlicher Sportwissenschaftler und Leistungsdiagnostiker für den Radsport.
 Hier sind meine aktuellen, echten Leistungs- und Belastungsdaten aus meiner Trainingsanalyse für Athlet "${athleteName}":
 
-LEISTUNGSPROFIL & BELASTUNGSDATEN (Coggan & Banister Modell - Basis: Letzte ${lookbackDays} Tage / ${weekLabel} Radsport):
+LEISTUNGSPROFIL & BELASTUNGSDATEN (Coggan & Banister Modell - Zeitraum: ${startDay} - ${endDay} / ${weekLabel} Radsport):
 - Sportarten-Fokus: 100 % RADSPORT (Wahoo Kickr Core Indoor Smart-Trainer & Rennrad Outdoor)
 - Rad-Trainingsvolumen (letzte ${lookbackDays} Tage): ${lookback.hours} Stunden (${lookback.km} km in ${lookback.count} Radeinheiten, ${lookback.elevation} Höhenmeter)${runNote}
 - Wochenvolumen (letzte 7 Tage Referenz): ${stats.weeklyHours} Stunden (${stats.weeklyKm} km, ${stats.kmDeltaPercent >= 0 ? '+' : ''}${stats.kmDeltaPercent}% vs. Vorwoche)
@@ -107,12 +109,16 @@ WICHTIGE VORGABE: Bitte erstelle KEINEN Trainingsplan und KEINE benutzerdefinier
 (Laufeinheiten fließen nicht in die Trainingspläne ein; sie dienen höchstens als allgemeine Ausgleichsbewegung).
 
 SPEICHERORT & VERBINDLICHE PDF-ABLAGE FÜR ANTIGRAVITY (Mac):
-Da du direkten Dateisystemzugriff auf meinem Mac hast, lege die erstellte Trainingsanalyse (egal ob 1-Wochen-, 2-Wochen- oder 30-Tage-Analyse) IMMER direkt als fertig formatierte PDF-Datei im Ordner Trainingspläne ab:
-1. Speichere deinen Analysebericht zunächst als Markdown-Datei unter:
-   /Users/johannes/Documents/Zwift/Trainingspläne/${mdFilename}
-2. Wandle die Datei anschließend SOFORT mit dem vorhandenen Konvertierungsskript in eine druckreife PDF-Datei um (wobei die temporäre .md-Datei direkt bereinigt wird):
-   python3 "/Users/johannes/Library/CloudStorage/OneDrive-Backhaus/Antigravity/Strava/scripts/md_to_pdf.py" "/Users/johannes/Documents/Zwift/Trainingspläne/${mdFilename}" --remove-md
-Damit liegt die Analyse sofort als "${filename}" im Ordner "/Users/johannes/Documents/Zwift/Trainingspläne/" zum jederzeitigen Nachlesen bereit!
+• TITEL & DATEINAME DER ANALYSE (MIT ZEITRAUM):
+  Die Analyse MUSS exakt folgendes Format als Hauptüberschrift und Dateiname tragen, damit der analysierte Zeitraum sofort erkennbar ist:
+  "${title}"
+• FÜR ANTIGRAVITY (Mac Desktop-Workflow - Verbindliche PDF-Ablage):
+  Da du direkten Dateisystemzugriff auf meinem Mac hast, lege die erstellte Trainingsanalyse (egal ob 1-Wochen-, 2-Wochen- oder 30-Tage-Analyse) IMMER direkt als fertig formatierte PDF-Datei mit dem Zeitraum im Dateinamen im Ordner Trainingspläne ab:
+  1. Speichere deinen Analysebericht zunächst als Markdown-Datei exakt unter:
+     /Users/johannes/Documents/Zwift/Trainingspläne/${mdFilename}
+  2. Wandle die Datei anschließend SOFORT mit dem vorhandenen Konvertierungsskript in eine druckreife PDF-Datei um (wobei die temporäre .md-Datei direkt bereinigt wird):
+     python3 "/Users/johannes/Library/CloudStorage/OneDrive-Backhaus/Antigravity/Strava/scripts/md_to_pdf.py" "/Users/johannes/Documents/Zwift/Trainingspläne/${mdFilename}" --remove-md
+  Damit liegt die Analyse sofort als "${filename}" im Ordner "/Users/johannes/Documents/Zwift/Trainingspläne/" zum jederzeitigen Nachlesen bereit!
 
 Bitte strukturiere deine Analyse präzise wie folgt:
 
