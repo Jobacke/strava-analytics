@@ -457,6 +457,22 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
 
         {/* Modal Body */}
         <div className="p-4 sm:p-5 space-y-3 flex-1 overflow-y-auto">
+          {/* Active Athlete Baseline Verification Pill */}
+          {settings && (
+            <div className="px-3 py-1.5 rounded-lg bg-slate-950/90 border border-emerald-500/30 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+              <span className="font-semibold text-emerald-300 flex items-center gap-1.5">
+                🔒 Aktive Athleten-Basis im Prompt:
+              </span>
+              <span className="font-mono text-slate-200">
+                FTP <strong>{settings.ftpWatts || 236} W</strong> &bull;{' '}
+                <strong>{settings.weightKg || 95} kg</strong> (
+                {((settings.ftpWatts || 236) / (settings.weightKg || 95)).toFixed(2)} W/kg) &bull; HFmax{' '}
+                <strong>{settings.maxHeartRate || 176} bpm</strong> &bull; Ruhepuls{' '}
+                <strong>{settings.restingHeartRate || 55} bpm</strong>
+              </span>
+            </div>
+          )}
+
           {/* PRIMARY METHOD: Antigravity Desktop */}
           <div className="p-3.5 rounded-xl bg-gradient-to-br from-orange-950/35 via-slate-950 to-slate-900 border border-orange-500/35 shadow-lg space-y-2 relative overflow-hidden">
             <div className="flex items-center justify-between">

@@ -1,5 +1,5 @@
 import { StravaActivity, TrainingStats, HRDistribution, UserAthleteSettings } from '../types/strava';
-import { isCyclingActivity } from '../utils/trainingMath';
+import { isCyclingActivity, JOHANNES_BASELINE_SETTINGS } from '../utils/trainingMath';
 import { subDays, parseISO, isAfter, addDays, format } from 'date-fns';
 
 export interface PromptBuilderOptions {
@@ -96,10 +96,10 @@ LEISTUNGSPROFIL & BELASTUNGSDATEN (Coggan & Banister Modell - Zeitraum: ${startD
   • Zone 3 (Tempo / Grauzone): ${hrDistribution.junkZonePercentage}%
   • Zone 4-5 (Schwelle & VO2max): ${hrDistribution.z4 + hrDistribution.z5}%
 - Physiologische Parameter:
-  • Maximale Herzfrequenz (HFmax): ${settings.maxHeartRate} bpm
-  • Ruhepuls: ${settings.restingHeartRate} bpm
-  • FTP-Schwellenleistung (Rad): ${settings.ftpWatts || 250} Watt
-  • Körpergewicht: ${settings.weightKg || 75} kg (Leistungsgewicht: ${((settings.ftpWatts || 250) / (settings.weightKg || 75)).toFixed(2)} W/kg)
+  • Maximale Herzfrequenz (HFmax): ${settings.maxHeartRate || JOHANNES_BASELINE_SETTINGS.maxHeartRate} bpm
+  • Ruhepuls: ${settings.restingHeartRate || JOHANNES_BASELINE_SETTINGS.restingHeartRate} bpm
+  • FTP-Schwellenleistung (Rad): ${settings.ftpWatts || JOHANNES_BASELINE_SETTINGS.ftpWatts} Watt
+  • Körpergewicht: ${settings.weightKg || JOHANNES_BASELINE_SETTINGS.weightKg} kg (Leistungsgewicht: ${((settings.ftpWatts || JOHANNES_BASELINE_SETTINGS.ftpWatts || 236) / (settings.weightKg || JOHANNES_BASELINE_SETTINGS.weightKg || 95)).toFixed(2)} W/kg)
 
 DOKUMENTIERTE RADEINHEITEN DER LETZTEN ${lookbackDays} TAGE:
 ${sample}
@@ -181,10 +181,10 @@ LEISTUNGSPROFIL & VORBELASTUNG (Coggan & Banister Modell - Basis: Letzte ${lookb
   • Zone 3 (Tempo / Grauzone): ${hrDistribution.junkZonePercentage}%
   • Zone 4-5 (Schwelle & VO2max): ${hrDistribution.z4 + hrDistribution.z5}%
 - Physiologische Parameter:
-  • Maximale Herzfrequenz (HFmax): ${settings.maxHeartRate} bpm
-  • Ruhepuls: ${settings.restingHeartRate} bpm
-  • FTP-Schwellenleistung (Rad): ${settings.ftpWatts || 250} Watt
-  • Körpergewicht: ${settings.weightKg || 75} kg (Leistungsgewicht: ${((settings.ftpWatts || 250) / (settings.weightKg || 75)).toFixed(2)} W/kg)
+  • Maximale Herzfrequenz (HFmax): ${settings.maxHeartRate || JOHANNES_BASELINE_SETTINGS.maxHeartRate} bpm
+  • Ruhepuls: ${settings.restingHeartRate || JOHANNES_BASELINE_SETTINGS.restingHeartRate} bpm
+  • FTP-Schwellenleistung (Rad): ${settings.ftpWatts || JOHANNES_BASELINE_SETTINGS.ftpWatts} Watt
+  • Körpergewicht: ${settings.weightKg || JOHANNES_BASELINE_SETTINGS.weightKg} kg (Leistungsgewicht: ${((settings.ftpWatts || JOHANNES_BASELINE_SETTINGS.ftpWatts || 236) / (settings.weightKg || JOHANNES_BASELINE_SETTINGS.weightKg || 95)).toFixed(2)} W/kg)
 
 DOKUMENTIERTE RADEINHEITEN DER LETZTEN ${lookbackDays} TAGE:
 ${sample}
@@ -202,7 +202,7 @@ DEINE AUFGABE ALS MEIN RADTRAINER:
    - Wochentag & Datum & Trainingsziel
    - Typ der Radeinheit (z.B. Z2 Grundlagenausdauer auf der Rolle, Sweet-Spot-Intervalle, VO2max-Reize, Erholungsfahrt oder Ruhetag)
    - Dauer (in Minuten)
-   - Konkrete Intensitätsvorgaben (Ziel-Herzfrequenzzone und Wattbereiche basierend auf meiner FTP von ${settings.ftpWatts || 250} W und HFmax)
+   - Konkrete Intensitätsvorgaben (Ziel-Herzfrequenzzone und Wattbereiche basierend auf meiner FTP von ${settings.ftpWatts || JOHANNES_BASELINE_SETTINGS.ftpWatts} W und HFmax)
    - Konkreter Ablauf (z.B. Warmup, Hauptteil mit Intervallen und Pausen, Cooldown)
 3. KONKRETE ZWIFT-EVENTS & WORKOUT-EMPFEHLUNGEN FÜR JEDEN TRAININGSTAG:
    Schlage mir für jeden Rad-Trainingstag der kommenden ${planDays} Tage konkrete Zwift-Events oder Workouts vor, die ich direkt in Zwift bzw. der Zwift Companion App auswählen und fahren kann:
@@ -274,9 +274,9 @@ export function buildDailyCheckPrompt(options: PromptBuilderOptions): {
     };
   }
 
-  const ftp = settings.ftpWatts || 250;
-  const maxHr = settings.maxHeartRate || 190;
-  const weight = settings.weightKg || 75;
+  const ftp = settings.ftpWatts || JOHANNES_BASELINE_SETTINGS.ftpWatts || 236;
+  const maxHr = settings.maxHeartRate || JOHANNES_BASELINE_SETTINGS.maxHeartRate;
+  const weight = settings.weightKg || JOHANNES_BASELINE_SETTINGS.weightKg || 95;
 
   const actDateObj = parseISO(targetActivity.start_date);
   const actDateDE = format(actDateObj, 'dd.MM.yyyy');

@@ -1,14 +1,116 @@
 import { StravaActivity, DayTrainingLoad, UserAthleteSettings } from '../types/strava';
 import { format, subDays, parseISO, isSameDay } from 'date-fns';
 
-export const DEFAULT_SETTINGS: UserAthleteSettings = {
-  maxHeartRate: 190,
-  restingHeartRate: 50,
-  ftpWatts: 250,
+/**
+ * Fest hinterlegte persönliche Stamm-Basis für Johannes Backhaus
+ * (Schützt vor Datenverlust bei Browser-Cache-Leerung oder Gerätewechsel)
+ */
+export const JOHANNES_BASELINE_SETTINGS: UserAthleteSettings = {
+  maxHeartRate: 176,
+  restingHeartRate: 55,
+  ftpWatts: 236,
   thresholdPaceSecPerKm: 270, // 4:30 min/km
-  weeklyGoalKm: 45,
-  weightKg: 75,
+  weeklyGoalKm: 120,
+  weightKg: 95,
 };
+
+export const DEFAULT_SETTINGS: UserAthleteSettings = {
+  ...JOHANNES_BASELINE_SETTINGS,
+};
+
+const SETTINGS_STORAGE_KEY = 'strava_pulse_settings';
+const BASELINE_STORAGE_KEY = 'strava_pulse_baseline_settings';
+const MIGRATION_KEY_V220 = 'strava_pulse_migrated_baseline_v220';
+
+/**
+ * Lädt die gesicherte Stamm-Basis (Fallback: fest verdrahtete JOHANNES_BASELINE_SETTINGS)
+ */
+export function getSavedBaselineSettings(): UserAthleteSettings {
+  try {
+    const raw = localStorage.getItem(BASELINE_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        maxHeartRate: Number(parsed.maxHeartRate) || JOHANNES_BASELINE_SETTINGS.maxHeartRate,
+        restingHeartRate: Number(parsed.restingHeartRate) || JOHANNES_BASELINE_SETTINGS.restingHeartRate,
+        ftpWatts: Number(parsed.ftpWatts) || JOHANNES_BASELINE_SETTINGS.ftpWatts,
+        thresholdPaceSecPerKm:
+          Number(parsed.thresholdPaceSecPerKm) || JOHANNES_BASELINE_SETTINGS.thresholdPaceSecPerKm,
+        weeklyGoalKm: Number(parsed.weeklyGoalKm) || JOHANNES_BASELINE_SETTINGS.weeklyGoalKm,
+        weightKg: Number(parsed.weightKg) || JOHANNES_BASELINE_SETTINGS.weightKg,
+      };
+    }
+  } catch {
+    // Fallback auf feste Konstanten
+  }
+  return { ...JOHANNES_BASELINE_SETTINGS };
+}
+
+/**
+ * Speichert eine neue verifizierte Stamm-Basis
+ */
+export function saveBaselineSettings(settings: UserAthleteSettings): void {
+  localStorage.setItem(BASELINE_STORAGE_KEY, JSON.stringify(settings));
+}
+
+/**
+ * Lädt und prüft die Athleten-Einstellungen beim Start der App.
+ * Ersetzt alte generische Dummy-Werte (190 bpm / 50 bpm / 250 W / 75 kg) automatisch
+ * durch die echte persönliche Stamm-Basis (176 bpm / 55 bpm / 236 W / 95 kg).
+ */
+export function loadVerifiedSettings(): UserAthleteSettings {
+  const baseline = getSavedBaselineSettings();
+  try {
+    const migrated = localStorage.getItem(MIGRATION_KEY_V220);
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(baseline));
+      localStorage.setItem(MIGRATION_KEY_V220, 'true');
+      return { ...baseline };
+    }
+
+    const parsed = JSON.parse(raw);
+    const isOldGenericDefault =
+      !migrated &&
+      (parsed.maxHeartRate === 190 ||
+        parsed.ftpWatts === 250 ||
+        parsed.weightKg === 75 ||
+        parsed.restingHeartRate === 50);
+
+    if (isOldGenericDefault) {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(baseline));
+      localStorage.setItem(MIGRATION_KEY_V220, 'true');
+      return { ...baseline };
+    }
+
+    localStorage.setItem(MIGRATION_KEY_V220, 'true');
+    return {
+      maxHeartRate: Number(parsed.maxHeartRate) || baseline.maxHeartRate,
+      restingHeartRate: Number(parsed.restingHeartRate) || baseline.restingHeartRate,
+      ftpWatts: Number(parsed.ftpWatts) || baseline.ftpWatts,
+      thresholdPaceSecPerKm: Number(parsed.thresholdPaceSecPerKm) || baseline.thresholdPaceSecPerKm,
+      weeklyGoalKm: Number(parsed.weeklyGoalKm) || baseline.weeklyGoalKm,
+      weightKg: Number(parsed.weightKg) || baseline.weightKg,
+    };
+  } catch {
+    return { ...baseline };
+  }
+}
+
+/**
+ * Prüft, ob die aktuell aktiven Werte von der hinterlegten Stamm-Basis abweichen
+ */
+export function hasSettingsDeviation(
+  current: UserAthleteSettings,
+  baseline: UserAthleteSettings = JOHANNES_BASELINE_SETTINGS
+): boolean {
+  return (
+    Number(current.maxHeartRate) !== Number(baseline.maxHeartRate) ||
+    Number(current.restingHeartRate) !== Number(baseline.restingHeartRate) ||
+    Number(current.ftpWatts || 236) !== Number(baseline.ftpWatts || 236) ||
+    Number(current.weightKg || 95) !== Number(baseline.weightKg || 95)
+  );
+}
 
 /**
  * Format meters to km

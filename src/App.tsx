@@ -6,6 +6,10 @@ import {
 } from './types/strava';
 import {
   DEFAULT_SETTINGS,
+  JOHANNES_BASELINE_SETTINGS,
+  loadVerifiedSettings,
+  hasSettingsDeviation,
+  saveBaselineSettings,
   calculateFitnessAndFatigue,
   isCyclingActivity,
   isRunningActivity,
@@ -43,10 +47,12 @@ export function App() {
   const [stravaConfig, setStravaConfig] = useState<StravaConfig | null>(() => getStoredStravaConfig());
   const [userActivities, setUserActivities] = useState<StravaActivity[] | null>(() => getStoredActivities());
 
-  const [settings, setSettings] = useState<UserAthleteSettings>(() => {
-    const raw = localStorage.getItem('strava_pulse_settings');
-    return raw ? JSON.parse(raw) : DEFAULT_SETTINGS;
-  });
+  const [settings, setSettings] = useState<UserAthleteSettings>(() => loadVerifiedSettings());
+
+  const isDeviatingFromHardBaseline = useMemo(
+    () => hasSettingsDeviation(settings, JOHANNES_BASELINE_SETTINGS),
+    [settings]
+  );
 
   const [sportFilter, setSportFilter] = useState<string>('Ride');
   const [selectedActivity, setSelectedActivity] = useState<StravaActivity | null>(null);
@@ -197,6 +203,72 @@ export function App() {
         onSportFilterChange={setSportFilter}
         activitiesCount={filteredActivities.length}
       />
+
+      {/* Athleten-Basis-Check Leiste (Verifizierte Referenzwerte auf einen Blick beim Start) */}
+      <div
+        className={`border-b px-4 py-2 transition-colors ${
+          isDeviatingFromHardBaseline
+            ? 'bg-amber-950/40 border-amber-500/40'
+            : 'bg-slate-900/60 border-slate-800/80'
+        }`}
+      >
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <span
+              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-bold text-[11px] border ${
+                isDeviatingFromHardBaseline
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+              }`}
+            >
+              {isDeviatingFromHardBaseline ? '⚠️ Basis-Check: Werte geändert' : '🔒 Athleten-Basis gesichert'}
+            </span>
+
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-300 font-mono">
+              <span>
+                FTP: <strong className="text-amber-400">{settings.ftpWatts || 236} W</strong>
+              </span>
+              <span>&bull;</span>
+              <span>
+                Gewicht: <strong className="text-emerald-400">{settings.weightKg || 95} kg</strong>{' '}
+                <span className="text-slate-400">
+                  ({((settings.ftpWatts || 236) / (settings.weightKg || 95)).toFixed(2)} W/kg)
+                </span>
+              </span>
+              <span>&bull;</span>
+              <span>
+                HFmax: <strong className="text-rose-400">{settings.maxHeartRate || 176} bpm</strong>
+              </span>
+              <span>&bull;</span>
+              <span>
+                Ruhepuls: <strong className="text-cyan-400">{settings.restingHeartRate || 55} bpm</strong>
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isDeviatingFromHardBaseline && (
+              <button
+                onClick={() => {
+                  const clean = { ...JOHANNES_BASELINE_SETTINGS };
+                  saveBaselineSettings(clean);
+                  handleSaveSettings(clean);
+                }}
+                className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-[11px] transition shadow-sm"
+                title="Stellt sofort deine fest hinterlegten Stammwerte (236 W • 95 kg • 176 bpm • 55 bpm) wieder her"
+              >
+                ↺ Auf Stammwerte (236 W / 95 kg / 176 bpm) zurücksetzen
+              </button>
+            )}
+            <button
+              onClick={() => setIsSettingsModalOpen(true)}
+              className="text-[11px] text-slate-400 hover:text-white underline underline-offset-2 transition"
+            >
+              Prüfen / Anpassen
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* OAuth Status Banner */}
       {oauthStatus && (
