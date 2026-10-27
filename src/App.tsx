@@ -50,7 +50,7 @@ export function App() {
     return raw ? JSON.parse(raw) : DEFAULT_SETTINGS;
   });
 
-  const [sportFilter, setSportFilter] = useState<string>('ALL');
+  const [sportFilter, setSportFilter] = useState<string>('Ride');
   const [selectedActivity, setSelectedActivity] = useState<StravaActivity | null>(null);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState<boolean>(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);

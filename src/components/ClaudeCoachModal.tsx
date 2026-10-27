@@ -17,7 +17,8 @@ import {
   Smartphone,
   Calendar,
   Clock,
-  SlidersHorizontal,
+  Edit3,
+  RotateCcw,
 } from 'lucide-react';
 import { StravaActivity, TrainingStats, HRDistribution, UserAthleteSettings } from '../types/strava';
 import { buildAnalysisPrompt, buildPlanPrompt } from '../services/aiPromptBuilder';
@@ -46,7 +47,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
   stats,
   hrDistribution,
   settings,
-  sportFilter = 'ALL',
+  sportFilter = 'Ride',
   filteredActivities = [],
   athleteName = 'Johannes Backhaus',
   analysisPrompt = '',
@@ -57,6 +58,10 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
   const [analysisLookback, setAnalysisLookback] = useState<number>(14);
   const [planLookback, setPlanLookback] = useState<number>(14);
   const [planHorizon, setPlanHorizon] = useState<number>(7);
+
+  // Live prompt editor state
+  const [editedPrompt, setEditedPrompt] = useState<string>('');
+  const [hasManualEdits, setHasManualEdits] = useState(false);
 
   const [copiedAntigravity, setCopiedAntigravity] = useState(false);
   const [copiedClaude, setCopiedClaude] = useState(false);
@@ -76,6 +81,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
       setErrorMsg(null);
       setShowPreview(false);
       setShowApiKeyInput(false);
+      setHasManualEdits(false);
     }
   }, [isOpen, initialMode]);
 
@@ -90,7 +96,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
         stats,
         hrDistribution,
         settings,
-        sportFilter,
+        sportFilter: 'Ride',
         filteredActivities,
       });
     }
@@ -99,7 +105,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
       title: `Leistungsanalyse für ${athleteName} (${analysisLookback} Tage)`,
       filename: `Leistungsanalyse_${analysisLookback}Tage.md`,
     };
-  }, [stats, hrDistribution, settings, sportFilter, filteredActivities, athleteName, analysisLookback, analysisPrompt]);
+  }, [stats, hrDistribution, settings, filteredActivities, athleteName, analysisLookback, analysisPrompt]);
 
   const dynamicPlan = useMemo(() => {
     if (stats && hrDistribution && settings) {
@@ -110,7 +116,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
         stats,
         hrDistribution,
         settings,
-        sportFilter,
+        sportFilter: 'Ride',
         filteredActivities,
       });
     }
@@ -121,17 +127,38 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
       day1: '',
       dayEnd: '',
     };
-  }, [stats, hrDistribution, settings, sportFilter, filteredActivities, athleteName, planLookback, planHorizon, planPrompt, planTitle]);
+  }, [stats, hrDistribution, settings, filteredActivities, athleteName, planLookback, planHorizon, planPrompt, planTitle]);
 
-  if (!isOpen) return null;
-
-  const currentPrompt = isAnalysis ? dynamicAnalysis.prompt : dynamicPlan.prompt;
+  const currentGeneratedPrompt = isAnalysis ? dynamicAnalysis.prompt : dynamicPlan.prompt;
   const currentTitle = isAnalysis ? dynamicAnalysis.title : dynamicPlan.title;
   const currentFilename = isAnalysis ? dynamicAnalysis.filename : dynamicPlan.filename;
 
+  // Sync edited prompt with newly generated template if no manual edits were made
+  useEffect(() => {
+    if (!hasManualEdits) {
+      setEditedPrompt(currentGeneratedPrompt);
+    }
+  }, [currentGeneratedPrompt, hasManualEdits]);
+
+  // Tab switch handler: reset manual edits so user sees fresh template of that mode
+  const handleTabChange = (mode: ClaudeCoachMode) => {
+    setActiveTab(mode);
+    setHasManualEdits(false);
+  };
+
+  const handleResetToTemplate = () => {
+    setEditedPrompt(currentGeneratedPrompt);
+    setHasManualEdits(false);
+  };
+
+  if (!isOpen) return null;
+
+  // Final prompt to send/copy: edited version if user modified it, else active generated template
+  const promptToUse = hasManualEdits ? editedPrompt : currentGeneratedPrompt;
+
   // 1. Antigravity Desktop Launcher (Auto File-Saving)
   const handleOpenAntigravity = () => {
-    navigator.clipboard.writeText(currentPrompt);
+    navigator.clipboard.writeText(promptToUse);
     setCopiedAntigravity(true);
     setTimeout(() => setCopiedAntigravity(false), 3500);
 
@@ -145,11 +172,11 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
 
   // 2. Claude Native App Launcher (macOS & iOS)
   const handleOpenClaudeApp = () => {
-    navigator.clipboard.writeText(currentPrompt);
+    navigator.clipboard.writeText(promptToUse);
     setCopiedClaude(true);
     setTimeout(() => setCopiedClaude(false), 3000);
 
-    const appUrl = `claude://claude.ai/new?q=${encodeURIComponent(currentPrompt)}`;
+    const appUrl = `claude://claude.ai/new?q=${encodeURIComponent(promptToUse)}`;
     const a = document.createElement('a');
     a.href = appUrl;
     document.body.appendChild(a);
@@ -159,16 +186,16 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
 
   // 3. Fallback to browser web interface
   const handleOpenClaudeWeb = () => {
-    navigator.clipboard.writeText(currentPrompt);
+    navigator.clipboard.writeText(promptToUse);
     setCopiedClaude(true);
     setTimeout(() => setCopiedClaude(false), 3000);
 
-    const claudeUrl = `https://claude.ai/new?q=${encodeURIComponent(currentPrompt)}`;
+    const claudeUrl = `https://claude.ai/new?q=${encodeURIComponent(promptToUse)}`;
     window.open(claudeUrl, '_blank');
   };
 
   const handleCopyOnly = () => {
-    navigator.clipboard.writeText(currentPrompt);
+    navigator.clipboard.writeText(promptToUse);
     setCopiedGeneric(true);
     setTimeout(() => setCopiedGeneric(false), 2500);
   };
@@ -199,7 +226,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
           messages: [
             {
               role: 'user',
-              content: currentPrompt,
+              content: promptToUse,
             },
           ],
         }),
@@ -222,7 +249,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden max-h-[95vh]">
+      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden max-h-[96vh]">
         {/* Compact Header */}
         <div className="px-5 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-900/95">
           <div className="flex items-center gap-2.5">
@@ -236,16 +263,16 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm sm:text-base font-bold text-white tracking-tight">
-                  {isAnalysis ? 'KI Datenanalyse & Leistungsdiagnose' : 'KI Trainingsplan & Zwift-Workouts'}
+                  {isAnalysis ? 'KI Datenanalyse & Leistungsdiagnose' : 'KI Rad-Trainingsplan & Zwift-Workouts'}
                 </h2>
                 <span className="hidden sm:inline px-1.5 py-0.5 text-[9px] font-bold uppercase rounded-md bg-slate-800 text-amber-400 border border-amber-500/30">
-                  Antigravity &bull; Zwift Auto-Sync
+                  100 % Radsport &bull; Zwift Sync
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 leading-tight">
                 {isAnalysis
-                  ? `Analyse der letzten ${analysisLookback} Tage & strategische Schlüsse (ohne Plan)`
-                  : `${planHorizon}-Tage-Plan (${planHorizon === 14 ? '2 Wochen Mesozyklus' : '1 Woche'}) mit .zwo-Ablage in Zwift`}
+                  ? `Radanalyse der letzten ${analysisLookback} Tage (Wahoo Kickr Core & Outdoor)`
+                  : `${planHorizon}-Tage-Radplan (${planHorizon === 14 ? '2 Wochen Mesozyklus' : '1 Woche'}) mit .zwo-Ablage in Zwift`}
               </p>
             </div>
           </div>
@@ -260,7 +287,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
         {/* Mode Selector Tabs */}
         <div className="px-5 pt-2 pb-0 bg-slate-900/70 border-b border-slate-800 flex gap-2">
           <button
-            onClick={() => setActiveTab('analysis')}
+            onClick={() => handleTabChange('analysis')}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border-b-2 transition ${
               isAnalysis
                 ? 'border-cyan-400 text-cyan-300 bg-cyan-950/20'
@@ -272,7 +299,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab('plan')}
+            onClick={() => handleTabChange('plan')}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border-b-2 transition ${
               !isAnalysis
                 ? 'border-orange-400 text-orange-300 bg-orange-950/20'
@@ -291,13 +318,16 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
             <div className="flex items-center justify-between w-full">
               <span className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-cyan-400" />
-                Analyse-Rückblick (Datenbasis):
+                Rückblick (Rad-Datenbasis):
               </span>
               <div className="flex items-center gap-1.5">
                 {([7, 14, 30] as const).map((days) => (
                   <button
                     key={days}
-                    onClick={() => setAnalysisLookback(days)}
+                    onClick={() => {
+                      setAnalysisLookback(days);
+                      setHasManualEdits(false);
+                    }}
                     className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition flex items-center gap-1 ${
                       analysisLookback === days
                         ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 shadow-sm'
@@ -322,7 +352,10 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                   {([7, 14] as const).map((days) => (
                     <button
                       key={days}
-                      onClick={() => setPlanLookback(days)}
+                      onClick={() => {
+                        setPlanLookback(days);
+                        setHasManualEdits(false);
+                      }}
                       className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition ${
                         planLookback === days
                           ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40 shadow-sm'
@@ -342,7 +375,10 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                 </span>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => setPlanHorizon(7)}
+                    onClick={() => {
+                      setPlanHorizon(7);
+                      setHasManualEdits(false);
+                    }}
                     className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold transition ${
                       planHorizon === 7
                         ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
@@ -352,7 +388,10 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                     7 Tage (1 Woche)
                   </button>
                   <button
-                    onClick={() => setPlanHorizon(14)}
+                    onClick={() => {
+                      setPlanHorizon(14);
+                      setHasManualEdits(false);
+                    }}
                     className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold transition ${
                       planHorizon === 14
                         ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
@@ -367,7 +406,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
           )}
         </div>
 
-        {/* Modal Body - Ultra-Compact Zero-Scroll */}
+        {/* Modal Body */}
         <div className="p-4 sm:p-5 space-y-3 flex-1 overflow-y-auto">
           {/* PRIMARY METHOD: Antigravity Desktop */}
           <div className="p-3.5 rounded-xl bg-gradient-to-br from-orange-950/35 via-slate-950 to-slate-900 border border-orange-500/35 shadow-lg space-y-2 relative overflow-hidden">
@@ -384,7 +423,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
             <p className="text-xs text-slate-300 leading-snug">
               {isAnalysis ? (
                 <>
-                  Antigravity analysiert die Daten der letzten <strong>{analysisLookback} Tage</strong> und speichert den Bericht direkt als <strong><code>{currentFilename}</code></strong> unter <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong> ab.
+                  Antigravity analysiert die Rad-Daten der letzten <strong>{analysisLookback} Tage</strong> und speichert den Bericht direkt als <strong><code>{currentFilename}</code></strong> unter <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong> ab.
                 </>
               ) : (
                 <>
@@ -397,7 +436,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
               <button
                 onClick={handleOpenAntigravity}
                 className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs shadow-md shadow-orange-500/25 transition flex items-center justify-center gap-2"
-                title="Kopiert den Prompt und öffnet Antigravity direkt auf deinem Mac"
+                title="Kopiert den (ggf. angepassten) Prompt und öffnet Antigravity direkt auf deinem Mac"
               >
                 <Zap className="w-3.5 h-3.5 text-white" />
                 <span>
@@ -432,7 +471,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
           </div>
 
           {/* SECONDARY METHOD: Claude App (Compact Horizontal Bar) */}
-          <div className="px-3.5 py-2.5 rounded-xl bg-slate-950/60 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="px-3.5 py-2 rounded-xl bg-slate-950/60 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Smartphone className="w-3.5 h-3.5 text-slate-400" />
               <div>
@@ -466,28 +505,65 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
             </div>
           </div>
 
-          {/* Collapsible Prompt Preview Accordion */}
-          <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40">
-            <button
-              onClick={() => setShowPreview(!showPreview)}
-              className="w-full px-3 py-2 flex items-center justify-between text-xs text-slate-400 hover:text-slate-200 bg-slate-950/60 transition text-left"
-            >
-              <span className="flex items-center gap-1.5 font-semibold text-slate-300">
+          {/* INTERACTIVE PROMPT PREVIEW & LIVE EDITOR ACCORDION */}
+          <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/50">
+            <div className="w-full px-3 py-2 flex items-center justify-between text-xs bg-slate-950/90 border-b border-slate-800/80">
+              <button
+                onClick={() => setShowPreview(!showPreview)}
+                className="flex items-center gap-1.5 font-semibold text-slate-300 hover:text-white transition text-left"
+              >
                 {showPreview ? <ChevronDown className="w-3.5 h-3.5 text-orange-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
-                <span>
-                  {isAnalysis
-                    ? `Prompt-Vorschau: Analyse (${analysisLookback} Tage)`
-                    : `Prompt-Vorschau: ${planHorizon}-Tage-Plan (${dynamicPlan.title})`}
+                <span className="flex items-center gap-1.5">
+                  <Edit3 className="w-3 h-3 text-orange-400" />
+                  <span>Prompt-Vorschau & Live-Editor</span>
+                  {hasManualEdits && (
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-normal">
+                      Manuell angepasst
+                    </span>
+                  )}
                 </span>
-              </span>
-              <span className="text-[10px] text-slate-500">
-                {showPreview ? 'Einklappen' : 'Klick zum Einsehen'}
-              </span>
-            </button>
+              </button>
+
+              <div className="flex items-center gap-2">
+                {showPreview && hasManualEdits && (
+                  <button
+                    onClick={handleResetToTemplate}
+                    className="flex items-center gap-1 text-[10px] text-amber-400 hover:text-amber-300 transition"
+                    title="Verwirft manuelle Änderungen und stellt die Original-Vorlage wieder her"
+                  >
+                    <RotateCcw className="w-2.5 h-2.5" />
+                    <span>Zurücksetzen</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowPreview(!showPreview)}
+                  className="text-[10px] text-slate-400 hover:text-slate-200 transition"
+                >
+                  {showPreview ? 'Einklappen' : 'Vorschau & Anpassen'}
+                </button>
+              </div>
+            </div>
 
             {showPreview && (
-              <div className="p-3 text-[10px] font-mono text-slate-300 max-h-36 overflow-y-auto whitespace-pre-wrap leading-relaxed border-t border-slate-800/80 bg-slate-950">
-                {currentPrompt}
+              <div className="p-3 bg-slate-950 space-y-2">
+                <div className="flex items-center justify-between text-[10px] text-slate-400">
+                  <span className="flex items-center gap-1 text-slate-300">
+                    💡 <strong>Tipp:</strong> Du kannst den Prompt hier vor dem Absenden nach Belieben anpassen (z.B. Termine, Wünsche, Ruhepausen).
+                  </span>
+                  <span className="text-slate-500 font-mono text-[9px]">
+                    {promptToUse.length} Zeichen
+                  </span>
+                </div>
+                <textarea
+                  value={promptToUse}
+                  onChange={(e) => {
+                    setEditedPrompt(e.target.value);
+                    setHasManualEdits(true);
+                  }}
+                  rows={6}
+                  className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-[11px] font-mono text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-orange-500 leading-relaxed resize-y max-h-56"
+                  placeholder="Hier kannst du den Prompt vor dem Absenden bearbeiten..."
+                />
               </div>
             )}
           </div>
@@ -598,8 +674,8 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
         <div className="px-5 py-2.5 border-t border-slate-800 flex items-center justify-between bg-slate-900/95 text-xs">
           <span className="text-[11px] text-slate-400 font-medium">
             {isAnalysis
-              ? `Status: Analyse über ${analysisLookback} Tage`
-              : `Status: ${planHorizon}-Tage-Plan (${planHorizon === 14 ? '2-Wochen-Mesozyklus' : '1 Woche'}) • Basis: ${planLookback} Tage`}
+              ? `Status: Rad-Analyse (${analysisLookback} Tage)${hasManualEdits ? ' • Manuell modifiziert' : ''}`
+              : `Status: ${planHorizon}-Tage-Radplan (${planHorizon === 14 ? '2 Wochen' : '1 Woche'}) • Basis: ${planLookback} Tage${hasManualEdits ? ' • Manuell modifiziert' : ''}`}
           </span>
           <button
             onClick={onClose}
