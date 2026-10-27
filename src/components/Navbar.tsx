@@ -1,11 +1,9 @@
 import React from 'react';
-import { Activity, Sliders, Upload, RefreshCw, Zap, ShieldCheck } from 'lucide-react';
+import { Activity, Sliders, Upload, RefreshCw, ShieldCheck } from 'lucide-react';
 import { StravaConfig } from '../services/stravaApi';
 import { APP_VERSION } from '../version';
 
 interface NavbarProps {
-  isDemoMode: boolean;
-  onToggleDemoMode: () => void;
   onOpenConnectModal: () => void;
   onOpenSettingsModal: () => void;
   stravaConfig: StravaConfig | null;
@@ -17,8 +15,6 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
-  isDemoMode,
-  onToggleDemoMode,
   onOpenConnectModal,
   onOpenSettingsModal,
   stravaConfig,
@@ -26,7 +22,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   isSyncing,
   sportFilter,
   onSportFilterChange,
-  activitiesCount,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
@@ -88,29 +83,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Buttons */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Demo Mode Toggle Switch */}
-            <div className="flex items-center gap-2 bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-700/50">
-              <Zap className={`w-3.5 h-3.5 ${isDemoMode ? 'text-amber-400' : 'text-slate-400'}`} />
-              <span className="text-xs font-medium text-slate-300 hidden lg:inline">
-                {isDemoMode ? 'Demo-Modus' : 'Echte Daten'}
-              </span>
-              <button
-                onClick={onToggleDemoMode}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  isDemoMode ? 'bg-amber-500' : 'bg-slate-700'
-                }`}
-                title="Zwischen Demodaten und eigenen Strava-Daten wechseln"
-              >
-                <span
-                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    isDemoMode ? 'translate-x-4' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-
             {/* Sync Button if connected */}
-            {stravaConfig && !isDemoMode && onSyncStrava && (
+            {stravaConfig && onSyncStrava && (
               <button
                 onClick={onSyncStrava}
                 disabled={isSyncing}
@@ -126,12 +100,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={onOpenConnectModal}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition shadow-sm ${
-                stravaConfig && !isDemoMode
+                stravaConfig
                   ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
                   : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-orange-500/20'
               }`}
             >
-              {stravaConfig && !isDemoMode ? (
+              {stravaConfig ? (
                 <>
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                   <span className="hidden sm:inline">Verbunden: {stravaConfig.athleteName || 'Strava'}</span>

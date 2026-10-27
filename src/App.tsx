@@ -11,7 +11,6 @@ import {
   isRunningActivity,
 } from './utils/trainingMath';
 import { analyzeTrainingCoach } from './utils/coachEngine';
-import { generateMockActivities } from './data/mockActivities';
 import {
   getStoredStravaConfig,
   getStoredActivities,
@@ -40,10 +39,6 @@ import { subDays, parseISO, isAfter, addDays, format } from 'date-fns';
 export function App() {
   const [stravaConfig, setStravaConfig] = useState<StravaConfig | null>(() => getStoredStravaConfig());
   const [userActivities, setUserActivities] = useState<StravaActivity[] | null>(() => getStoredActivities());
-  const [isDemoMode, setIsDemoMode] = useState<boolean>(() => {
-    // If no real activities or config stored, start in demo mode so the user sees live analytics right away
-    return !getStoredActivities() && !getStoredStravaConfig();
-  });
 
   const [settings, setSettings] = useState<UserAthleteSettings>(() => {
     const raw = localStorage.getItem('strava_pulse_settings');
@@ -59,11 +54,8 @@ export function App() {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [oauthStatus, setOauthStatus] = useState<string | null>(null);
 
-  // Generate demo data once
-  const mockActivities = useMemo(() => generateMockActivities(), []);
-
-  // Active activity dataset based on mode and filter
-  const baseActivities = isDemoMode ? mockActivities : (userActivities || []);
+  // Active activity dataset based on user's stored Strava activities
+  const baseActivities = userActivities || [];
 
   const filteredActivities = useMemo(() => {
     if (sportFilter === 'ALL') return baseActivities;
@@ -84,7 +76,6 @@ export function App() {
       exchangeOAuthCode(tempClientId, tempClientSecret, code)
         .then(async (config) => {
           setStravaConfig(config);
-          setIsDemoMode(false);
           setOauthStatus('Synchronisiere Aktivitäten...');
           const activities = await fetchStravaActivities(1000);
           setUserActivities(activities);
@@ -110,7 +101,6 @@ export function App() {
       const activities = await fetchStravaActivities(1000);
       setUserActivities(activities);
       saveStoredActivities(activities);
-      setIsDemoMode(false);
       setOauthStatus(`Sync abgeschlossen: ${activities.length} Aktivitäten geladen!`);
       setTimeout(() => setOauthStatus(null), 3000);
     } catch (err: any) {
@@ -131,7 +121,6 @@ export function App() {
   const handleActivitiesLoaded = (activities: StravaActivity[]) => {
     setUserActivities(activities);
     saveStoredActivities(activities);
-    setIsDemoMode(false);
   };
 
   // Training load analytics calculations (90 days)
@@ -196,8 +185,6 @@ export function App() {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       {/* Navbar */}
       <Navbar
-        isDemoMode={isDemoMode}
-        onToggleDemoMode={() => setIsDemoMode(!isDemoMode)}
         onOpenConnectModal={() => setIsConnectModalOpen(true)}
         onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
         stravaConfig={stravaConfig}
@@ -215,18 +202,18 @@ export function App() {
         </div>
       )}
 
-      {/* Demo Banner */}
-      {isDemoMode && (
-        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2">
+      {/* Connection Hint Banner when no data is loaded yet */}
+      {!stravaConfig && baseActivities.length === 0 && (
+        <div className="bg-orange-500/10 border-b border-orange-500/20 px-4 py-2">
           <div className="max-w-7xl mx-auto flex items-center justify-between text-xs">
-            <span className="text-amber-300">
-              💡 <strong>Demo-Modus aktiv:</strong> Du siehst realistische Beispieldaten eines ambitionierten Multisport-Athleten.
+            <span className="text-orange-300">
+              🚴 <strong>Noch keine Trainingsdaten geladen:</strong> Verbinde dein Strava-Konto, um deine echten Einheiten zu synchronisieren.
             </span>
             <button
               onClick={() => setIsConnectModalOpen(true)}
-              className="text-amber-200 hover:text-white font-semibold underline underline-offset-2 ml-3"
+              className="text-orange-200 hover:text-white font-semibold underline underline-offset-2 ml-3"
             >
-              Eigene Strava CSV hochladen oder verbinden &rarr;
+              Jetzt mit Strava verbinden &rarr;
             </button>
           </div>
         </div>
