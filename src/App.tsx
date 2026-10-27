@@ -117,12 +117,6 @@ export function App() {
     localStorage.setItem('strava_pulse_settings', JSON.stringify(newSettings));
   };
 
-  // Handle CSV loaded activities
-  const handleActivitiesLoaded = (activities: StravaActivity[]) => {
-    setUserActivities(activities);
-    saveStoredActivities(activities);
-  };
-
   // Training load analytics calculations (90 days)
   const dailyLoads = useMemo(() => {
     return calculateFitnessAndFatigue(filteredActivities, 90, settings);
@@ -273,8 +267,10 @@ export function App() {
         isOpen={isConnectModalOpen}
         onClose={() => setIsConnectModalOpen(false)}
         stravaConfig={stravaConfig}
-        onConfigUpdated={(cfg) => setStravaConfig(cfg)}
-        onActivitiesLoaded={handleActivitiesLoaded}
+        onConfigUpdated={(cfg) => {
+          setStravaConfig(cfg);
+          if (!cfg) setUserActivities(null);
+        }}
       />
 
       {/* User Settings Modal */}
