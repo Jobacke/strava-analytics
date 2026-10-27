@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   X,
   Sparkles,
@@ -15,28 +15,49 @@ import {
   ChevronDown,
   ChevronRight,
   Smartphone,
+  Calendar,
+  Clock,
+  SlidersHorizontal,
 } from 'lucide-react';
+import { StravaActivity, TrainingStats, HRDistribution, UserAthleteSettings } from '../types/strava';
+import { buildAnalysisPrompt, buildPlanPrompt } from '../services/aiPromptBuilder';
 
 export type ClaudeCoachMode = 'analysis' | 'plan';
 
 interface ClaudeCoachModalProps {
   isOpen: boolean;
   onClose: () => void;
-  analysisPrompt: string;
-  planPrompt: string;
   initialMode?: ClaudeCoachMode;
+  stats?: TrainingStats;
+  hrDistribution?: HRDistribution;
+  settings?: UserAthleteSettings;
+  sportFilter?: string;
+  filteredActivities?: StravaActivity[];
+  athleteName?: string;
+  analysisPrompt?: string;
+  planPrompt?: string;
   planTitle?: string;
 }
 
 export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
   isOpen,
   onClose,
-  analysisPrompt,
-  planPrompt,
   initialMode = 'analysis',
+  stats,
+  hrDistribution,
+  settings,
+  sportFilter = 'ALL',
+  filteredActivities = [],
+  athleteName = 'Johannes Backhaus',
+  analysisPrompt = '',
+  planPrompt = '',
   planTitle = 'Trainingsplan für Johannes Backhaus',
 }) => {
   const [activeTab, setActiveTab] = useState<ClaudeCoachMode>(initialMode);
+  const [analysisLookback, setAnalysisLookback] = useState<number>(14);
+  const [planLookback, setPlanLookback] = useState<number>(14);
+  const [planHorizon, setPlanHorizon] = useState<number>(7);
+
   const [copiedAntigravity, setCopiedAntigravity] = useState(false);
   const [copiedClaude, setCopiedClaude] = useState(false);
   const [copiedGeneric, setCopiedGeneric] = useState(false);
@@ -58,10 +79,55 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
     }
   }, [isOpen, initialMode]);
 
+  const isAnalysis = activeTab === 'analysis';
+
+  // Reactively compute prompts based on lookback and horizon settings
+  const dynamicAnalysis = useMemo(() => {
+    if (stats && hrDistribution && settings) {
+      return buildAnalysisPrompt({
+        lookbackDays: analysisLookback,
+        athleteName,
+        stats,
+        hrDistribution,
+        settings,
+        sportFilter,
+        filteredActivities,
+      });
+    }
+    return {
+      prompt: analysisPrompt,
+      title: `Leistungsanalyse für ${athleteName} (${analysisLookback} Tage)`,
+      filename: `Leistungsanalyse_${analysisLookback}Tage.md`,
+    };
+  }, [stats, hrDistribution, settings, sportFilter, filteredActivities, athleteName, analysisLookback, analysisPrompt]);
+
+  const dynamicPlan = useMemo(() => {
+    if (stats && hrDistribution && settings) {
+      return buildPlanPrompt({
+        lookbackDays: planLookback,
+        planDays: planHorizon,
+        athleteName,
+        stats,
+        hrDistribution,
+        settings,
+        sportFilter,
+        filteredActivities,
+      });
+    }
+    return {
+      prompt: planPrompt,
+      title: planTitle,
+      filename: `${planTitle}.md`,
+      day1: '',
+      dayEnd: '',
+    };
+  }, [stats, hrDistribution, settings, sportFilter, filteredActivities, athleteName, planLookback, planHorizon, planPrompt, planTitle]);
+
   if (!isOpen) return null;
 
-  const currentPrompt = activeTab === 'analysis' ? analysisPrompt : planPrompt;
-  const isAnalysis = activeTab === 'analysis';
+  const currentPrompt = isAnalysis ? dynamicAnalysis.prompt : dynamicPlan.prompt;
+  const currentTitle = isAnalysis ? dynamicAnalysis.title : dynamicPlan.title;
+  const currentFilename = isAnalysis ? dynamicAnalysis.filename : dynamicPlan.filename;
 
   // 1. Antigravity Desktop Launcher (Auto File-Saving)
   const handleOpenAntigravity = () => {
@@ -69,7 +135,6 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
     setCopiedAntigravity(true);
     setTimeout(() => setCopiedAntigravity(false), 3500);
 
-    // Deep-link to Antigravity on macOS
     const appUrl = 'antigravity://';
     const a = document.createElement('a');
     a.href = appUrl;
@@ -157,9 +222,9 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden max-h-[94vh]">
+      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden max-h-[95vh]">
         {/* Compact Header */}
-        <div className="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+        <div className="px-5 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-900/95">
           <div className="flex items-center gap-2.5">
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-md ${
               isAnalysis 
@@ -179,8 +244,8 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
               </div>
               <p className="text-[11px] text-slate-400 leading-tight">
                 {isAnalysis
-                  ? 'Reine Leistungsanalyse & Formtrends direkt als Dokument auf deinem Mac'
-                  : 'Schreibt .zwo-Dateien direkt nach ~/Documents/Zwift/Workouts/1304674/'}
+                  ? `Analyse der letzten ${analysisLookback} Tage & strategische Schlüsse (ohne Plan)`
+                  : `${planHorizon}-Tage-Plan (${planHorizon === 14 ? '2 Wochen Mesozyklus' : '1 Woche'}) mit .zwo-Ablage in Zwift`}
               </p>
             </div>
           </div>
@@ -192,8 +257,8 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
           </button>
         </div>
 
-        {/* Compact Tab Switcher */}
-        <div className="px-5 pt-2 pb-0 bg-slate-900/60 border-b border-slate-800 flex gap-2">
+        {/* Mode Selector Tabs */}
+        <div className="px-5 pt-2 pb-0 bg-slate-900/70 border-b border-slate-800 flex gap-2">
           <button
             onClick={() => setActiveTab('analysis')}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border-b-2 transition ${
@@ -204,9 +269,6 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
           >
             <BarChart3 className="w-3.5 h-3.5" />
             <span>1. Datenanalyse & Diagnose</span>
-            <span className="text-[9px] py-0.2 px-1 rounded bg-cyan-500/10 text-cyan-300 font-normal">
-              Ohne Plan
-            </span>
           </button>
 
           <button
@@ -218,17 +280,97 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>2. 7-Tage-Plan & Zwift</span>
-            <span className="text-[9px] py-0.2 px-1 rounded bg-orange-500/10 text-orange-300 font-normal">
-              Auto .zwo
-            </span>
+            <span>2. Trainingsplan & Zwift (.zwo)</span>
           </button>
         </div>
 
-        {/* Modal Body - Optimized for zero-scroll on Mac */}
+        {/* Flexible Configuration Bar (Lookback & Horizon) */}
+        <div className="px-5 py-2 bg-slate-950/80 border-b border-slate-800/90 flex flex-wrap items-center justify-between gap-2 text-xs">
+          {isAnalysis ? (
+            /* Analysis Lookback Selector */
+            <div className="flex items-center justify-between w-full">
+              <span className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                Analyse-Rückblick (Datenbasis):
+              </span>
+              <div className="flex items-center gap-1.5">
+                {([7, 14, 30] as const).map((days) => (
+                  <button
+                    key={days}
+                    onClick={() => setAnalysisLookback(days)}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition flex items-center gap-1 ${
+                      analysisLookback === days
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 shadow-sm'
+                        : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700/60'
+                    }`}
+                  >
+                    <span>{days} Tage</span>
+                    {days === 14 && <span className="text-[9px] text-cyan-400/80 font-normal">(Optimum)</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* Training Plan Lookback & Plan Horizon Selectors */
+            <div className="flex flex-wrap items-center justify-between w-full gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold text-slate-300 flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-orange-400" />
+                  Rückblick:
+                </span>
+                <div className="flex items-center gap-1">
+                  {([7, 14] as const).map((days) => (
+                    <button
+                      key={days}
+                      onClick={() => setPlanLookback(days)}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition ${
+                        planLookback === days
+                          ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40 shadow-sm'
+                          : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700/60'
+                      }`}
+                    >
+                      {days} Tage
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold text-slate-300 flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-amber-400" />
+                  Plan-Länge:
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPlanHorizon(7)}
+                    className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold transition ${
+                      planHorizon === 7
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                        : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700/60'
+                    }`}
+                  >
+                    7 Tage (1 Woche)
+                  </button>
+                  <button
+                    onClick={() => setPlanHorizon(14)}
+                    className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold transition ${
+                      planHorizon === 14
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                        : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700/60'
+                    }`}
+                  >
+                    14 Tage (2 Wochen Mesozyklus)
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Modal Body - Ultra-Compact Zero-Scroll */}
         <div className="p-4 sm:p-5 space-y-3 flex-1 overflow-y-auto">
-          {/* PRIMARY METHOD: Antigravity Desktop (Streamlined) */}
-          <div className="p-3.5 sm:p-4 rounded-xl bg-gradient-to-br from-orange-950/35 via-slate-950 to-slate-900 border border-orange-500/35 shadow-lg space-y-2.5 relative overflow-hidden">
+          {/* PRIMARY METHOD: Antigravity Desktop */}
+          <div className="p-3.5 rounded-xl bg-gradient-to-br from-orange-950/35 via-slate-950 to-slate-900 border border-orange-500/35 shadow-lg space-y-2 relative overflow-hidden">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-extrabold text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Terminal className="w-3.5 h-3.5 text-orange-400" />
@@ -242,11 +384,11 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
             <p className="text-xs text-slate-300 leading-snug">
               {isAnalysis ? (
                 <>
-                  Antigravity analysiert Deine Belastungsdaten und speichert den Bericht direkt als Markdown-Datei unter <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong> ab.
+                  Antigravity analysiert die Daten der letzten <strong>{analysisLookback} Tage</strong> und speichert den Bericht direkt als <strong><code>{currentFilename}</code></strong> unter <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong> ab.
                 </>
               ) : (
                 <>
-                  Antigravity schreibt alle <strong>.zwo XML-Dateien</strong> vollautomatisch nach <strong><code>~/Documents/Zwift/Workouts/1304674/</code></strong> und den <strong>7-Tage-Plan</strong> nach <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong>.
+                  Antigravity erstellt alle <strong>.zwo XML-Dateien</strong> für die kommenden <strong>{planHorizon} Tage</strong> direkt in <strong><code>~/Documents/Zwift/Workouts/1304674/</code></strong> und speichert den Plan als <strong><code>{currentFilename}</code></strong>.
                 </>
               )}
             </p>
@@ -284,7 +426,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
               </button>
             </div>
 
-            <p className="text-[10px] text-orange-200/80 bg-orange-500/10 px-2 py-1.5 rounded-lg border border-orange-500/20">
+            <p className="text-[10px] text-orange-200/80 bg-orange-500/10 px-2 py-1 rounded-md border border-orange-500/20">
               💡 <strong>Schnellstart:</strong> Nach dem Klick in Antigravity einfach <strong>Cmd + V</strong> und <strong>Enter</strong> drücken.
             </p>
           </div>
@@ -332,7 +474,11 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
             >
               <span className="flex items-center gap-1.5 font-semibold text-slate-300">
                 {showPreview ? <ChevronDown className="w-3.5 h-3.5 text-orange-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
-                {isAnalysis ? 'Prompt-Vorschau (Datenanalyse)' : 'Prompt-Vorschau (Trainingsplan & Zwift Pfad)'}
+                <span>
+                  {isAnalysis
+                    ? `Prompt-Vorschau: Analyse (${analysisLookback} Tage)`
+                    : `Prompt-Vorschau: ${planHorizon}-Tage-Plan (${dynamicPlan.title})`}
+                </span>
               </span>
               <span className="text-[10px] text-slate-500">
                 {showPreview ? 'Einklappen' : 'Klick zum Einsehen'}
@@ -354,7 +500,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                 className="text-[11px] text-slate-500 hover:text-slate-300 flex items-center gap-1 transition"
               >
                 <Key className="w-3 h-3 text-slate-500" />
-                <span>Optional: Anthropic API-Key hinterlegen (Antwort direkt hier laden)</span>
+                <span>Optional: Anthropic API-Key hinterlegen (Antwort direkt in Web-App laden)</span>
               </button>
             ) : (
               <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
@@ -397,19 +543,18 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
                   <FileText className="w-4 h-4" /> 
-                  {isAnalysis ? 'KI Leistungsdiagnose & Auswertung' : planTitle}
+                  {currentTitle}
                 </span>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => {
                       const printWindow = window.open('', '_blank');
                       if (printWindow) {
-                        const title = isAnalysis ? 'Leistungsanalyse & Diagnose - Analytics' : planTitle;
                         printWindow.document.write(`
                           <!DOCTYPE html>
                           <html>
                             <head>
-                              <title>${title}</title>
+                              <title>${currentTitle}</title>
                               <style>
                                 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #0f172a; line-height: 1.6; }
                                 h1 { font-size: 20px; color: #ea580c; border-bottom: 2px solid #fdba74; padding-bottom: 8px; margin-bottom: 20px; }
@@ -417,7 +562,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                               </style>
                             </head>
                             <body>
-                              <h1>⚡ ${title}</h1>
+                              <h1>⚡ ${currentTitle}</h1>
                               <pre>${generatedResult}</pre>
                             </body>
                           </html>
@@ -450,9 +595,11 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
         </div>
 
         {/* Compact Footer */}
-        <div className="px-5 py-2.5 border-t border-slate-800 flex items-center justify-between bg-slate-900/90 text-xs">
-          <span className="text-[11px] text-slate-500">
-            {isAnalysis ? 'Modus: Reine Datenauswertung' : 'Modus: 7-Tage-Plan + .zwo XML'}
+        <div className="px-5 py-2.5 border-t border-slate-800 flex items-center justify-between bg-slate-900/95 text-xs">
+          <span className="text-[11px] text-slate-400 font-medium">
+            {isAnalysis
+              ? `Status: Analyse über ${analysisLookback} Tage`
+              : `Status: ${planHorizon}-Tage-Plan (${planHorizon === 14 ? '2-Wochen-Mesozyklus' : '1 Woche'}) • Basis: ${planLookback} Tage`}
           </span>
           <button
             onClick={onClose}

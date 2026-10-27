@@ -33,6 +33,7 @@ import { ActivityDetailModal } from './components/ActivityDetailModal';
 import { StravaConnectModal } from './components/StravaConnectModal';
 import { UserSettingsModal } from './components/UserSettingsModal';
 import { ClaudeCoachModal, ClaudeCoachMode } from './components/ClaudeCoachModal';
+import { buildAnalysisPrompt, buildPlanPrompt } from './services/aiPromptBuilder';
 import { APP_VERSION } from './version';
 import { subDays, parseISO, isAfter, addDays, format } from 'date-fns';
 
@@ -160,158 +161,36 @@ export function App() {
     };
   }, [filteredActivities]);
 
-  // Prompt 1: Reine Leistungsdiagnose & Datenanalyse (ohne Trainingsplan, ohne Zwift-Workouts)
-  const claudeAnalysisPrompt = useMemo(() => {
-    const athleteName = stravaConfig?.athleteName || 'Johannes Backhaus';
-    const recentSample = filteredActivities.slice(0, 7).map(a => {
-      const dist = a.distance > 0 ? `${(a.distance / 1000).toFixed(1)} km` : 'Indoor Rolle (Kickr Core)';
-      const dur = Math.round(a.moving_time / 60);
-      const hr = a.average_heartrate ? `, Ø Puls: ${Math.round(a.average_heartrate)} bpm` : '';
-      const maxHr = a.max_heartrate ? `, Max: ${Math.round(a.max_heartrate)} bpm` : '';
-      const watts = a.average_watts ? `, Ø Leistung: ${Math.round(a.average_watts)} W` : '';
-      return `• ${a.start_date.split('T')[0]}: ${a.name} (${dist}, ${dur} min${hr}${maxHr}${watts})`;
-    }).join('\n');
+  const athleteName = stravaConfig?.athleteName || 'Johannes Backhaus';
 
-    return `Du bist mein persönlicher Sportwissenschaftler und Leistungsdiagnostiker.
-Hier sind meine aktuellen, echten Leistungs- und Belastungsdaten aus meiner Trainingsanalyse für Athlet "${athleteName}":
+  // Prompt 1: Reine Leistungsdiagnose & Datenanalyse (Basis: 14 Tage)
+  const defaultAnalysis = useMemo(() => {
+    return buildAnalysisPrompt({
+      lookbackDays: 14,
+      athleteName,
+      stats,
+      hrDistribution,
+      settings,
+      sportFilter,
+      filteredActivities,
+    });
+  }, [athleteName, stats, hrDistribution, settings, sportFilter, filteredActivities]);
 
-LEISTUNGSPROFIL & AKTUELLE BELASTUNGSDATEN (Coggan & Banister Modell):
-- Sportarten: ${sportFilter === 'ALL' ? 'Radsport (Wahoo Kickr Core) & Laufsport' : sportFilter === 'Ride' ? 'Radsport (Wahoo Kickr Core Smart-Trainer)' : 'Laufsport'}
-- Wochenvolumen (letzte 7 Tage): ${stats.weeklyHours} Stunden (${stats.weeklyKm} km, ${stats.kmDeltaPercent >= 0 ? '+' : ''}${stats.kmDeltaPercent}% vs. Vorwoche)
-- Verletzungs- & Überlastungsradar (ACWR): ${stats.currentACWR.toFixed(2)} (Optimalbereich: 0.85 - 1.25)
-- Chronische Fitness (CTL, 42-Tage-Basis): ${stats.currentFitnessCTL}
-- Akute Ermüdung (ATL, 7 Tage): ${stats.currentFatigueATL}
-- Form & Frische (TSB = CTL - ATL): ${stats.currentFormTSB > 0 ? '+' : ''}${stats.currentFormTSB}
-- Ruhetage in den letzten 14 Tagen: ${stats.restDaysLast14}
-- Herzfrequenz-Zonen-Verteilung (letzte 30 Tage):
-  • Zone 1-2 (Grundlagenbasis GA1): ${hrDistribution.polarizedScore}%
-  • Zone 3 (Tempo / Grauzone): ${hrDistribution.junkZonePercentage}%
-  • Zone 4-5 (Schwelle & VO2max): ${hrDistribution.z4 + hrDistribution.z5}%
-- Physiologische Parameter:
-  • Maximale Herzfrequenz (HFmax): ${settings.maxHeartRate} bpm
-  • Ruhepuls: ${settings.restingHeartRate} bpm
-  • FTP-Schwellenleistung (Rad): ${settings.ftpWatts || 250} Watt
-  • Körpergewicht: ${settings.weightKg || 75} kg (Leistungsgewicht: ${((settings.ftpWatts || 250) / (settings.weightKg || 75)).toFixed(2)} W/kg)
+  // Prompt 2: Strukturierter Trainingsplan & Zwift .zwo-Workouts (Standard 7 Tage)
+  const defaultPlan = useMemo(() => {
+    return buildPlanPrompt({
+      lookbackDays: 14,
+      planDays: 7,
+      athleteName,
+      stats,
+      hrDistribution,
+      settings,
+      sportFilter,
+      filteredActivities,
+    });
+  }, [athleteName, stats, hrDistribution, settings, sportFilter, filteredActivities]);
 
-LETZTE DOKUMENTIERTE EINHEITEN (INDOOR & OUTDOOR):
-${recentSample || '• Wahoo Kickr Core Indoor-Einheiten mit Leistungsmesser'}
-
-DEINE AUFGABE ALS SPORTWISSENSCHAFTLICHER ANALYST:
-Analysiere ausschließlich diese vorliegenden Daten tiefgehend und ziehe fundierte sportwissenschaftliche Schlussfolgerungen.
-WICHTIGE VORGABE: Bitte erstelle KEINEN 7-Tage-Trainingsplan und KEINE benutzerdefinierten Zwift-Workouts oder .zwo-Dateien. Konzentriere dich zu 100 % auf die Auswertung des Ist-Zustands, Trends und strategische Erkenntnisse!
-
-SPEICHERORT FÜR ANTIGRAVITY (Mac):
-Da du direkten Dateisystemzugriff hast, speichere deinen ausführlichen Analysebericht mit allen Erkenntnissen und Empfehlungen bitte direkt als formatierte Markdown-Datei unter folgendem Pfad ab:
-/Users/johannes/Documents/Zwift/Trainingspläne/Leistungsanalyse_Johannes_Backhaus.md
-
-Bitte strukturiere deine Analyse präzise wie folgt:
-
-1. EXECUTIVE SUMMARY:
-   Prägnante 3-Satz-Zusammenfassung meines aktuellen Leistungs- und Erholungszustands.
-
-2. BELASTUNGS- & ERHOLUNGSANALYSE (Coggan/Banister & ACWR):
-   - Wie ist das Verhältnis von akuter Belastung (ATL = ${stats.currentFatigueATL}) zu chronischer Fitness (CTL = ${stats.currentFitnessCTL})?
-   - Beurteilung des ACWR-Wertes (${stats.currentACWR.toFixed(2)}): Liege ich im "Sweet Spot", droht Überlastung oder bin ich unterfordert?
-   - Formwert (TSB = ${stats.currentFormTSB > 0 ? '+' : ''}${stats.currentFormTSB}): Bin ich wettkampffrisch, ermüdet oder in einer stabilen Aufbauphase?
-
-3. INTENSITÄTSVERTEILUNG & POLARISIERUNG (80/20-Prinzip):
-   - Bewertung der Herzfrequenz-Verteilung (GA1: ${hrDistribution.polarizedScore}%, Grauzone Z3: ${hrDistribution.junkZonePercentage}%, Intensiv Z4/Z5: ${hrDistribution.z4 + hrDistribution.z5}%).
-   - Ist mein Grundlagentraining effizient oder verbringe ich zu viel Zeit in der unproduktiven "Grauzone"?
-
-4. AEROBE EFFIZIENZ & INDOOR-TRAINING (Wahoo Kickr Core):
-   - Schlussfolgerungen aus den Watt- und Pulswerten meiner jüngsten Indoor-Einheiten.
-   - Gibt es Anzeichen für kardiovaskuläre Drift oder gesteigerte aerobe Effizienz?
-
-5. SCHLUSSFOLGERUNGEN & STRATEGISCHE EMPFEHLUNGEN:
-   - 3 größte Stärken in meinem aktuellen Trainingsbild.
-   - 2 potenzielle Risikofaktoren oder "blinde Flecken".
-   - 3 strategische Hebel für die nächsten 3-4 Wochen, um meine Leistungsfähigkeit gezielt zu steigern.`;
-  }, [stats, hrDistribution, settings, sportFilter, stravaConfig, filteredActivities]);
-
-  // Dynamische Datums- und Titelberechnung für den 7-Tage-Trainingsplan
-  const planDateRange = useMemo(() => {
-    const athleteName = stravaConfig?.athleteName || 'Johannes Backhaus';
-    const today = new Date();
-    const day1 = format(today, 'dd.MM.yyyy');
-    const day7 = format(addDays(today, 6), 'dd.MM.yyyy');
-    const title = `Trainingsplan für ${athleteName} vom ${day1} - ${day7}`;
-    return {
-      day1,
-      day7,
-      title,
-    };
-  }, [stravaConfig]);
-
-  // Prompt 2: Strukturierter 7-Tage-Trainingsplan & Zwift .zwo-Workouts
-  const claudePlanPrompt = useMemo(() => {
-    const athleteName = stravaConfig?.athleteName || 'Johannes Backhaus';
-    const recentSample = filteredActivities.slice(0, 5).map(a => {
-      const dist = a.distance > 0 ? `${(a.distance / 1000).toFixed(1)} km` : 'Indoor Rolle (Kickr Core)';
-      const dur = Math.round(a.moving_time / 60);
-      const hr = a.average_heartrate ? `, Ø Puls: ${Math.round(a.average_heartrate)} bpm` : '';
-      const watts = a.average_watts ? `, Ø Leistung: ${Math.round(a.average_watts)} W` : '';
-      return `• ${a.start_date.split('T')[0]}: ${a.name} (${dist}, ${dur} min${hr}${watts})`;
-    }).join('\n');
-
-    return `Du bist mein persönlicher Sportwissenschaftler und Ausdauertrainer.
-Hier sind meine aktuellen, echten Leistungs- und Belastungsdaten aus meiner Strava-Trainingsanalyse für Athlet "${athleteName}":
-
-LEISTUNGSPROFIL & AKTUELLE BELASTUNG (Coggan & Banister Modell):
-- Sportarten: ${sportFilter === 'ALL' ? 'Radsport (Wahoo Kickr Core) & Laufsport' : sportFilter === 'Ride' ? 'Radsport (Wahoo Kickr Core Smart-Trainer)' : 'Laufsport'}
-- Wochenvolumen (letzte 7 Tage): ${stats.weeklyHours} Stunden (${stats.weeklyKm} km, ${stats.kmDeltaPercent >= 0 ? '+' : ''}${stats.kmDeltaPercent}% vs. Vorwoche)
-- Verletzungs- & Überlastungsradar (ACWR): ${stats.currentACWR.toFixed(2)} (Optimalbereich: 0.85 - 1.25)
-- Chronische Fitness (CTL, 42-Tage-Basis): ${stats.currentFitnessCTL}
-- Akute Ermüdung (ATL, 7 Tage): ${stats.currentFatigueATL}
-- Form & Frische (TSB = CTL - ATL): ${stats.currentFormTSB > 0 ? '+' : ''}${stats.currentFormTSB}
-- Ruhetage in den letzten 14 Tagen: ${stats.restDaysLast14}
-- Herzfrequenz-Zonen-Verteilung (letzte 30 Tage):
-  • Zone 1-2 (Grundlagenbasis GA1): ${hrDistribution.polarizedScore}%
-  • Zone 3 (Tempo / Grauzone): ${hrDistribution.junkZonePercentage}%
-  • Zone 4-5 (Schwelle & VO2max): ${hrDistribution.z4 + hrDistribution.z5}%
-- Physiologische Parameter:
-  • Maximale Herzfrequenz (HFmax): ${settings.maxHeartRate} bpm
-  • Ruhepuls: ${settings.restingHeartRate} bpm
-  • FTP-Schwellenleistung (Rad): ${settings.ftpWatts || 250} Watt
-
-LETZTE DOKUMENTIERTE EINHEITEN:
-${recentSample || '• Wahoo Kickr Core Indoor-Einheiten mit Leistungsmesser'}
-
-DEINE AUFGABE ALS MEIN TRAINER:
-1. STATUS-DIAGNOSE: Beurteile kurz meinen aktuellen Erholungs- und Formzustand (Überlastungsrisiko, Polarisation 80/20, Regeneration).
-2. KONKRETER 7-TAGE-TRAININGSPLAN (Kommende 7 Tage, Tag für Tag von Tag 1 bis Tag 7):
-   Erstelle einen strukturierten, abwechslungsreichen Plan. Mein primäres Rad-Trainingsgerät ist der Wahoo Kickr Core Smart-Trainer.
-   Bitte gib für JEDEN Tag an:
-   - Wochentag & Trainingsziel
-   - Typ der Einheit (z.B. Z2 Grundlagenausdauer auf der Rolle, Sweet-Spot-Intervalle, VO2max-Reize, Erholungsfahrt oder Ruhetag)
-   - Dauer (in Minuten)
-   - Konkrete Intensitätsvorgaben (Ziel-Herzfrequenzzone und Wattbereiche basierend auf meiner FTP/HFmax)
-   - Konkreter Ablauf (z.B. Warmup, Hauptteil mit Intervallen und Pausen, Cooldown)
-3. KONKRETE ZWIFT-EVENTS & WORKOUT-EMPFEHLUNGEN FÜR JEDEN TAG:
-   Schlage mir für jeden Trainingstag der kommenden Woche konkrete Zwift-Events oder Workouts vor, die ich direkt in Zwift bzw. der Zwift Companion App auswählen und fahren kann:
-   - Für Grundlagentage (Z2): Konkrete Zwift RoboPacer-Gruppen (z.B. "Bernie" ~1.5 W/kg, "Miguel" ~1.8 W/kg, "Maria" ~2.2 W/kg) oder bewährte Social Group Rides (z.B. BMTR, Pack, 3R Endurance Rides).
-   - Für Intervall- & Schwellentage: Exakter Name des Workouts aus der Zwift-Bibliothek (z.B. unter "60-90 Minutes to Burn", "FTP Builder" oder "Zwift Academy") oder passende Zwift-Rennen/Time Trials.
-   - Nenne jeweils die empfohlene Leistungskategorie (A, B, C oder D basierend auf meinem W/kg-Verhältnis) und die empfohlene Zwift-Welt/Strecke (z.B. Tempus Fugit in Watopia für gleichmäßiges Pacing ohne störende Steigungen).
-4. BENUTZERDEFINIERTE ZWIFT-WORKOUTS ALS DATEI (.ZWO):
-   • ANWEISUNG FÜR ANTIGRAVITY (Mac - Direkte Auto-Ablage):
-     Da du direkten Dateisystemzugriff auf meinem Mac hast, erstelle für JEDEN Trainingstag mit Radtraining die vollständige .zwo XML-Datei und speichere sie DIREKT mit deinen Datei-Werkzeugen in folgendem Ordner ab:
-     /Users/johannes/Documents/Zwift/Workouts/1304674/
-     (Verwende saubere Dateinamen, z.B. JB_Tag2_Di_Erholung_45.zwo, JB_Tag3_Mi_Grundlage_60.zwo, JB_Tag4_Do_VO2max_4x3.zwo, JB_Tag6_Sa_Lange_Grundlage_90.zwo, JB_Tag7_So_SweetSpot_2x15.zwo).
-   • ANWEISUNG FÜR CLAUDE (iPhone / Web):
-     Gib für jede Radeinheit den vollständigen Code im offiziellen Zwift-Workout-Format (.zwo XML-Codeblock) aus, sodass ich die Datei bei Bedarf manuell kopieren kann.
-5. REGENERATION & ERNÄHRUNG: 3 wichtige Praxistipps für diesen Trainingsblock.
-6. DOKUMENT & PDF ZUM NACHLESEN:
-   • TITEL & FORMAT DER TRAININGSPLANÜBERSICHT:
-     Die Trainingsplanübersicht MUSS exakt folgendes Format als Hauptüberschrift und Dateiname haben:
-     "${planDateRange.title}"
-   • FÜR ANTIGRAVITY (Mac Desktop-Workflow):
-     Speichere die fertige Trainingsplanübersicht bitte als formatierte Markdown-Datei exakt unter folgendem Pfad ab:
-     /Users/johannes/Documents/Zwift/Trainingspläne/${planDateRange.title}.md
-     (oder erstelle daraus direkt die entsprechende PDF mit demselben Namen im selben Ordner).
-   • FÜR CLAUDE:
-     Verwende ebenfalls exakt die Hauptüberschrift "${planDateRange.title}" für das erstellte Dokument.`;
-  }, [stats, hrDistribution, settings, sportFilter, stravaConfig, filteredActivities, planDateRange]);
-
-  const athleteSummary = claudeAnalysisPrompt;
+  const athleteSummary = defaultAnalysis.prompt;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
@@ -365,7 +244,7 @@ DEINE AUFGABE ALS MEIN TRAINER:
         {/* Smart Training Coach Insights */}
         <CoachInsights
           insights={insights}
-          athleteSummary={claudeAnalysisPrompt}
+          athleteSummary={defaultAnalysis.prompt}
           onOpenClaudeModal={(mode) => {
             setClaudeModalMode(mode);
             setIsClaudeModalOpen(true);
@@ -419,14 +298,20 @@ DEINE AUFGABE ALS MEIN TRAINER:
         onSaveSettings={handleSaveSettings}
       />
 
-      {/* Claude AI Coach Modal */}
+      {/* Claude & Antigravity AI Coach Modal */}
       <ClaudeCoachModal
         isOpen={isClaudeModalOpen}
         onClose={() => setIsClaudeModalOpen(false)}
-        analysisPrompt={claudeAnalysisPrompt}
-        planPrompt={claudePlanPrompt}
         initialMode={claudeModalMode}
-        planTitle={planDateRange.title}
+        stats={stats}
+        hrDistribution={hrDistribution}
+        settings={settings}
+        sportFilter={sportFilter}
+        filteredActivities={filteredActivities}
+        athleteName={athleteName}
+        analysisPrompt={defaultAnalysis.prompt}
+        planPrompt={defaultPlan.prompt}
+        planTitle={defaultPlan.title}
       />
 
       {/* Footer */}
