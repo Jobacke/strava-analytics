@@ -145,12 +145,24 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
   const promptToUse = hasManualEdits ? editedPrompt : currentGeneratedPrompt;
 
   // 1. Antigravity Desktop Launcher (Auto File-Saving + Auto Prompt Entry)
-  const handleOpenAntigravity = () => {
-    navigator.clipboard.writeText(promptToUse);
+  const handleOpenAntigravity = async () => {
+    try {
+      await navigator.clipboard.writeText(promptToUse);
+    } catch {
+      // Fallback falls Clipboard-Write nicht abgewartet werden kann
+    }
     setCopiedAntigravity(true);
     setTimeout(() => setCopiedAntigravity(false), 3500);
 
-    const appUrl = `antigravity://prompt?q=${encodeURIComponent(promptToUse)}`;
+    // 1a. Direkte lokale Bridge (überträgt Prompts beliebiger Länge & füllt das Eingabefeld automatisch)
+    fetch('http://127.0.0.1:19876/prompt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: promptToUse }),
+    }).catch(() => {});
+
+    // 1b. Kurzer Deep-Link (verhindert URL-Längen-Abschneiden bei >8.000 Zeichen langen Prompts)
+    const appUrl = 'antigravity://prompt';
     const a = document.createElement('a');
     a.href = appUrl;
     document.body.appendChild(a);
