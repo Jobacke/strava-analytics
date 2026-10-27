@@ -58,11 +58,33 @@ def sync_events_to_calendar(events: list[dict], calendar_name: str = "Familie") 
 
     # Sortieren nach Datum
     parsed_events.sort(key=lambda x: x[0])
+    min_dt = parsed_events[0][0]
+    max_dt = parsed_events[-1][0]
 
-    # AppleScript-Block aufbauen
+    # AppleScript-Block aufbauen (einmalige Bereinigung im Gesamtzeitraum für maximale Geschwindigkeit)
     lines = [
         'tell application "Calendar"',
         f'    set targetCal to first calendar whose name is "{applescript_escape(calendar_name)}"',
+        "    set rangeStart to current date",
+        "    set day of rangeStart to 1",
+        f"    set year of rangeStart to {min_dt.year}",
+        f"    set month of rangeStart to {min_dt.month}",
+        f"    set day of rangeStart to {min_dt.day}",
+        "    set hours of rangeStart to 0",
+        "    set minutes of rangeStart to 0",
+        "    set seconds of rangeStart to 0",
+        "    set rangeEnd to current date",
+        "    set day of rangeEnd to 1",
+        f"    set year of rangeEnd to {max_dt.year}",
+        f"    set month of rangeEnd to {max_dt.month}",
+        f"    set day of rangeEnd to {max_dt.day}",
+        "    set hours of rangeEnd to 23",
+        "    set minutes of rangeEnd to 59",
+        "    set seconds of rangeEnd to 59",
+        '    set oldEvents to (every event of targetCal whose start date ≥ rangeStart and start date ≤ rangeEnd and (summary starts with "🚴" or summary starts with "🧘"))',
+        "    repeat with oldEv in oldEvents",
+        "        delete oldEv",
+        "    end repeat",
     ]
 
     for dt, title, desc in parsed_events:
@@ -79,15 +101,6 @@ def sync_events_to_calendar(events: list[dict], calendar_name: str = "Familie") 
         lines.append("    set hours of dayStart to 0")
         lines.append("    set minutes of dayStart to 0")
         lines.append("    set seconds of dayStart to 0")
-        lines.append("    set dayEnd to dayStart + (1 * days) - 1")
-        # Vorhandene Trainings-/Ruhetag-Einträge an diesem Tag im Zielkalender entfernen (Duplikatschutz)
-        lines.append(
-            '    set oldEvents to (every event of targetCal whose start date ≥ dayStart and start date ≤ dayEnd and (summary starts with "🚴" or summary starts with "🧘" or summary contains "Ruhetag" or summary contains "Zwift:" or summary contains "Radtraining:"))'
-        )
-        lines.append("    repeat with oldEv in oldEvents")
-        lines.append("        delete oldEv")
-        lines.append("    end repeat")
-        # Neuen Ganztages-Termin anlegen
         lines.append(
             f'    make new event at end of events of targetCal with properties {{summary:"{esc_title}", start date:dayStart, end date:dayStart, allday event:true, description:"{esc_desc}"}}'
         )
