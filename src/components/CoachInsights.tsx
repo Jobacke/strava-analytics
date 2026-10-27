@@ -1,6 +1,6 @@
 import React from 'react';
 import { CoachInsight } from '../types/strava';
-import { AlertTriangle, CheckCircle2, Info, Flame, Sparkles, ChevronRight, BarChart3 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, Flame, Sparkles, ChevronRight } from 'lucide-react';
 
 interface CoachInsightsProps {
   insights: CoachInsight[];
@@ -59,28 +59,17 @@ export const CoachInsights: React.FC<CoachInsightsProps> = ({
           </div>
         </div>
 
-        {/* AI Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
+        {/* AI Action Button */}
+        <div className="shrink-0">
           {onOpenClaudeModal && (
-            <>
-              <button
-                onClick={() => onOpenClaudeModal('analysis')}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold shadow-lg shadow-cyan-500/20 transition"
-                title="Auswertung und Schlussfolgerungen aus deinen Trainingsdaten mit Antigravity oder Claude"
-              >
-                <BarChart3 className="w-4 h-4" />
-                <span>Datenanalyse</span>
-              </button>
-
-              <button
-                onClick={() => onOpenClaudeModal('plan')}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold shadow-lg shadow-orange-500/20 transition"
-                title="Datenanalyse und Trainingssteuerung mit Zwift (7 oder 14 Tage .zwo Auto-Ablage)"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>Datenanalyse und Trainingssteuerung mit Zwift</span>
-              </button>
-            </>
+            <button
+              onClick={() => onOpenClaudeModal('plan')}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-extrabold shadow-lg shadow-orange-500/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              title="Öffnet die KI-Leistungsdiagnose und Trainingssteuerung mit automatischer Zwift-Ablage"
+            >
+              <Sparkles className="w-4 h-4 text-white" />
+              <span>Datenanalyse & Trainingssteuerung mit Zwift</span>
+            </button>
           )}
         </div>
       </div>
