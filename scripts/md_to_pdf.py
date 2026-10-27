@@ -12,6 +12,24 @@ import re
 import subprocess
 import sys
 import tempfile
+import unicodedata
+
+
+def resolve_macos_path(path: str) -> str:
+    """Löst NFC/NFD-Umlaut-Unterschiede (z.B. Trainingspläne) unter macOS automatisch auf."""
+    if os.path.exists(path):
+        return path
+    for form in ("NFC", "NFD"):
+        norm = unicodedata.normalize(form, path)
+        if os.path.exists(norm):
+            return norm
+    parent = os.path.dirname(path)
+    base = os.path.basename(path)
+    for form in ("NFC", "NFD"):
+        norm_parent = unicodedata.normalize(form, parent)
+        if os.path.exists(norm_parent):
+            return os.path.join(norm_parent, base)
+    return path
 
 
 def markdown_to_html_body(md_text: str) -> str:
@@ -161,12 +179,15 @@ def markdown_to_html_body(md_text: str) -> str:
 
 
 def convert_md_to_pdf(md_path: str, pdf_path: str | None = None, remove_md: bool = False) -> str:
+    md_path = resolve_macos_path(md_path)
     if not os.path.exists(md_path):
         raise FileNotFoundError(f"Markdown-Datei nicht gefunden: {md_path}")
 
     if pdf_path is None:
         base, _ = os.path.splitext(md_path)
         pdf_path = base + ".pdf"
+    else:
+        pdf_path = resolve_macos_path(pdf_path)
 
     with open(md_path, "r", encoding="utf-8") as f:
         md_content = f.read()
