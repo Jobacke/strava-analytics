@@ -369,7 +369,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                 </>
               ) : (
                 <>
-                  Antigravity erstellt alle <strong>.zwo XML-Dateien</strong> für die kommenden <strong>{planHorizon} Tage</strong> direkt in <strong><code>~/Documents/Zwift/Workouts/1304674/</code></strong> und speichert den Plan als PDF (<strong><code>{currentFilename}</code></strong>) unter <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong>.
+                  Antigravity erstellt alle <strong>.zwo XML-Dateien</strong> in <strong><code>~/Documents/Zwift/Workouts/1304674/</code></strong>, speichert den Plan als PDF (<strong><code>{currentFilename}</code></strong>) unter <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong> und trägt alle <strong>{planHorizon} Trainings- &amp; Ruhetage</strong> automatisch als Ganztages-Termine in deinen Kalender <strong>„Familie“</strong> ein.
                 </>
               )}
             </p>

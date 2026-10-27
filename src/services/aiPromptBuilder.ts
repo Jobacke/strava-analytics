@@ -227,7 +227,21 @@ DEINE AUFGABE ALS MEIN RADTRAINER:
         python3 "/Users/johannes/Library/CloudStorage/OneDrive-Backhaus/Antigravity/Strava/scripts/md_to_pdf.py" "/Users/johannes/Documents/Zwift/Trainingspläne/${mdFilename}" --remove-md
      Damit liegt der Plan sofort als "${filename}" im Ordner "/Users/johannes/Documents/Zwift/Trainingspläne/" zum Nachlesen bereit!
    • FÜR CLAUDE:
-     Verwende ebenfalls exakt die Hauptüberschrift "${title}" für das erstellte Dokument.`;
+     Verwende ebenfalls exakt die Hauptüberschrift "${title}" für das erstellte Dokument.
+7. AUTOMATISCHER KALENDER-EINTRAG IM KALENDER "Familie" (FÜR ANTIGRAVITY AUF DEM MAC):
+   • Trage ALLE ${planDays} Tage des Trainingsplans (vom ${day1} bis ${dayEnd}) – sowohl aktive Rad-Trainingstage als auch Ruhetage – direkt als Ganztages-Termine in meinen Apple Kalender "Familie" ein:
+     - Aktive Trainingstage erhalten einen prägnanten Titel mit Emoji, Typ, Dauer und Ziel-Watt, z.B.:
+       "🚴 Zwift: GA1 Grundlagenfahrt (60 min • 155 W)" oder "🚴 Zwift: Sweet-Spot 3x10m (55 min • 220 W)"
+     - Ruhetage erhalten den Titel:
+       "🧘 Ruhetag / Regeneration"
+     - In das Feld "description" jedes Kalendereintrags schreibst du die kompakte Zusammenfassung des Tages (Trainingsziel, Watt-/Pulsbereich, empfohlenes Zwift-Event/RoboPacer sowie den Dateinamen der erstellten .zwo-Datei).
+   • Erstelle dazu eine temporäre JSON-Datei "/tmp/zwift_plan_calendar.json" im Format:
+     [
+       { "date": "YYYY-MM-DD", "title": "🚴 Zwift: ...", "description": "..." },
+       { "date": "YYYY-MM-DD", "title": "🧘 Ruhetag / Regeneration", "description": "..." }
+     ]
+     und führe anschließend SOFORT folgendes Skript aus (welches eventuelle alte Einträge im Zeitraum automatisch bereinigt und alle ${planDays} Ganztages-Termine in den Kalender "Familie" einträgt):
+     python3 "/Users/johannes/Library/CloudStorage/OneDrive-Backhaus/Antigravity/Strava/scripts/sync_calendar.py" "/tmp/zwift_plan_calendar.json" "Familie"`;
 
   return { prompt, title, filename, day1, dayEnd };
 }
