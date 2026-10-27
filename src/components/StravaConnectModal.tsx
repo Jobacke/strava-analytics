@@ -12,6 +12,8 @@ import {
   StravaConfig,
   getStravaAuthUrl,
   clearStravaAuth,
+  DEFAULT_STRAVA_CLIENT_ID,
+  DEFAULT_STRAVA_CLIENT_SECRET,
 } from '../services/stravaApi';
 
 interface StravaConnectModalProps {
@@ -28,10 +30,10 @@ export const StravaConnectModal: React.FC<StravaConnectModalProps> = ({
   onConfigUpdated,
 }) => {
   const [clientId, setClientId] = useState(
-    stravaConfig?.clientId || localStorage.getItem('strava_temp_client_id') || ''
+    stravaConfig?.clientId || localStorage.getItem('strava_temp_client_id') || DEFAULT_STRAVA_CLIENT_ID
   );
   const [clientSecret, setClientSecret] = useState(
-    stravaConfig?.clientSecret || localStorage.getItem('strava_temp_client_secret') || ''
+    stravaConfig?.clientSecret || localStorage.getItem('strava_temp_client_secret') || DEFAULT_STRAVA_CLIENT_SECRET
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);

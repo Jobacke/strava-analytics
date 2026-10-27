@@ -17,6 +17,9 @@ import {
   saveStoredActivities,
   exchangeOAuthCode,
   fetchStravaActivities,
+  startDirectStravaOAuth,
+  DEFAULT_STRAVA_CLIENT_ID,
+  DEFAULT_STRAVA_CLIENT_SECRET,
   StravaConfig,
 } from './services/stravaApi';
 
@@ -68,8 +71,8 @@ export function App() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
-    const tempClientId = localStorage.getItem('strava_temp_client_id');
-    const tempClientSecret = localStorage.getItem('strava_temp_client_secret');
+    const tempClientId = localStorage.getItem('strava_temp_client_id') || DEFAULT_STRAVA_CLIENT_ID;
+    const tempClientSecret = localStorage.getItem('strava_temp_client_secret') || DEFAULT_STRAVA_CLIENT_SECRET;
 
     if (code && tempClientId && tempClientSecret) {
       setOauthStatus('Verbinde mit Strava...');
@@ -179,7 +182,13 @@ export function App() {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       {/* Navbar */}
       <Navbar
-        onOpenConnectModal={() => setIsConnectModalOpen(true)}
+        onOpenConnectModal={() => {
+          if (!stravaConfig) {
+            startDirectStravaOAuth();
+          } else {
+            setIsConnectModalOpen(true);
+          }
+        }}
         onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
         stravaConfig={stravaConfig}
         onSyncStrava={handleSyncStrava}
@@ -201,10 +210,10 @@ export function App() {
         <div className="bg-orange-500/10 border-b border-orange-500/20 px-4 py-2">
           <div className="max-w-7xl mx-auto flex items-center justify-between text-xs">
             <span className="text-orange-300">
-              🚴 <strong>Noch keine Trainingsdaten geladen:</strong> Verbinde dein Strava-Konto, um deine echten Einheiten zu synchronisieren.
+              🚴 <strong>Noch keine Trainingsdaten geladen:</strong> Verbinde dein Strava-Konto per 1-Klick, um deine echten Einheiten zu synchronisieren.
             </span>
             <button
-              onClick={() => setIsConnectModalOpen(true)}
+              onClick={() => startDirectStravaOAuth()}
               className="text-orange-200 hover:text-white font-semibold underline underline-offset-2 ml-3"
             >
               Jetzt mit Strava verbinden &rarr;

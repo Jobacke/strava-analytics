@@ -13,6 +13,9 @@ export interface StravaConfig {
 const STORAGE_KEY = 'strava_pulse_auth';
 const ACTIVITIES_STORAGE_KEY = 'strava_pulse_activities';
 
+export const DEFAULT_STRAVA_CLIENT_ID = '290793';
+export const DEFAULT_STRAVA_CLIENT_SECRET = 'd94a4e20e69185e2f839f6ab5d9779226ae55eff';
+
 export function getStoredStravaConfig(): StravaConfig | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -53,7 +56,20 @@ export function getStravaAuthUrl(clientId: string, redirectUri: string): string 
   const scope = 'read,activity:read_all';
   return `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(
     redirectUri
-  )}&approval_prompt=force&scope=${scope}`;
+  )}&approval_prompt=auto&scope=${scope}`;
+}
+
+/**
+ * Trigger 1-Click OAuth flow using the pre-configured Strava API credentials
+ */
+export function startDirectStravaOAuth(
+  clientId = DEFAULT_STRAVA_CLIENT_ID,
+  clientSecret = DEFAULT_STRAVA_CLIENT_SECRET
+): void {
+  localStorage.setItem('strava_temp_client_id', clientId.trim());
+  localStorage.setItem('strava_temp_client_secret', clientSecret.trim());
+  const redirectUri = window.location.origin + window.location.pathname;
+  window.location.href = getStravaAuthUrl(clientId.trim(), redirectUri);
 }
 
 /**
