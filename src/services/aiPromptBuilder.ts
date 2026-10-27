@@ -5,6 +5,7 @@ import { subDays, parseISO, isAfter, addDays, format } from 'date-fns';
 export interface PromptBuilderOptions {
   lookbackDays: number;
   planDays?: number;
+  selectedActivityId?: string | number;
   athleteName: string;
   stats: TrainingStats;
   hrDistribution: HRDistribution;
@@ -244,4 +245,166 @@ DEINE AUFGABE ALS MEIN RADTRAINER:
      python3 "/Users/johannes/Library/CloudStorage/OneDrive-Backhaus/Antigravity/Strava/scripts/sync_calendar.py" "/tmp/zwift_plan_calendar.json" "Familie"`;
 
   return { prompt, title, filename, day1, dayEnd };
+}
+
+/**
+ * 3. Prompt für den tagesaktuellen Soll/Ist-Abgleich einer Trainingseinheit mit dem aktuellen Trainingsplan
+ *    (Bewusst OHNE PDF-Speicherung, direkte Chat-Auswertung)
+ */
+export function buildDailyCheckPrompt(options: PromptBuilderOptions): {
+  prompt: string;
+  title: string;
+  activity?: StravaActivity;
+} {
+  const { athleteName, stats, settings, filteredActivities, selectedActivityId } = options;
+
+  const cyclingActivities = filteredActivities
+    .filter((a) => isCyclingActivity(a))
+    .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
+
+  const targetActivity =
+    (selectedActivityId
+      ? cyclingActivities.find((a) => String(a.id) === String(selectedActivityId))
+      : undefined) || cyclingActivities[0];
+
+  if (!targetActivity) {
+    return {
+      title: `Tages-Check (Soll vs. Ist) für ${athleteName}`,
+      prompt: 'Keine Radeinheit für den Soll/Ist-Abgleich gefunden. Bitte synchronisiere zuerst deine aktuelle Einheit mit Strava.',
+    };
+  }
+
+  const ftp = settings.ftpWatts || 250;
+  const maxHr = settings.maxHeartRate || 190;
+  const weight = settings.weightKg || 75;
+
+  const actDateObj = parseISO(targetActivity.start_date);
+  const actDateDE = format(actDateObj, 'dd.MM.yyyy');
+  const actDateISO = targetActivity.start_date.split('T')[0];
+
+  const isIndoor =
+    targetActivity.distance <= 0 || targetActivity.trainer || targetActivity.type === 'VirtualRide';
+  const envLabel = isIndoor
+    ? 'Indoor Smart-Trainer (Wahoo Kickr Core / Zwift)'
+    : 'Outdoor Rennrad';
+
+  const durationMin = Math.round((targetActivity.moving_time || 0) / 60);
+  const durationSecRem = Math.round((targetActivity.moving_time || 0) % 60);
+  const durationFormatted = `${durationMin}:${String(durationSecRem).padStart(2, '0')} min (${durationMin} Minuten)`;
+  const distKm = ((targetActivity.distance || 0) / 1000).toFixed(1);
+  const elevM = Math.round(targetActivity.total_elevation_gain || 0);
+  const avgSpeedKmh = ((targetActivity.average_speed || 0) * 3.6).toFixed(1);
+
+  const avgWatts = targetActivity.average_watts ? Math.round(targetActivity.average_watts) : null;
+  const npWatts = targetActivity.weighted_average_watts
+    ? Math.round(targetActivity.weighted_average_watts)
+    : avgWatts;
+
+  const pctFtpAvg = avgWatts ? Math.round((avgWatts / ftp) * 100) : null;
+  const pctFtpNp = npWatts ? Math.round((npWatts / ftp) * 100) : null;
+  const wKgAvg = avgWatts ? (avgWatts / weight).toFixed(2) : null;
+  const intensityFactor = npWatts ? (npWatts / ftp).toFixed(2) : null;
+  const variabilityIndex =
+    npWatts && avgWatts && avgWatts > 0 ? (npWatts / avgWatts).toFixed(2) : null;
+  const estTss =
+    npWatts && intensityFactor
+      ? Math.round(
+          (((targetActivity.moving_time || 0) * npWatts * parseFloat(intensityFactor)) /
+            (ftp * 3600)) *
+            100
+        )
+      : null;
+
+  const avgHr = targetActivity.average_heartrate
+    ? Math.round(targetActivity.average_heartrate)
+    : null;
+  const maxHrAct = targetActivity.max_heartrate
+    ? Math.round(targetActivity.max_heartrate)
+    : null;
+  const pctMaxHr = avgHr ? Math.round((avgHr / maxHr) * 100) : null;
+  const efficiencyFactor =
+    (npWatts || avgWatts) && avgHr && avgHr > 0
+      ? (((npWatts || avgWatts || 0) as number) / avgHr).toFixed(2)
+      : null;
+
+  const cadence = targetActivity.average_cadence
+    ? Math.round(targetActivity.average_cadence)
+    : null;
+  const kj = targetActivity.kilojoules ? Math.round(targetActivity.kilojoules) : null;
+  const trimp = targetActivity.trimp ? Math.round(targetActivity.trimp) : null;
+
+  let hrZoneBlock = 'Keine detaillierte Zonenverteilung für diese Einheit hinterlegt.';
+  if (targetActivity.hrZones) {
+    const z = targetActivity.hrZones;
+    const totalZ = Math.max(1, z.z1 + z.z2 + z.z3 + z.z4 + z.z5);
+    const fmtZ = (sec: number) => `${Math.round(sec / 60)} min (${Math.round((sec / totalZ) * 100)}%)`;
+    hrZoneBlock = [
+      `  • Zone 1 (Regeneration): ${fmtZ(z.z1)}`,
+      `  • Zone 2 (GA1 Grundlagen): ${fmtZ(z.z2)}`,
+      `  • Zone 3 (Tempo / Grauzone): ${fmtZ(z.z3)}`,
+      `  • Zone 4 (Schwelle): ${fmtZ(z.z4)}`,
+      `  • Zone 5 (VO2max / Anaerob): ${fmtZ(z.z5)}`,
+    ].join('\n');
+  }
+
+  const recentContext = formatActivitiesSample(cyclingActivities.slice(0, 5), 5);
+  const title = `Tages-Check (Soll vs. Ist): ${targetActivity.name} (${actDateDE})`;
+
+  const prompt = `Du bist mein persönlicher Sportwissenschaftler und Radsport-Coach.
+Ich habe gerade eine Trainingseinheit absolviert und möchte einen präzisen, tagesaktuellen **Soll-vs.-Ist-Abgleich** dieser Einheit mit meinem aktuellen Trainingsplan für Athlet "${athleteName}".
+
+WICHTIGE VORGABE FÜR DIESE AUSWERTUNG:
+- **KEINE PDF-ERSTELLUNG & KEINE DATEI-SPEICHERUNG:** Erstelle für diesen Tages-Check ausdrücklich KEINE PDF-Datei, KEINE Markdown-Datei und KEINE neuen .zwo-Workouts!
+- Gib mir deine Auswertung direkt, kompakt und übersichtlich **hier im Chatfenster** aus.
+
+1. DATEN DER ABSOLVIERTEN TRAININGSEINHEIT (IST-DATEN AUS STRAVA):
+- Datum der Einheit: ${actDateDE} (ISO: ${actDateISO})
+- Name der Einheit: "${targetActivity.name}"
+- Trainingsumgebung: ${envLabel}
+- Netto-Fahrzeit (Moving Time): ${durationFormatted}
+- Distanz & Höhenmeter: ${distKm} km | ${elevM} Hm | Ø Geschwindigkeit: ${avgSpeedKmh} km/h
+- Leistungsdaten (Referenz-FTP: ${ftp} W bei ${weight} kg = ${(ftp / weight).toFixed(2)} W/kg):
+  • Durchschnittsleistung (Ø Watt): ${avgWatts !== null ? `${avgWatts} W (${pctFtpAvg}% FTP | ${wKgAvg} W/kg)` : 'nicht erfasst'}
+  • Gewichtete Leistung / Normalized Power (NP): ${npWatts !== null ? `${npWatts} W (${pctFtpNp}% FTP)` : 'nicht erfasst'}
+  • Intensity Factor (IF): ${intensityFactor ?? 'k.A.'} | Variability Index (VI = NP/ØW): ${variabilityIndex ?? 'k.A.'}
+  • Geschätzter Training Stress Score (TSS): ${estTss !== null ? `${estTss} TSS` : 'k.A.'} | Mechanische Arbeit: ${kj !== null ? `${kj} kJ` : 'k.A.'}
+- Herzfrequenz & Effizienz (Referenz-HFmax: ${maxHr} bpm, Ruhepuls: ${settings.restingHeartRate} bpm):
+  • Durchschnittspuls (Ø HF): ${avgHr !== null ? `${avgHr} bpm (${pctMaxHr}% HFmax)` : 'nicht erfasst'}
+  • Maximalpuls (Max HF): ${maxHrAct !== null ? `${maxHrAct} bpm` : 'nicht erfasst'}
+  • Aerobe Effizienz (Efficiency Factor EF = Watt / Puls): ${efficiencyFactor !== null ? `${efficiencyFactor} W/bpm` : 'nicht erfasst'}
+  • TRIMP-Belastungswert der Einheit: ${trimp !== null ? trimp : 'k.A.'}
+- Trittfrequenz (Ø Kadenz): ${cadence !== null ? `${cadence} rpm` : 'nicht erfasst'}
+- Zeit in den Herzfrequenz-Zonen während dieser Einheit:
+${hrZoneBlock}
+
+2. AKTUELLER BELASTUNGS- & ERHOLUNGSKONTEXT (COGGAN / BANISTER):
+- Chronische Fitness (CTL, 42 Tage): ${stats.currentFitnessCTL}
+- Akute Ermüdung (ATL, 7 Tage): ${stats.currentFatigueATL}
+- Aktuelle Form / Frische (TSB = CTL - ATL): ${stats.currentFormTSB > 0 ? '+' : ''}${stats.currentFormTSB}
+- Überlastungsradar (ACWR): ${stats.currentACWR.toFixed(2)} (Optimalbereich: 0.85 - 1.25)
+- Letzte 5 Radeinheiten im Überblick:
+${recentContext}
+
+3. SOLL-VORGABE AUS MEINEM AKTUELLEN TRAININGSPLAN (AUTOMATISCH AUSLESEN):
+- FÜR ANTIGRAVITY AUF DEM MAC:
+  Lies selbstständig meinen aktuell gültigen Trainingsplan im Ordner \`/Users/johannes/Documents/Zwift/Trainingspläne/\` (die neueste PDF-Datei \`Trainingsplan für ${athleteName}...\`) sowie ggf. die zugehörige \`.zwo\`-Workout-Datei für den **${actDateDE}** in \`/Users/johannes/Documents/Zwift/Workouts/1304674/\` aus, um die exakte **Soll-Vorgabe** für diesen Tag (geplanter Workout-Typ, geplante Dauer, Ziel-Wattbereich, Puls-Obergrenze, Kadenz) zu ermitteln.
+
+4. DEINE AUFGABE – BITTE STRUKTURIERE DEN TAGES-CHECK IM CHAT WIE FOLGT:
+1. **KURZ-FAZIT & ZIELERREICHUNG (🟢 / 🟡 / 🔴):**
+   - Wurde der geplante Trainingsreiz für den ${actDateDE} getroffen? (Kurzes, motivierendes und ehrliches 2-3-Satz-Urteil).
+2. **SOLL-VS.-IST-VERGLEICH (KOMPAKTE TABELLE):**
+   - Stelle **Soll (laut Trainingsplan)** und **Ist (gefahrene Strava-Einheit)** übersichtlich gegenüber:
+     • Workout-Typ / Trainingsziel
+     • Dauer (Soll vs. Ist)
+     • Leistung (Soll-Watt vs. Ø ${avgWatts ?? '-'} W / NP ${npWatts ?? '-'} W)
+     • Herzfrequenz (Ziel-Pulsbereich vs. Ø ${avgHr ?? '-'} bpm / Max ${maxHrAct ?? '-'} bpm)
+     • Trittfrequenz (Ziel-RPM vs. Ø ${cadence ?? '-'} rpm)
+3. **PHYSIOLOGISCHE & PACING-ANALYSE DER EINHEIT:**
+   - Wie gleichmäßig wurde gepacet (VI = ${variabilityIndex ?? '-'}, IF = ${intensityFactor ?? '-'})?
+   - Wie hat das Herz-Kreislauf-System auf die Wattvorgabe reagiert (EF = ${efficiencyFactor ?? '-'} W/bpm, Zonenverteilung, Einhaltung der Puls-Obergrenze bzw. Hinweis auf Cardiac Drift)?
+4. **AUSBLICK & EMPFEHLUNG FÜR MORGEN:**
+   - Was sieht der aktuelle Trainingsplan für morgen vor?
+   - Kann die morgige Einheit angesichts der heutigen Umsetzung und meines aktuellen Status (TSB: ${stats.currentFormTSB > 0 ? '+' : ''}${stats.currentFormTSB}, ACWR: ${stats.currentACWR.toFixed(2)}) **1:1 wie geplant** durchgeführt werden, oder empfiehlst du eine kleine Anpassung?`;
+
+  return { prompt, title, activity: targetActivity };
 }

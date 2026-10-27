@@ -16,11 +16,14 @@ import {
   Clock,
   Edit3,
   RotateCcw,
+  CheckCircle2,
 } from 'lucide-react';
 import { StravaActivity, TrainingStats, HRDistribution, UserAthleteSettings } from '../types/strava';
-import { buildAnalysisPrompt, buildPlanPrompt } from '../services/aiPromptBuilder';
+import { buildAnalysisPrompt, buildPlanPrompt, buildDailyCheckPrompt } from '../services/aiPromptBuilder';
+import { isCyclingActivity } from '../utils/trainingMath';
+import { parseISO, format } from 'date-fns';
 
-export type ClaudeCoachMode = 'analysis' | 'plan';
+export type ClaudeCoachMode = 'analysis' | 'plan' | 'daily';
 
 interface ClaudeCoachModalProps {
   isOpen: boolean;
@@ -55,6 +58,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
   const [analysisLookback, setAnalysisLookback] = useState<number>(14);
   const [planLookback, setPlanLookback] = useState<number>(14);
   const [planHorizon, setPlanHorizon] = useState<number>(7);
+  const [selectedDailyActivityId, setSelectedDailyActivityId] = useState<string>('');
 
   // Live prompt editor state
   const [editedPrompt, setEditedPrompt] = useState<string>('');
@@ -65,16 +69,28 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
   const [copiedGeneric, setCopiedGeneric] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
+  const recentCyclingActivities = useMemo(() => {
+    return filteredActivities
+      .filter((a) => isCyclingActivity(a))
+      .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime())
+      .slice(0, 12);
+  }, [filteredActivities]);
+
   // Sync activeTab if initialMode changes when opened
   useEffect(() => {
     if (isOpen) {
       setActiveTab(initialMode);
       setShowPreview(false);
       setHasManualEdits(false);
+      if (recentCyclingActivities.length > 0 && !selectedDailyActivityId) {
+        setSelectedDailyActivityId(String(recentCyclingActivities[0].id));
+      }
     }
-  }, [isOpen, initialMode]);
+  }, [isOpen, initialMode, recentCyclingActivities, selectedDailyActivityId]);
 
   const isAnalysis = activeTab === 'analysis';
+  const isPlan = activeTab === 'plan';
+  const isDaily = activeTab === 'daily';
 
   // Reactively compute prompts based on lookback and horizon settings
   const dynamicAnalysis = useMemo(() => {
@@ -118,7 +134,31 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
     };
   }, [stats, hrDistribution, settings, filteredActivities, athleteName, planLookback, planHorizon, planPrompt, planTitle]);
 
-  const currentGeneratedPrompt = isAnalysis ? dynamicAnalysis.prompt : dynamicPlan.prompt;
+  const dynamicDaily = useMemo(() => {
+    if (stats && hrDistribution && settings) {
+      return buildDailyCheckPrompt({
+        lookbackDays: 14,
+        selectedActivityId: selectedDailyActivityId || undefined,
+        athleteName,
+        stats,
+        hrDistribution,
+        settings,
+        sportFilter: 'Ride',
+        filteredActivities,
+      });
+    }
+    return {
+      prompt: '',
+      title: `Tages-Check (Soll vs. Ist) für ${athleteName}`,
+      activity: undefined,
+    };
+  }, [stats, hrDistribution, settings, filteredActivities, athleteName, selectedDailyActivityId]);
+
+  const currentGeneratedPrompt = isAnalysis
+    ? dynamicAnalysis.prompt
+    : isPlan
+    ? dynamicPlan.prompt
+    : dynamicDaily.prompt;
   const currentFilename = isAnalysis ? dynamicAnalysis.filename : dynamicPlan.filename;
 
   // Sync edited prompt with newly generated template if no manual edits were made
@@ -209,23 +249,37 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-md ${
               isAnalysis 
                 ? 'bg-gradient-to-tr from-cyan-600 to-blue-500 shadow-cyan-500/20' 
-                : 'bg-gradient-to-tr from-orange-600 to-amber-500 shadow-orange-500/20'
+                : isPlan
+                ? 'bg-gradient-to-tr from-orange-600 to-amber-500 shadow-orange-500/20'
+                : 'bg-gradient-to-tr from-emerald-600 to-teal-500 shadow-emerald-500/20'
             }`}>
-              {isAnalysis ? <BarChart3 className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+              {isAnalysis ? (
+                <BarChart3 className="w-4 h-4" />
+              ) : isPlan ? (
+                <Sparkles className="w-4 h-4" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4" />
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm sm:text-base font-bold text-white tracking-tight">
-                  {isAnalysis ? 'KI Datenanalyse & Leistungsdiagnose' : 'KI Rad-Trainingsplan & Zwift-Workouts'}
+                  {isAnalysis
+                    ? 'KI Datenanalyse & Leistungsdiagnose'
+                    : isPlan
+                    ? 'KI Rad-Trainingsplan & Zwift-Workouts'
+                    : 'KI Tages-Check: Soll vs. Ist (Einheiten-Abgleich)'}
                 </h2>
                 <span className="hidden sm:inline px-1.5 py-0.5 text-[9px] font-bold uppercase rounded-md bg-slate-800 text-amber-400 border border-amber-500/30">
-                  100 % Radsport &bull; Zwift Sync
+                  {isDaily ? 'Direkt im Chat • Kein PDF' : '100 % Radsport • Zwift Sync'}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 leading-tight">
                 {isAnalysis
                   ? `Radanalyse der letzten ${analysisLookback} Tage (Wahoo Kickr Core & Outdoor)`
-                  : `${planHorizon}-Tage-Radplan (${planHorizon === 14 ? '2 Wochen Mesozyklus' : '1 Woche'}) mit .zwo-Ablage in Zwift`}
+                  : isPlan
+                  ? `${planHorizon}-Tage-Radplan (${planHorizon === 14 ? '2 Wochen Mesozyklus' : '1 Woche'}) mit .zwo-Ablage in Zwift`
+                  : 'Vergleicht deine absolvierte Radeinheit direkt im Chat mit dem aktuellen Trainingsplan (ohne PDF-Speicherung)'}
               </p>
             </div>
           </div>
@@ -238,10 +292,10 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
         </div>
 
         {/* Mode Selector Tabs */}
-        <div className="px-5 pt-2 pb-0 bg-slate-900/70 border-b border-slate-800 flex gap-2">
+        <div className="px-5 pt-2 pb-0 bg-slate-900/70 border-b border-slate-800 flex flex-wrap gap-1.5 sm:gap-2">
           <button
             onClick={() => handleTabChange('analysis')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border-b-2 transition ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold border-b-2 transition ${
               isAnalysis
                 ? 'border-cyan-400 text-cyan-300 bg-cyan-950/20'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -253,8 +307,8 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
 
           <button
             onClick={() => handleTabChange('plan')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border-b-2 transition ${
-              !isAnalysis
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold border-b-2 transition ${
+              isPlan
                 ? 'border-orange-400 text-orange-300 bg-orange-950/20'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
@@ -262,9 +316,21 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
             <Sparkles className="w-3.5 h-3.5" />
             <span>2. Trainingsplan & Zwift (.zwo)</span>
           </button>
+
+          <button
+            onClick={() => handleTabChange('daily')}
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold border-b-2 transition ${
+              isDaily
+                ? 'border-emerald-400 text-emerald-300 bg-emerald-950/20'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>3. Tages-Check (Soll vs. Ist)</span>
+          </button>
         </div>
 
-        {/* Flexible Configuration Bar (Lookback & Horizon) */}
+        {/* Flexible Configuration Bar (Lookback, Horizon, or Activity Selection) */}
         <div className="px-5 py-2 bg-slate-950/80 border-b border-slate-800/90 flex flex-wrap items-center justify-between gap-2 text-xs">
           {isAnalysis ? (
             /* Analysis Lookback Selector */
@@ -294,7 +360,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                 ))}
               </div>
             </div>
-          ) : (
+          ) : isPlan ? (
             /* Training Plan Lookback & Plan Horizon Selectors */
             <div className="flex flex-wrap items-center justify-between w-full gap-2">
               <div className="flex items-center gap-1.5">
@@ -357,6 +423,35 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                 </div>
               </div>
             </div>
+          ) : (
+            /* Daily Check Activity Selector */
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full gap-2">
+              <span className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5 shrink-0">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                Einheit für den Soll/Ist-Check:
+              </span>
+              <select
+                value={selectedDailyActivityId}
+                onChange={(e) => {
+                  setSelectedDailyActivityId(e.target.value);
+                  setHasManualEdits(false);
+                }}
+                className="flex-1 max-w-md px-2.5 py-1 rounded-lg bg-slate-900 border border-emerald-500/40 text-emerald-200 text-[11px] font-semibold focus:outline-none focus:border-emerald-400"
+              >
+                {recentCyclingActivities.map((act, idx) => {
+                  const dateLabel = format(parseISO(act.start_date), 'dd.MM.yyyy');
+                  const durMin = Math.round((act.moving_time || 0) / 60);
+                  const wattsLabel = act.average_watts ? ` • ${Math.round(act.average_watts)} W` : '';
+                  const hrLabel = act.average_heartrate ? ` • ${Math.round(act.average_heartrate)} bpm` : '';
+                  return (
+                    <option key={String(act.id)} value={String(act.id)}>
+                      {idx === 0 ? '★ Aktuellste: ' : ''}
+                      {dateLabel} – {act.name} ({durMin} min{wattsLabel}{hrLabel})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
           )}
         </div>
 
@@ -367,10 +462,12 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-extrabold text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Terminal className="w-3.5 h-3.5 text-orange-400" />
-                Empfohlen auf dem Mac &bull; Direkte PDF- &amp; Dateiablage
+                {isDaily
+                  ? 'Empfohlen auf dem Mac • Automatischer Trainingsplan-Abgleich im Chat'
+                  : 'Empfohlen auf dem Mac • Direkte PDF- & Dateiablage'}
               </span>
               <div className="p-1 rounded-md bg-orange-500/20 text-orange-400">
-                <FolderDown className="w-3.5 h-3.5" />
+                {isDaily ? <CheckCircle2 className="w-3.5 h-3.5" /> : <FolderDown className="w-3.5 h-3.5" />}
               </div>
             </div>
 
@@ -379,9 +476,13 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                 <>
                   Antigravity analysiert die Rad-Daten der letzten <strong>{analysisLookback} Tage</strong> und speichert die Analyse direkt als PDF (<strong><code>{currentFilename}</code></strong>) im Ordner <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong> ab.
                 </>
-              ) : (
+              ) : isPlan ? (
                 <>
                   Antigravity erstellt alle <strong>.zwo XML-Dateien</strong> in <strong><code>~/Documents/Zwift/Workouts/1304674/</code></strong>, speichert den Plan als PDF (<strong><code>{currentFilename}</code></strong>) unter <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong> und trägt alle <strong>{planHorizon} Trainings- &amp; Ruhetage</strong> automatisch als Ganztages-Termine in deinen Kalender <strong>„Familie“</strong> ein.
+                </>
+              ) : (
+                <>
+                  Antigravity liest deinen aktuellen Trainingsplan aus <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong> (sowie die heutige <strong><code>.zwo</code></strong>-Datei) und vergleicht die Soll-Vorgabe direkt im Chat mit deiner absolvierten Einheit <strong>„{dynamicDaily.activity?.name || 'Aktuelle Fahrt'}“</strong> – <strong>bewusst ohne PDF-Speicherung</strong>.
                 </>
               )}
             </p>
@@ -528,7 +629,9 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
           <span className="text-[11px] text-slate-400 font-medium">
             {isAnalysis
               ? `Status: Rad-Analyse (${analysisLookback} Tage)${hasManualEdits ? ' • Manuell modifiziert' : ''}`
-              : `Status: ${planHorizon}-Tage-Radplan (${planHorizon === 14 ? '2 Wochen' : '1 Woche'}) • Basis: ${planLookback} Tage${hasManualEdits ? ' • Manuell modifiziert' : ''}`}
+              : isPlan
+              ? `Status: ${planHorizon}-Tage-Radplan (${planHorizon === 14 ? '2 Wochen' : '1 Woche'}) • Basis: ${planLookback} Tage${hasManualEdits ? ' • Manuell modifiziert' : ''}`
+              : `Status: Tages-Check (${dynamicDaily.activity?.name || 'Aktuelle Einheit'}) • Kein PDF${hasManualEdits ? ' • Manuell modifiziert' : ''}`}
           </span>
           <button
             onClick={onClose}

@@ -5,7 +5,7 @@ import { AlertTriangle, CheckCircle2, Info, Flame, Sparkles, ArrowRight } from '
 interface CoachInsightsProps {
   insights: CoachInsight[];
   athleteSummary?: string;
-  onOpenClaudeModal?: (mode: 'analysis' | 'plan') => void;
+  onOpenClaudeModal?: (mode: 'analysis' | 'plan' | 'daily') => void;
 }
 
 export const CoachInsights: React.FC<CoachInsightsProps> = ({
@@ -80,16 +80,27 @@ export const CoachInsights: React.FC<CoachInsightsProps> = ({
           </div>
         </div>
 
-        {/* Unified AI Action Button */}
+        {/* Action Buttons: Daily Check + Full AI Coach */}
         {onOpenClaudeModal && (
-          <button
-            onClick={() => onOpenClaudeModal('analysis')}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-extrabold shadow-lg shadow-orange-500/20 transition-all hover:scale-[1.01] active:scale-[0.99] shrink-0"
-            title="Öffnet KI-Datenanalyse, Leistungsdiagnose und Trainingsplanung mit Zwift"
-          >
-            <Sparkles className="w-4 h-4 text-white" />
-            <span>Datenanalyse & Trainingssteuerung mit Zwift</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              onClick={() => onOpenClaudeModal('daily')}
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/35 text-xs font-bold transition-all hover:scale-[1.01] active:scale-[0.99]"
+              title="Vergleicht deine aktuelle Trainingseinheit direkt im Chat mit dem aktuellen Trainingsplan (ohne PDF)"
+            >
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>Tages-Check (Soll vs. Ist)</span>
+            </button>
+
+            <button
+              onClick={() => onOpenClaudeModal('analysis')}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-extrabold shadow-lg shadow-orange-500/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
+              title="Öffnet KI-Datenanalyse, Leistungsdiagnose und Trainingsplanung mit Zwift"
+            >
+              <Sparkles className="w-4 h-4 text-white" />
+              <span>Datenanalyse & Trainingssteuerung mit Zwift</span>
+            </button>
+          </div>
         )}
       </div>
 
