@@ -1,26 +1,17 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { CoachInsight } from '../types/strava';
-import { AlertTriangle, CheckCircle2, Info, Flame, Sparkles, Copy, Check, ChevronRight, BarChart3, Zap } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, Flame, Sparkles, ChevronRight, BarChart3 } from 'lucide-react';
 
 interface CoachInsightsProps {
   insights: CoachInsight[];
-  athleteSummary: string;
+  athleteSummary?: string;
   onOpenClaudeModal?: (mode: 'analysis' | 'plan') => void;
 }
 
 export const CoachInsights: React.FC<CoachInsightsProps> = ({
   insights,
-  athleteSummary,
   onOpenClaudeModal,
 }) => {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopyPrompt = () => {
-    navigator.clipboard.writeText(athleteSummary);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
-  };
-
   const getIcon = (type: CoachInsight['type']) => {
     switch (type) {
       case 'danger':
@@ -78,37 +69,19 @@ export const CoachInsights: React.FC<CoachInsightsProps> = ({
                 title="Auswertung und Schlussfolgerungen aus deinen Trainingsdaten mit Antigravity oder Claude"
               >
                 <BarChart3 className="w-4 h-4" />
-                <span>Datenanalyse mit KI</span>
+                <span>Datenanalyse</span>
               </button>
 
               <button
                 onClick={() => onOpenClaudeModal('plan')}
                 className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold shadow-lg shadow-orange-500/20 transition"
-                title="7-Tage-Trainingsplan & automatische .zwo-Ablage in Zwift mit Antigravity"
+                title="Datenanalyse und Trainingssteuerung mit Zwift (7 oder 14 Tage .zwo Auto-Ablage)"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>7-Tage-Plan & Zwift (.zwo Auto)</span>
+                <span>Datenanalyse und Trainingssteuerung mit Zwift</span>
               </button>
             </>
           )}
-
-          <button
-            onClick={handleCopyPrompt}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 border border-slate-700 transition"
-            title="Kopiert deine Trainingsdaten in die Zwischenablage"
-          >
-            {copied ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400">Kopiert</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5 text-slate-400" />
-                <span className="hidden sm:inline">Prompt kopieren</span>
-              </>
-            )}
-          </button>
         </div>
       </div>
 
