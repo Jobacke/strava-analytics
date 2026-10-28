@@ -22,7 +22,9 @@ export const TwoFactorLockScreen: React.FC<TwoFactorLockScreenProps> = ({
 }) => {
   const [pin, setPin] = useState('');
   const [totpCode, setTotpCode] = useState('');
-  const [rememberDevice, setRememberDevice] = useState(true);
+  const [rememberDevice, setRememberDevice] = useState<boolean>(
+    Boolean(config.rememberDeviceDays && config.rememberDeviceDays > 0)
+  );
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -51,7 +53,7 @@ export const TwoFactorLockScreen: React.FC<TwoFactorLockScreenProps> = ({
         }
       }
 
-      markSessionAuthenticated(rememberDevice, config.rememberDeviceDays || 30);
+      markSessionAuthenticated(rememberDevice, rememberDevice ? config.rememberDeviceDays || 30 : 0);
       onUnlocked();
     } catch (err: any) {
       setError(`Fehler bei der Verifizierung: ${err.message || 'Unbekannter Fehler'}`);
@@ -170,7 +172,15 @@ export const TwoFactorLockScreen: React.FC<TwoFactorLockScreenProps> = ({
                 className="rounded border-slate-700 text-emerald-500 focus:ring-emerald-500"
               />
               <span className="text-xs text-slate-300">
-                Diesem Gerät für <strong>{config.rememberDeviceDays || 30} Tage</strong> vertrauen
+                {rememberDevice ? (
+                  <>
+                    Diesem Gerät für <strong>{config.rememberDeviceDays || 30} Tage</strong> vertrauen
+                  </>
+                ) : (
+                  <>
+                    <strong>Sichere Einzelsitzung:</strong> Bei jedem Start der App neu authentifizieren (Empfohlen)
+                  </>
+                )}
               </span>
             </label>
 

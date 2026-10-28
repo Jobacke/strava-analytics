@@ -34,6 +34,7 @@ const CONSENT_STORAGE_KEY = 'strava_pulse_gdpr_consent_v1';
 const SECURITY_2FA_KEY = 'strava_pulse_security_2fa_v1';
 const TRUSTED_SESSION_KEY = 'strava_pulse_2fa_trusted_until';
 const PRIVACY_BLUR_KEY = 'strava_pulse_privacy_blur_v1';
+const MIGRATION_ALWAYS_ASK_V232 = 'strava_pulse_2fa_always_ask_v232';
 
 const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
@@ -86,7 +87,16 @@ export function getSecurity2FAConfig(): Security2FAConfig {
   try {
     const raw = localStorage.getItem(SECURITY_2FA_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed: Security2FAConfig = JSON.parse(raw);
+      // Einmalige Migration auf v2.3.2: Standardmäßig bei jedem App-Start abfragen (rememberDeviceDays = 0)
+      if (!localStorage.getItem(MIGRATION_ALWAYS_ASK_V232)) {
+        parsed.rememberDeviceDays = 0;
+        localStorage.setItem(SECURITY_2FA_KEY, JSON.stringify(parsed));
+        localStorage.removeItem(TRUSTED_SESSION_KEY);
+        sessionStorage.removeItem(TRUSTED_SESSION_KEY);
+        localStorage.setItem(MIGRATION_ALWAYS_ASK_V232, 'true');
+      }
+      return parsed;
     }
   } catch {
     // Fallback
@@ -95,7 +105,7 @@ export function getSecurity2FAConfig(): Security2FAConfig {
     enabled: false,
     pinHash: '',
     totpSecret: generateBase32Secret(16),
-    rememberDeviceDays: 30,
+    rememberDeviceDays: 0, // 0 = Jedes Mal beim Start der App abfragen
     autoLockMinutes: 15,
     updatedAt: new Date().toISOString(),
   };
@@ -106,19 +116,19 @@ export function saveSecurity2FAConfig(config: Security2FAConfig): void {
 }
 
 /**
- * Prüft, ob die aktuelle Sitzung bereits erfolgreich per 2FA authentifiziert wurde
+ * Prüft, ob die aktuelle Sitzung bereits erfolgreich per 2FA authentifiziert wurde.
+ * Wenn rememberDeviceDays === 0 ("Jedes Mal beim Start abfragen"), wird beim Start/Reload IMMER gesperrt.
  */
 export function isSessionAuthenticated(): boolean {
   const cfg = getSecurity2FAConfig();
   if (!cfg.enabled) return true;
 
+  // Wenn "Jedes Mal beim Start abfragen" (0 Tage) eingestellt ist, beim App-Start immer Authentifizierung verlangen
+  if (!cfg.rememberDeviceDays || cfg.rememberDeviceDays <= 0) {
+    return false;
+  }
+
   try {
-    // 1. Check sessionStorage (active browser tab session)
-    const sessionOk = sessionStorage.getItem(TRUSTED_SESSION_KEY);
-    if (sessionOk && Number(sessionOk) > Date.now()) {
-      return true;
-    }
-    // 2. Check localStorage (trusted device window)
     const trustedUntil = localStorage.getItem(TRUSTED_SESSION_KEY);
     if (trustedUntil && Number(trustedUntil) > Date.now()) {
       return true;
@@ -132,14 +142,13 @@ export function isSessionAuthenticated(): boolean {
 /**
  * Markiert die aktuelle Sitzung als erfolgreich 2FA-authentifiziert
  */
-export function markSessionAuthenticated(rememberDevice: boolean, rememberDays = 30): void {
-  const sessionExpiry = Date.now() + 12 * 3600 * 1000; // 12h session
-  sessionStorage.setItem(TRUSTED_SESSION_KEY, String(sessionExpiry));
+export function markSessionAuthenticated(rememberDevice: boolean, rememberDays = 0): void {
   if (rememberDevice && rememberDays > 0) {
     const deviceExpiry = Date.now() + rememberDays * 86400 * 1000;
     localStorage.setItem(TRUSTED_SESSION_KEY, String(deviceExpiry));
   } else {
     localStorage.removeItem(TRUSTED_SESSION_KEY);
+    sessionStorage.removeItem(TRUSTED_SESSION_KEY);
   }
 }
 

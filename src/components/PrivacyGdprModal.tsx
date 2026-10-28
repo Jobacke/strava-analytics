@@ -174,7 +174,7 @@ export const PrivacyGdprModal: React.FC<PrivacyGdprModalProps> = ({
       updatedAt: new Date().toISOString(),
     };
     saveSecurity2FAConfig(updated);
-    markSessionAuthenticated(true, updated.rememberDeviceDays);
+    markSessionAuthenticated(updated.rememberDeviceDays > 0, updated.rememberDeviceDays);
     setSecConfig(updated);
     onSecurityConfigChanged(updated);
     setAudit(getLocalStoragePrivacyAudit());
@@ -713,15 +713,20 @@ export const PrivacyGdprModal: React.FC<PrivacyGdprModalProps> = ({
                       <div className="grid grid-cols-2 gap-2">
                         <select
                           value={secConfig.rememberDeviceDays}
-                          onChange={(e) =>
-                            setSecConfig({ ...secConfig, rememberDeviceDays: Number(e.target.value) })
-                          }
-                          className="px-2.5 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
+                          onChange={(e) => {
+                            const days = Number(e.target.value);
+                            const nextCfg = { ...secConfig, rememberDeviceDays: days };
+                            setSecConfig(nextCfg);
+                            saveSecurity2FAConfig(nextCfg);
+                            markSessionAuthenticated(days > 0, days);
+                            onSecurityConfigChanged(nextCfg);
+                          }}
+                          className="px-2.5 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs font-bold"
                         >
+                          <option value={0}>Jedes Mal beim Start fragen</option>
                           <option value={7}>7 Tage merken</option>
                           <option value={30}>30 Tage merken</option>
                           <option value={90}>90 Tage merken</option>
-                          <option value={0}>Jedes Mal fragen</option>
                         </select>
                         <select
                           value={secConfig.autoLockMinutes}
