@@ -26,6 +26,8 @@ SHOT1_DASHBOARD = load_b64("shot1_dashboard.jpg")
 SHOT2_CHARTS = load_b64("shot2_charts.jpg")
 SHOT3_COACH_MODAL = load_b64("shot3_coach_modal.jpg")
 SHOT4_SETTINGS_LOCK = load_b64("shot4_settings_lock.jpg")
+SHOT5_2FA_LOCKSCREEN = load_b64("shot5_2fa_lockscreen.jpg")
+SHOT6_GDPR_CENTER = load_b64("shot6_gdpr_center.jpg")
 
 COMMON_CSS = """
   @page {
@@ -163,6 +165,9 @@ COMMON_CSS = """
   }
   .chapter-num.indigo {
     background: linear-gradient(135deg, #4f46e5, #6366f1);
+  }
+  .chapter-num.rose {
+    background: linear-gradient(135deg, #e11d48, #f43f5e);
   }
   .chapter-header h2 {
     font-size: 12.2pt;
@@ -529,18 +534,18 @@ COMBINED_HTML = f"""<!DOCTYPE html>
 <body>
 
 <!-- ===================================================================== -->
-<!-- TEIL I: DEUTSCHE AUSGABE (SEITEN 1 BIS 5)                             -->
+<!-- TEIL I: DEUTSCHE AUSGABE (SEITEN 1 BIS 6)                             -->
 <!-- ===================================================================== -->
 
 <!-- SEITE 1: COVER & KAPITEL 1 (INKL. DASHBOARD-SCREENSHOT) -->
 <div class="page">
   <div class="hero">
     <div class="hero-top">
-      <span class="badge-version">System Release v2.3.0 • Zweisprachige Gesamtausgabe (DE / EN)</span>
-      <span class="badge-doc">Teil I: Deutsches Handbuch (S. 1–5) • Part II: English Manual (p. 6–10)</span>
+      <span class="badge-version">System Release v2.3.4 • Zweisprachige Gesamtausgabe (DE / EN)</span>
+      <span class="badge-doc">Teil I: Deutsches Handbuch (S. 1–6) • Part II: English Manual (p. 7–12)</span>
     </div>
     <h1>Intelligente Trainingsanalyse &amp; Belastungssteuerung</h1>
-    <p class="subtitle">Evidenzbasierte Leistungsdiagnostik, KI-gestützte Trainingsplanung, direkte Smart-Trainer-Steuerung und tägliche Soll/Ist-Kontrolle in einem geschlossenen Coaching-System.</p>
+    <p class="subtitle">Evidenzbasierte Leistungsdiagnostik, EU-DSGVO-konformer 2FA-Zugangsschutz, KI-gestützte Trainingsplanung, direkte Smart-Trainer-Steuerung und tägliche Soll/Ist-Kontrolle in einem geschlossenen Coaching-System.</p>
     <div class="hero-pills">
       <div class="hero-pill">
         <span class="pill-label">Sportwissenschaft</span>
@@ -548,7 +553,7 @@ COMBINED_HTML = f"""<!DOCTYPE html>
       </div>
       <div class="hero-pill">
         <span class="pill-label">DSGVO &amp; Sicherheit</span>
-        <span class="pill-val">2FA (TOTP/Biometrie) • Art. 9</span>
+        <span class="pill-val">2FA (Touch ID/PIN) • Art. 9–32</span>
       </div>
       <div class="hero-pill">
         <span class="pill-label">Smart-Trainer Sync</span>
@@ -612,14 +617,14 @@ COMBINED_HTML = f"""<!DOCTYPE html>
   <div class="figure-box">
     <img src="{SHOT1_DASHBOARD}" style="width: 76%; height: auto; margin: 0 auto;" alt="Haupt-Cockpit der Webanwendung" />
     <div class="figure-caption">
-      <span><strong>Abb. 1.1 – Haupt-Cockpit (v2.3.0):</strong> Permanente Referenzwert-Kontrollleiste, Echtzeit-KPIs (ACWR, CTL/TSB, Volumen) und Smart Training Coach mit Direktzugriff auf Tages-Check &amp; Zwift-Steuerung.</span>
+      <span><strong>Abb. 1.1 – Haupt-Cockpit (v2.3.4):</strong> Permanente Referenzwert-Kontrollleiste, Echtzeit-KPIs (ACWR, CTL/TSB, Volumen) und Smart Training Coach mit Direktzugriff auf Tages-Check &amp; Zwift-Steuerung.</span>
       <span class="privacy-tag">Persönliche Werte geschwärzt</span>
     </div>
   </div>
 
   <div class="page-footer">
-    <span>Systemhandbuch (DE / EN) • Trainingsanalyse &amp; Belastungssteuerung (v2.3.0)</span>
-    <span>Teil I (Deutsch) • Seite 1 von 10</span>
+    <span>Systemhandbuch (DE / EN) • Trainingsanalyse &amp; Belastungssteuerung (v2.3.4)</span>
+    <span>Teil I (Deutsch) • Seite 1 von 12</span>
   </div>
 </div>
 
@@ -700,8 +705,8 @@ COMBINED_HTML = f"""<!DOCTYPE html>
   </div>
 
   <div class="page-footer">
-    <span>Systemhandbuch (DE / EN) • Trainingsanalyse &amp; Belastungssteuerung (v2.3.0)</span>
-    <span>Teil I (Deutsch) • Seite 2 von 10</span>
+    <span>Systemhandbuch (DE / EN) • Trainingsanalyse &amp; Belastungssteuerung (v2.3.4)</span>
+    <span>Teil I (Deutsch) • Seite 2 von 12</span>
   </div>
 </div>
 
@@ -785,8 +790,8 @@ COMBINED_HTML = f"""<!DOCTYPE html>
   </div>
 
   <div class="page-footer">
-    <span>Systemhandbuch (DE / EN) • Trainingsanalyse &amp; Belastungssteuerung (v2.3.0)</span>
-    <span>Teil I (Deutsch) • Seite 3 von 10</span>
+    <span>Systemhandbuch (DE / EN) • Trainingsanalyse &amp; Belastungssteuerung (v2.3.4)</span>
+    <span>Teil I (Deutsch) • Seite 3 von 12</span>
   </div>
 </div>
 
@@ -847,29 +852,94 @@ COMBINED_HTML = f"""<!DOCTYPE html>
   </div>
 
   <div class="page-footer">
-    <span>Systemhandbuch (DE / EN) • Trainingsanalyse &amp; Belastungssteuerung (v2.3.0)</span>
-    <span>Teil I (Deutsch) • Seite 4 von 10</span>
+    <span>Systemhandbuch (DE / EN) • Trainingsanalyse &amp; Belastungssteuerung (v2.3.4)</span>
+    <span>Teil I (Deutsch) • Seite 4 von 12</span>
   </div>
 </div>
 
-<!-- SEITE 5: KAPITEL 5 (STRATEGISCHER MEHRWERT & SYSTEMVERGLEICH) -->
+<!-- SEITE 5: KAPITEL 5 (EU-DSGVO DATENSCHUTZARCHITEKTUR & ZWEI-FAKTOR-ZUGANGSSCHUTZ 2FA + SCREENSHOTS) -->
 <div class="page">
   <div class="chapter-header">
     <div class="chapter-title-wrap">
-      <span class="chapter-num">Kapitel 05</span>
+      <span class="chapter-num rose">Kapitel 05</span>
+      <h2>EU-DSGVO-Datenschutzarchitektur &amp; Zwei-Faktor-Zugangsschutz (2FA)</h2>
+    </div>
+    <span class="chapter-tag">Art. 5, 6, 9, 13, 15, 17, 20, 25 &amp; 32 DSGVO</span>
+  </div>
+
+  <p>Da Herzfrequenz-, Leistungs- und Vitaldaten gemäß <strong>Art. 9 Abs. 1 EU-DSGVO</strong> als besonders schützenswerte Gesundheitsdaten eingestuft sind, verfügt die Applikation ab Version <strong>v2.3.4</strong> über eine vollständige, mehrschichtige <strong>Datenschutz- und Sicherheitsarchitektur nach dem Prinzip „Privacy &amp; Security by Design“ (Art. 25 &amp; 32 DSGVO)</strong>. Sämtliche Berechnungen erfolgen zu <strong>100 % lokal im Browser (Local-First)</strong> ohne zentrale Server-Datenbank, ohne Werbe-Tracker und ohne fremde Cloud-Profilbildung.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 24%;">DSGVO-Rechtsnorm &amp; Schutzebene</th>
+        <th style="width: 30%;">Technische Implementierung in v2.3.4</th>
+        <th style="width: 46%;">Konkreter Schutzmechanismus im täglichen Betrieb</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Art. 32 DSGVO</strong><br/>Zwei-Faktor-Authentifizierung (2FA) beim App-Start</td>
+        <td><strong>1. Biometrischer Passkey (WebAuthn)</strong><br/><strong>2. Salted SHA-256 PIN (Faktor 1)</strong><br/><strong>3. Geräte-Schlüssel &amp; RFC-6238 TOTP</strong></td>
+        <td>Verpflichtender Sperrbildschirm vor jedem Laden des Dashboards – auch nach dem Leeren des Browser-Caches oder beim Schließen/Wiederöffnen der Mac-Web-App (<code>Cmd+W</code> / <code>Cmd+H</code>). Entsperrung per <strong>Apple Touch ID / Face ID</strong> oder PIN + Hardware-Faktor sowie 1-Klick-Sofortsperre (<code>🔒</code>) und 15-Min.-Auto-Lock.</td>
+      </tr>
+      <tr>
+        <td><strong>Art. 25 DSGVO</strong><br/>Privacy by Design &amp; Sichtschutz</td>
+        <td><strong>100 % Local-First Speicherung</strong> &amp; <strong>1-Klick-Inkognito-Schwärzung (<code>👁️</code>)</strong></td>
+        <td>Ein Klick auf das Augen-Symbol in der Kopfzeile schwärzt sämtliche persönlichen Vitalwerte (FTP, Gewicht, W/kg, HFmax, Ruhepuls, Name) sofort live für Bildschirmpräsentationen oder Screenshots.</td>
+      </tr>
+      <tr>
+        <td><strong>Art. 6, 7 &amp; 9 Abs. 2 lit. a</strong><br/>Explizite Einwilligungsverwaltung</td>
+        <td><strong>Granulares Consent-Cockpit</strong> mit Zeitstempel-Protokollierung</td>
+        <td>Separate, jederzeit widerrufbare Einwilligungsschalter für (1) lokale Vitaldatenverarbeitung, (2) Strava-OAuth-Synchronisation und (3) bewusste Übergabe an den KI-Coach.</td>
+      </tr>
+      <tr>
+        <td><strong>Art. 5, 15, 17 &amp; 20 DSGVO</strong><br/>Speicherfrist, Auskunft &amp; Löschung</td>
+        <td><strong>Auto-Retention (90/180/365 Tage)</strong>, <strong>JSON-Portabilität</strong> &amp; <strong>1-Klick-Wipe</strong></td>
+        <td>Automatische Bereinigung abgelaufener Aktivitäten, transparenter Live-Speicher-Audit mit vollständigem JSON-Datenexport (Art. 15/20) sowie restlose 1-Klick-Löschung („Recht auf Vergessenwerden“, Art. 17).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="figure-split">
+    <div class="figure-box" style="grid-column: span 1;">
+      <img src="{SHOT5_2FA_LOCKSCREEN}" style="height: 255px; object-fit: contain; background: #090d16;" alt="Verpflichtender 2FA-Sperrbildschirm beim Start" />
+      <div class="figure-caption">
+        <span><strong>Abb. 5.1 – 2FA-Start-Sperrbildschirm (Art. 32):</strong> Touch ID / Face ID Passkey, SHA-256 PIN, Geräte-Faktor &amp; Art.-17-Notfall-Reset.</span>
+      </div>
+    </div>
+    <div class="figure-box" style="grid-column: span 1;">
+      <img src="{SHOT6_GDPR_CENTER}" style="height: 255px; object-fit: contain; background: #090d16;" alt="DSGVO-Datenschutz-, 2FA- & Sicherheits-Center" />
+      <div class="figure-caption">
+        <span><strong>Abb. 5.2 – DSGVO- &amp; 2FA-Sicherheits-Center:</strong> 4-Tab-Steuerzentrale für Sichtschutz, 2FA, Art.-9-Einwilligung, Datenexport &amp; Löschung.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>Systemhandbuch (DE / EN) • Trainingsanalyse &amp; Belastungssteuerung (v2.3.4)</span>
+    <span>Teil I (Deutsch) • Seite 5 von 12</span>
+  </div>
+</div>
+
+<!-- SEITE 6: KAPITEL 6 (STRATEGISCHER MEHRWERT & SYSTEMVERGLEICH) -->
+<div class="page">
+  <div class="chapter-header">
+    <div class="chapter-title-wrap">
+      <span class="chapter-num">Kapitel 06</span>
       <h2>Strategischer Mehrwert: Was diese Lösung einzigartig macht</h2>
     </div>
     <span class="chapter-tag">Executive Summary</span>
   </div>
 
-  <p>Für Außenstehende wie für aktive Athleten zeigt sich die besondere Qualität der Applikation im direkten Vergleich zu herkömmlichen Standard-Lösungen: Während klassische Plattformen isolierte Inseln für Statistik, Kalender oder Workout-Dateien bilden, verbindet <strong>„Trainingsanalyse &amp; Steuerung (v2.3.0)“</strong> sämtliche Ebenen zu einem durchgängigen, hochgradig automatisierten Gesamtsystem.</p>
+  <p>Für Außenstehende wie für aktive Athleten zeigt sich die besondere Qualität der Applikation im direkten Vergleich zu herkömmlichen Standard-Lösungen: Während klassische Plattformen isolierte Inseln für Statistik, Kalender oder Workout-Dateien bilden, verbindet <strong>„Trainingsanalyse &amp; Steuerung (v2.3.4)“</strong> sämtliche Ebenen zu einem durchgängigen, hochgradig automatisierten und DSGVO-gesicherten Gesamtsystem.</p>
 
   <table>
     <thead>
       <tr>
         <th style="width: 22%;">Bewertungsdimension</th>
         <th style="width: 37%;">Klassische Standard-Trainingsplattformen</th>
-        <th style="width: 41%;">Applikation „Trainingsanalyse &amp; Steuerung“ (v2.3.0)</th>
+        <th style="width: 41%;">Applikation „Trainingsanalyse &amp; Steuerung“ (v2.3.4)</th>
       </tr>
     </thead>
     <tbody>
@@ -913,30 +983,30 @@ COMBINED_HTML = f"""<!DOCTYPE html>
 
   <div class="lang-index-card">
     <div class="lang-info">
-      <strong>Zweisprachige Gesamtausgabe (Bilingual Edition):</strong> Auf den nachfolgenden Seiten <strong>6 bis 10</strong> folgt die vollständige englische Fassung (<em>Part II: English System Handbook</em>) inklusive aller Systemtabellen und illustrierten Anwendungs-Screenshots.
+      <strong>Zweisprachige Gesamtausgabe (Bilingual Edition):</strong> Auf den nachfolgenden Seiten <strong>7 bis 12</strong> folgt die vollständige englische Fassung (<em>Part II: English System Handbook</em>) inklusive aller Systemtabellen und illustrierten Anwendungs-Screenshots.
     </div>
-    <span class="lang-badge">Next: Part II (English) → p. 6–10</span>
+    <span class="lang-badge">Next: Part II (English) → p. 7–12</span>
   </div>
 
   <div class="page-footer">
-    <span>Systemhandbuch (DE / EN) • Trainingsanalyse &amp; Belastungssteuerung (v2.3.0)</span>
-    <span>Teil I (Deutsch) • Seite 5 von 10</span>
+    <span>Systemhandbuch (DE / EN) • Trainingsanalyse &amp; Belastungssteuerung (v2.3.4)</span>
+    <span>Teil I (Deutsch) • Seite 6 von 12</span>
   </div>
 </div>
 
 <!-- ===================================================================== -->
-<!-- PART II: ENGLISH EDITION (PAGES 6 TO 10)                              -->
+<!-- PART II: ENGLISH EDITION (PAGES 7 TO 12)                              -->
 <!-- ===================================================================== -->
 
-<!-- PAGE 6: COVER & CHAPTER 1 (INCLUDING DASHBOARD SCREENSHOT) -->
+<!-- PAGE 7: COVER & CHAPTER 1 (INCLUDING DASHBOARD SCREENSHOT) -->
 <div class="page">
   <div class="hero">
     <div class="hero-top">
-      <span class="badge-version">System Release v2.3.0 • Combined Bilingual Edition (DE / EN)</span>
-      <span class="badge-doc">Part II: English System Handbook (Pages 6–10)</span>
+      <span class="badge-version">System Release v2.3.4 • Combined Bilingual Edition (DE / EN)</span>
+      <span class="badge-doc">Part II: English System Handbook (Pages 7–12)</span>
     </div>
     <h1>Intelligent Training Analytics &amp; Load Management</h1>
-    <p class="subtitle">Evidence-based performance diagnostics, AI-driven periodization, direct smart-trainer automation, and daily target-vs-actual verification in a unified closed-loop coaching ecosystem.</p>
+    <p class="subtitle">Evidence-based performance diagnostics, EU-GDPR compliant 2FA startup security, AI-driven periodization, direct smart-trainer automation, and daily target-vs-actual verification in a unified closed-loop coaching ecosystem.</p>
     <div class="hero-pills">
       <div class="hero-pill">
         <span class="pill-label">Sports Science</span>
@@ -944,7 +1014,7 @@ COMBINED_HTML = f"""<!DOCTYPE html>
       </div>
       <div class="hero-pill">
         <span class="pill-label">GDPR &amp; Security</span>
-        <span class="pill-val">2FA (TOTP/Passkey) • Art. 9</span>
+        <span class="pill-val">2FA (Touch ID/PIN) • Art. 9–32</span>
       </div>
       <div class="hero-pill">
         <span class="pill-label">Smart-Trainer Sync</span>
@@ -1008,14 +1078,14 @@ COMBINED_HTML = f"""<!DOCTYPE html>
   <div class="figure-box">
     <img src="{SHOT1_DASHBOARD}" style="width: 76%; height: auto; margin: 0 auto;" alt="Main Application Cockpit" />
     <div class="figure-caption">
-      <span><strong>Fig. 1.1 – Main Analytics Cockpit (v2.3.0):</strong> Persistent verified baseline status bar, real-time KPI cards (ACWR, CTL/TSB, Volume), and Smart Training Coach with 1-click daily check &amp; Zwift planning.</span>
+      <span><strong>Fig. 1.1 – Main Analytics Cockpit (v2.3.4):</strong> Persistent verified baseline status bar, real-time KPI cards (ACWR, CTL/TSB, Volume), and Smart Training Coach with 1-click daily check &amp; Zwift planning.</span>
       <span class="privacy-tag">Personal Data Redacted</span>
     </div>
   </div>
 
   <div class="page-footer">
-    <span>System Handbook (DE / EN) • Intelligent Training Analytics &amp; Load Management (v2.3.0)</span>
-    <span>Part II (English) • Page 6 of 10</span>
+    <span>System Handbook (DE / EN) • Intelligent Training Analytics &amp; Load Management (v2.3.4)</span>
+    <span>Part II (English) • Page 7 of 12</span>
   </div>
 </div>
 
@@ -1096,8 +1166,8 @@ COMBINED_HTML = f"""<!DOCTYPE html>
   </div>
 
   <div class="page-footer">
-    <span>System Handbook (DE / EN) • Intelligent Training Analytics &amp; Load Management (v2.3.0)</span>
-    <span>Part II (English) • Page 7 of 10</span>
+    <span>System Handbook (DE / EN) • Intelligent Training Analytics &amp; Load Management (v2.3.4)</span>
+    <span>Part II (English) • Page 8 of 12</span>
   </div>
 </div>
 
@@ -1181,8 +1251,8 @@ COMBINED_HTML = f"""<!DOCTYPE html>
   </div>
 
   <div class="page-footer">
-    <span>System Handbook (DE / EN) • Intelligent Training Analytics &amp; Load Management (v2.3.0)</span>
-    <span>Part II (English) • Page 8 of 10</span>
+    <span>System Handbook (DE / EN) • Intelligent Training Analytics &amp; Load Management (v2.3.4)</span>
+    <span>Part II (English) • Page 9 of 12</span>
   </div>
 </div>
 
@@ -1243,29 +1313,94 @@ COMBINED_HTML = f"""<!DOCTYPE html>
   </div>
 
   <div class="page-footer">
-    <span>System Handbook (DE / EN) • Intelligent Training Analytics &amp; Load Management (v2.3.0)</span>
-    <span>Part II (English) • Page 9 of 10</span>
+    <span>System Handbook (DE / EN) • Intelligent Training Analytics &amp; Load Management (v2.3.4)</span>
+    <span>Part II (English) • Page 10 of 12</span>
   </div>
 </div>
 
-<!-- PAGE 10: CHAPTER 5 (STRATEGIC VALUE & SYSTEM COMPARISON) -->
+<!-- PAGE 11: CHAPTER 5 (EU-GDPR DATA PROTECTION ARCHITECTURE & 2FA STARTUP SECURITY + SCREENSHOTS) -->
 <div class="page">
   <div class="chapter-header">
     <div class="chapter-title-wrap">
-      <span class="chapter-num">Chapter 05</span>
+      <span class="chapter-num rose">Chapter 05</span>
+      <h2>EU-GDPR Data Protection Architecture &amp; Two-Factor Security (2FA)</h2>
+    </div>
+    <span class="chapter-tag">Art. 5, 6, 9, 13, 15, 17, 20, 25 &amp; 32 GDPR</span>
+  </div>
+
+  <p>Because heart rate telemetry, threshold power, and physiological metrics constitute sensitive personal health data under <strong>Art. 9(1) EU-GDPR</strong>, release <strong>v2.3.4</strong> embeds a comprehensive, multi-layered <strong>Privacy &amp; Security by Design architecture (Art. 25 &amp; 32 GDPR)</strong>. All calculations execute <strong>100% locally in the browser (Local-First)</strong> with zero server-side databases, zero ad trackers, and zero third-party profiling.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 24%;">GDPR Article &amp; Security Layer</th>
+        <th style="width: 30%;">Technical Implementation in v2.3.4</th>
+        <th style="width: 46%;">Practical Protection in Daily Operation</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Art. 32 GDPR</strong><br/>Mandatory Startup Two-Factor Authentication (2FA)</td>
+        <td><strong>1. Biometric Passkey (WebAuthn)</strong><br/><strong>2. Salted SHA-256 PIN (Factor 1)</strong><br/><strong>3. Device Key &amp; RFC-6238 TOTP</strong></td>
+        <td>Enforces the 2FA lock screen before the dashboard ever renders—even after clearing browser cache or closing/hiding the Mac Dock Web-App window (<code>Cmd+W</code> / <code>Cmd+H</code>). Unlock via <strong>Apple Touch ID / Face ID</strong> or PIN + hardware factor, plus 1-click instant lock (<code>🔒</code>) and 15-min inactivity auto-lock.</td>
+      </tr>
+      <tr>
+        <td><strong>Art. 25 GDPR</strong><br/>Privacy by Design &amp; Visual Shield</td>
+        <td><strong>100% Local-First Storage</strong> &amp; <strong>1-Click Incognito Blur (<code>👁️</code>)</strong></td>
+        <td>Clicking the eye icon in the top navigation bar instantly blurs all personal physiological values (FTP, weight, W/kg, max HR, resting HR, athlete name) across the entire screen for safe screen sharing or screenshots.</td>
+      </tr>
+      <tr>
+        <td><strong>Art. 6, 7 &amp; 9(2)(a) GDPR</strong><br/>Explicit Consent Governance</td>
+        <td><strong>Granular Consent Cockpit</strong> with ISO timestamp logging</td>
+        <td>Independent, revocable consent toggles for (1) local health telemetry processing, (2) Strava OAuth cloud synchronization, and (3) explicit AI coaching prompt handoff.</td>
+      </tr>
+      <tr>
+        <td><strong>Art. 5, 15, 17 &amp; 20 GDPR</strong><br/>Retention, Portability &amp; Erasure</td>
+        <td><strong>Auto-Retention (90/180/365 Days)</strong>, <strong>JSON Export</strong> &amp; <strong>1-Click Wipe</strong></td>
+        <td>Automated pruning of expired activity records, transparent live storage audit with 1-click JSON data portability export (Art. 15/20), and irreversible 1-click erasure (“Right to be Forgotten”, Art. 17).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="figure-split">
+    <div class="figure-box" style="grid-column: span 1;">
+      <img src="{SHOT5_2FA_LOCKSCREEN}" style="height: 255px; object-fit: contain; background: #090d16;" alt="Mandatory 2FA Startup Lock Screen" />
+      <div class="figure-caption">
+        <span><strong>Fig. 5.1 – 2FA Startup Lock Screen (Art. 32):</strong> Touch ID / Face ID Passkey, SHA-256 PIN, hardware device factor &amp; Art. 17 emergency reset.</span>
+      </div>
+    </div>
+    <div class="figure-box" style="grid-column: span 1;">
+      <img src="{SHOT6_GDPR_CENTER}" style="height: 255px; object-fit: contain; background: #090d16;" alt="GDPR Data Protection, 2FA & Security Center" />
+      <div class="figure-caption">
+        <span><strong>Fig. 5.2 – GDPR &amp; 2FA Security Center:</strong> 4-tab control center for privacy blur, 2FA config, Art. 9 consent, JSON export &amp; erasure.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>System Handbook (DE / EN) • Intelligent Training Analytics &amp; Load Management (v2.3.4)</span>
+    <span>Part II (English) • Page 11 of 12</span>
+  </div>
+</div>
+
+<!-- PAGE 12: CHAPTER 6 (STRATEGIC VALUE & SYSTEM COMPARISON) -->
+<div class="page">
+  <div class="chapter-header">
+    <div class="chapter-title-wrap">
+      <span class="chapter-num">Chapter 06</span>
       <h2>Strategic Value: What Makes This Solution Stand Out</h2>
     </div>
     <span class="chapter-tag">Executive Summary</span>
   </div>
 
-  <p>For external observers and dedicated athletes alike, the unique value of the platform becomes immediately apparent when compared with conventional standalone tools. While traditional apps operate as disconnected silos for activity logging, workout building, or calendar management, <strong>“Training Analytics &amp; Load Management (v2.3.0)”</strong> unifies every layer into a seamless, end-to-end automated workflow.</p>
+  <p>For external observers and dedicated athletes alike, the unique value of the platform becomes immediately apparent when compared with conventional standalone tools. While traditional apps operate as disconnected silos for activity logging, workout building, or calendar management, <strong>“Training Analytics &amp; Load Management (v2.3.4)”</strong> unifies every layer into a seamless, end-to-end automated and GDPR-secured workflow.</p>
 
   <table>
     <thead>
       <tr>
         <th style="width: 22%;">Evaluation Dimension</th>
         <th style="width: 37%;">Conventional Standalone Training Platforms</th>
-        <th style="width: 41%;">“Training Analytics &amp; Load Management” (v2.3.0)</th>
+        <th style="width: 41%;">“Training Analytics &amp; Load Management” (v2.3.4)</th>
       </tr>
     </thead>
     <tbody>
@@ -1309,14 +1444,14 @@ COMBINED_HTML = f"""<!DOCTYPE html>
 
   <div class="lang-index-card">
     <div class="lang-info">
-      <strong>Combined Bilingual Reference Document (DE / EN):</strong> Part I (German Edition) is located on <strong>Pages 1–5</strong>; Part II (English Edition) is located on <strong>Pages 6–10</strong>. All personal physiological values and local paths in the embedded screenshots have been redacted for privacy.
+      <strong>Combined Bilingual Reference Document (DE / EN):</strong> Part I (German Edition) is located on <strong>Pages 1–6</strong>; Part II (English Edition) is located on <strong>Pages 7–12</strong>. All personal physiological values and local paths in the embedded screenshots have been redacted for privacy.
     </div>
-    <span class="lang-badge">System Release v2.3.0</span>
+    <span class="lang-badge">System Release v2.3.4</span>
   </div>
 
   <div class="page-footer">
-    <span>System Handbook (DE / EN) • Intelligent Training Analytics &amp; Load Management (v2.3.0)</span>
-    <span>Part II (English) • Page 10 of 10</span>
+    <span>System Handbook (DE / EN) • Intelligent Training Analytics &amp; Load Management (v2.3.4)</span>
+    <span>Part II (English) • Page 12 of 12</span>
   </div>
 </div>
 
