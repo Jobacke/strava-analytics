@@ -34,7 +34,7 @@ const CONSENT_STORAGE_KEY = 'strava_pulse_gdpr_consent_v1';
 const SECURITY_2FA_KEY = 'strava_pulse_security_2fa_v1';
 const TRUSTED_SESSION_KEY = 'strava_pulse_2fa_trusted_until';
 const PRIVACY_BLUR_KEY = 'strava_pulse_privacy_blur_v1';
-const MIGRATION_ALWAYS_ASK_V233 = 'strava_pulse_2fa_always_ask_v233';
+const MIGRATION_ALWAYS_ASK_V234 = 'strava_pulse_2fa_always_ask_v234';
 
 const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
@@ -81,41 +81,46 @@ export function setPrivacyBlurMode(active: boolean): void {
 }
 
 /**
- * Lädt die 2FA-Sicherheitskonfiguration (Art. 32 DSGVO)
+ * Lädt die 2FA-Sicherheitskonfiguration (Art. 32 DSGVO).
+ * Standardmäßig ist der 2FA-Sperrbildschirm IMMER aktiv (enabled: true, rememberDeviceDays: 0),
+ * auch wenn der Browser-Cache geleert wurde oder die App in einem neuen Fenster geöffnet wird.
  */
 export function getSecurity2FAConfig(): Security2FAConfig {
   try {
     const raw = localStorage.getItem(SECURITY_2FA_KEY);
     if (raw) {
       const parsed: Security2FAConfig = JSON.parse(raw);
-      // Falls bereits ein PIN oder Touch ID (webAuthnCredentialId) hinterlegt wurde, sicherstellen dass enabled = true ist
-      if ((parsed.pinHash || parsed.webAuthnCredentialId) && ! localStorage.getItem(MIGRATION_ALWAYS_ASK_V233)) {
+      if (!localStorage.getItem(MIGRATION_ALWAYS_ASK_V234)) {
         parsed.enabled = true;
         parsed.rememberDeviceDays = 0;
+        if (!parsed.deviceHardwareToken) {
+          parsed.deviceHardwareToken = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+        }
         localStorage.setItem(SECURITY_2FA_KEY, JSON.stringify(parsed));
         localStorage.removeItem(TRUSTED_SESSION_KEY);
         sessionStorage.removeItem(TRUSTED_SESSION_KEY);
-        localStorage.setItem(MIGRATION_ALWAYS_ASK_V233, 'true');
-      } else if (!localStorage.getItem(MIGRATION_ALWAYS_ASK_V233)) {
-        parsed.rememberDeviceDays = 0;
-        localStorage.setItem(SECURITY_2FA_KEY, JSON.stringify(parsed));
-        localStorage.removeItem(TRUSTED_SESSION_KEY);
-        sessionStorage.removeItem(TRUSTED_SESSION_KEY);
-        localStorage.setItem(MIGRATION_ALWAYS_ASK_V233, 'true');
+        localStorage.setItem(MIGRATION_ALWAYS_ASK_V234, 'true');
       }
       return parsed;
     }
   } catch {
     // Fallback
   }
-  return {
-    enabled: false,
+  const initialConfig: Security2FAConfig = {
+    enabled: true, // IMMER aktiv beim Start (auch nach Cache-Reset!)
     pinHash: '',
     totpSecret: generateBase32Secret(16),
+    requireTotp: false,
+    deviceHardwareToken: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
     rememberDeviceDays: 0, // 0 = Jedes Mal beim Start der App abfragen
     autoLockMinutes: 15,
     updatedAt: new Date().toISOString(),
   };
+  try {
+    localStorage.setItem(SECURITY_2FA_KEY, JSON.stringify(initialConfig));
+    localStorage.setItem(MIGRATION_ALWAYS_ASK_V234, 'true');
+  } catch {}
+  return initialConfig;
 }
 
 export function saveSecurity2FAConfig(config: Security2FAConfig): void {
@@ -340,28 +345,43 @@ export async function registerBiometricPasskey(): Promise<string> {
 }
 
 /**
- * Verifiziert Touch ID / Face ID über ein gespeichertes WebAuthn-Credential
+ * Verifiziert Touch ID / Face ID über ein gespeichertes WebAuthn-Credential.
+ * Falls nach einem Cache-Reset noch keine Credential-ID im lokalen Speicher liegt,
+ * wird direkt der macOS/iOS Touch ID / Face ID Dialog ausgelöst und der Schlüssel hinterlegt.
  */
-export async function verifyBiometricPasskey(credentialIdBase64Url: string): Promise<boolean> {
-  const challenge = crypto.getRandomValues(new Uint8Array(32));
-  const rawId = base64UrlToBuffer(credentialIdBase64Url);
+export async function verifyBiometricPasskey(credentialIdBase64Url?: string): Promise<string | null> {
+  if (credentialIdBase64Url) {
+    try {
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
+      const rawId = base64UrlToBuffer(credentialIdBase64Url);
 
-  const assertion = await navigator.credentials.get({
-    publicKey: {
-      challenge,
-      allowCredentials: [
-        {
-          id: rawId,
-          type: 'public-key',
-          transports: ['internal'],
+      const assertion = await navigator.credentials.get({
+        publicKey: {
+          challenge,
+          allowCredentials: [
+            {
+              id: rawId,
+              type: 'public-key',
+              transports: ['internal'],
+            },
+          ],
+          userVerification: 'required',
+          timeout: 60000,
         },
-      ],
-      userVerification: 'required',
-      timeout: 60000,
-    },
-  });
+      });
 
-  return Boolean(assertion);
+      if (assertion) {
+        return credentialIdBase64Url;
+      }
+    } catch {
+      // Falls das alte Credential nach einem Browser-/Keychain-Reset nicht gefunden wurde,
+      // direkt über frischen Touch-ID-Dialog verifizieren:
+    }
+  }
+
+  // Direkt per macOS Touch ID / Face ID verifizieren und Hardware-Passkey speichern
+  const newCredentialId = await registerBiometricPasskey();
+  return newCredentialId || null;
 }
 
 /**

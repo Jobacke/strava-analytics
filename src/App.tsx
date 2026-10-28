@@ -266,13 +266,18 @@ export function App() {
     return (
       <TwoFactorLockScreen
         config={security2FA}
-        onUnlocked={() => setIs2FAUnlocked(true)}
+        onUnlocked={(updatedConfig) => {
+          if (updatedConfig) {
+            setSecurity2FA(updatedConfig);
+          }
+          setIs2FAUnlocked(true);
+        }}
         onEmergencyReset={() => {
           setStravaConfig(null);
           setUserActivities(null);
           setGdprConsent(null);
           setSecurity2FA(getSecurity2FAConfig());
-          setIs2FAUnlocked(true);
+          setIs2FAUnlocked(false);
         }}
       />
     );

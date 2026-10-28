@@ -5,13 +5,14 @@ import {
   hashPinSHA256,
   verifyTOTPCode,
   verifyBiometricPasskey,
+  saveSecurity2FAConfig,
   markSessionAuthenticated,
   eraseAllPersonalDataArt17,
 } from '../utils/gdprSecurity';
 
 interface TwoFactorLockScreenProps {
   config: Security2FAConfig;
-  onUnlocked: () => void;
+  onUnlocked: (updatedConfig?: Security2FAConfig) => void;
   onEmergencyReset: () => void;
 }
 
@@ -35,12 +36,33 @@ export const TwoFactorLockScreen: React.FC<TwoFactorLockScreenProps> = ({
     setIsVerifying(true);
 
     try {
-      // Faktor 1: PIN prüfen
-      const inputPinHash = await hashPinSHA256(pin);
-      if (inputPinHash !== config.pinHash) {
-        setError('Faktor 1 fehlgeschlagen: Sicherheits-PIN ist nicht korrekt.');
+      if (pin.trim().length < 4) {
+        setError('Bitte gib deinen Sicherheits-PIN ein (mindestens 4 Ziffern/Zeichen).');
         setIsVerifying(false);
         return;
+      }
+
+      const inputPinHash = await hashPinSHA256(pin);
+      let nextConfig = config;
+
+      if (config.pinHash) {
+        // Faktor 1: Vorhandenen PIN prüfen
+        if (inputPinHash !== config.pinHash) {
+          setError('Faktor 1 fehlgeschlagen: Sicherheits-PIN ist nicht korrekt.');
+          setIsVerifying(false);
+          return;
+        }
+      } else {
+        // Nach einem Browser-Cache-Reset den eingegebenen PIN direkt wieder als aktiven Faktor 1 speichern
+        nextConfig = {
+          ...config,
+          enabled: true,
+          pinHash: inputPinHash,
+          deviceHardwareToken: config.deviceHardwareToken || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
+          rememberDeviceDays: rememberDevice ? 30 : 0,
+          updatedAt: new Date().toISOString(),
+        };
+        saveSecurity2FAConfig(nextConfig);
       }
 
       // Faktor 2: Nur prüfen, wenn eine externe Authenticator-App explizit verlangt wird UND ein Code eingegeben wurde
@@ -54,10 +76,10 @@ export const TwoFactorLockScreen: React.FC<TwoFactorLockScreenProps> = ({
       }
 
       markSessionAuthenticated(
-        rememberDevice && config.rememberDeviceDays > 0,
-        rememberDevice ? config.rememberDeviceDays : 0
+        rememberDevice && nextConfig.rememberDeviceDays > 0,
+        rememberDevice ? nextConfig.rememberDeviceDays || 30 : 0
       );
-      onUnlocked();
+      onUnlocked(nextConfig);
     } catch (err: any) {
       setError(`Fehler bei der Verifizierung: ${err.message || 'Unbekannter Fehler'}`);
     } finally {
@@ -66,17 +88,25 @@ export const TwoFactorLockScreen: React.FC<TwoFactorLockScreenProps> = ({
   };
 
   const handleBiometricUnlock = async () => {
-    if (!config.webAuthnCredentialId) return;
     setError(null);
     setIsVerifying(true);
     try {
-      const ok = await verifyBiometricPasskey(config.webAuthnCredentialId);
-      if (ok) {
+      const verifiedCredentialId = await verifyBiometricPasskey(config.webAuthnCredentialId);
+      if (verifiedCredentialId) {
+        const nextConfig: Security2FAConfig = {
+          ...config,
+          enabled: true,
+          webAuthnCredentialId: verifiedCredentialId,
+          deviceHardwareToken: config.deviceHardwareToken || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
+          rememberDeviceDays: rememberDevice ? 30 : 0,
+          updatedAt: new Date().toISOString(),
+        };
+        saveSecurity2FAConfig(nextConfig);
         markSessionAuthenticated(
-          rememberDevice && config.rememberDeviceDays > 0,
-          rememberDevice ? config.rememberDeviceDays : 0
+          rememberDevice && nextConfig.rememberDeviceDays > 0,
+          rememberDevice ? nextConfig.rememberDeviceDays || 30 : 0
         );
-        onUnlocked();
+        onUnlocked(nextConfig);
       } else {
         setError('Biometrische Authentifizierung nicht bestätigt.');
       }
@@ -107,23 +137,21 @@ export const TwoFactorLockScreen: React.FC<TwoFactorLockScreenProps> = ({
         </div>
 
         <div className="p-6 space-y-5">
-          {/* Optional Biometric Hardware Passkey (Touch ID / Face ID) */}
-          {config.webAuthnCredentialId && (
-            <div className="pb-4 border-b border-slate-800">
-              <button
-                type="button"
-                onClick={handleBiometricUnlock}
-                disabled={isVerifying}
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition"
-              >
-                <Fingerprint className="w-4 h-4" />
-                <span>Mit Touch ID / Face ID entsperren (Hardware-Passkey)</span>
-              </button>
-              <p className="text-[11px] text-center text-slate-500 mt-2">
-                Oder klassisch mit Faktor 1 (PIN) + Faktor 2 (Authenticator-Code):
-              </p>
-            </div>
-          )}
+          {/* Biometric Hardware Passkey (Touch ID / Face ID) - Immer direkt verfügbar auf Mac/iOS */}
+          <div className="pb-4 border-b border-slate-800">
+            <button
+              type="button"
+              onClick={handleBiometricUnlock}
+              disabled={isVerifying}
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer"
+            >
+              <Fingerprint className="w-4 h-4" />
+              <span>Mit Touch ID / Face ID entsperren (Hardware-Passkey)</span>
+            </button>
+            <p className="text-[11px] text-center text-slate-500 mt-2">
+              Oder per Faktor 1 (Sicherheits-PIN) + Faktor 2 (Geräte-Schlüssel) entsperren:
+            </p>
+          </div>
 
           <form onSubmit={handleVerify2FA} className="space-y-4">
             {/* Faktor 1: Sicherheits-PIN */}
