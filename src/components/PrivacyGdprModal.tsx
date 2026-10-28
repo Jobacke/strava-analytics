@@ -210,15 +210,19 @@ export const PrivacyGdprModal: React.FC<PrivacyGdprModalProps> = ({
       const credId = await registerBiometricPasskey();
       const updated: Security2FAConfig = {
         ...secConfig,
+        enabled: true,
         webAuthnCredentialId: credId,
+        rememberDeviceDays: 0,
         updatedAt: new Date().toISOString(),
       };
       saveSecurity2FAConfig(updated);
+      markSessionAuthenticated(false, 0);
       setSecConfig(updated);
       onSecurityConfigChanged(updated);
+      setAudit(getLocalStoragePrivacyAudit());
       setSetupStatus({
         type: 'success',
-        msg: 'Touch ID / Face ID Hardware-Passkey wurde erfolgreich hinterlegt!',
+        msg: 'Touch ID / Face ID Hardware-Passkey wurde erfolgreich hinterlegt und der 2FA-Startschutz aktiviert!',
       });
     } catch (err: any) {
       setSetupStatus({

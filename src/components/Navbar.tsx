@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Sliders, Upload, RefreshCw, ShieldCheck, Shield, EyeOff, Eye } from 'lucide-react';
+import { Activity, Sliders, Upload, RefreshCw, ShieldCheck, Shield, EyeOff, Eye, Lock } from 'lucide-react';
 import { StravaConfig } from '../services/stravaApi';
 import { APP_VERSION } from '../version';
 
@@ -7,6 +7,7 @@ interface NavbarProps {
   onOpenConnectModal: () => void;
   onOpenSettingsModal: () => void;
   onOpenPrivacyModal: () => void;
+  onLockAppNow?: () => void;
   stravaConfig: StravaConfig | null;
   onSyncStrava?: () => void;
   isSyncing?: boolean;
@@ -22,6 +23,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenConnectModal,
   onOpenSettingsModal,
   onOpenPrivacyModal,
+  onLockAppNow,
   stravaConfig,
   onSyncStrava,
   isSyncing,
@@ -161,6 +163,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Shield className="w-4 h-4 text-emerald-400" />
               <span className="hidden lg:inline">{is2FAEnabled ? 'DSGVO • 2FA' : 'DSGVO'}</span>
             </button>
+
+            {/* 1-Click Lock Button when 2FA is active */}
+            {is2FAEnabled && onLockAppNow && (
+              <button
+                onClick={onLockAppNow}
+                className="p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 transition"
+                title="App jetzt sofort sperren (2FA-Sperrbildschirm aktivieren)"
+              >
+                <Lock className="w-4 h-4" />
+              </button>
+            )}
 
             {/* Settings Button */}
             <button

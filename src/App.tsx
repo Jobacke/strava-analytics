@@ -177,25 +177,56 @@ export function App() {
 
   const athleteName = privacyBlur ? 'Athlet' : stravaConfig?.athleteName || 'Johannes Backhaus';
 
-  // Auto-Lock timer upon user inactivity when 2FA is enabled (Art. 32 DSGVO)
+  // Auto-Lock timer upon user inactivity AND when closing/minimizing the Mac Dock Web App window (Art. 32 DSGVO)
   useEffect(() => {
-    if (!security2FA.enabled || !is2FAUnlocked || !security2FA.autoLockMinutes) return;
-    let timeoutId: ReturnType<typeof setTimeout>;
-    const resetTimer = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
+    if (!security2FA.enabled || !is2FAUnlocked) return;
+
+    let inactivityTimeout: ReturnType<typeof setTimeout>;
+    let hiddenTimeout: ReturnType<typeof setTimeout>;
+
+    const resetInactivityTimer = () => {
+      if (!security2FA.autoLockMinutes) return;
+      clearTimeout(inactivityTimeout);
+      inactivityTimeout = setTimeout(() => {
         lockSessionNow();
         setIs2FAUnlocked(false);
       }, security2FA.autoLockMinutes * 60 * 1000);
     };
-    resetTimer();
-    const events = ['mousedown', 'keydown', 'touchstart', 'scroll'];
-    events.forEach((ev) => window.addEventListener(ev, resetTimer, { passive: true }));
-    return () => {
-      clearTimeout(timeoutId);
-      events.forEach((ev) => window.removeEventListener(ev, resetTimer));
+
+    // Wenn "Jedes Mal beim Start fragen" (rememberDeviceDays === 0) aktiv ist:
+    // Sobald das Mac-Web-App-Fenster geschlossen oder ausgeblendet wird (Cmd+W / Cmd+H), Sitzung sperren!
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && (!security2FA.rememberDeviceDays || security2FA.rememberDeviceDays <= 0)) {
+        hiddenTimeout = setTimeout(() => {
+          lockSessionNow();
+          setIs2FAUnlocked(false);
+        }, 1500);
+      } else if (document.visibilityState === 'visible') {
+        clearTimeout(hiddenTimeout);
+      }
     };
-  }, [security2FA.enabled, security2FA.autoLockMinutes, is2FAUnlocked]);
+
+    const handlePageHide = () => {
+      if (!security2FA.rememberDeviceDays || security2FA.rememberDeviceDays <= 0) {
+        lockSessionNow();
+        setIs2FAUnlocked(false);
+      }
+    };
+
+    resetInactivityTimer();
+    const events = ['mousedown', 'keydown', 'touchstart', 'scroll'];
+    events.forEach((ev) => window.addEventListener(ev, resetInactivityTimer, { passive: true }));
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+
+    return () => {
+      clearTimeout(inactivityTimeout);
+      clearTimeout(hiddenTimeout);
+      events.forEach((ev) => window.removeEventListener(ev, resetInactivityTimer));
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
+    };
+  }, [security2FA.enabled, security2FA.autoLockMinutes, security2FA.rememberDeviceDays, is2FAUnlocked]);
 
   const handleTogglePrivacyBlur = (nextState?: boolean) => {
     const target = typeof nextState === 'boolean' ? nextState : !privacyBlur;
@@ -260,6 +291,10 @@ export function App() {
         }}
         onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
         onOpenPrivacyModal={() => setIsPrivacyModalOpen(true)}
+        onLockAppNow={() => {
+          lockSessionNow();
+          setIs2FAUnlocked(false);
+        }}
         stravaConfig={stravaConfig}
         onSyncStrava={handleSyncStrava}
         isSyncing={isSyncing}

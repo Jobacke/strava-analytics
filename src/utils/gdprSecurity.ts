@@ -34,7 +34,7 @@ const CONSENT_STORAGE_KEY = 'strava_pulse_gdpr_consent_v1';
 const SECURITY_2FA_KEY = 'strava_pulse_security_2fa_v1';
 const TRUSTED_SESSION_KEY = 'strava_pulse_2fa_trusted_until';
 const PRIVACY_BLUR_KEY = 'strava_pulse_privacy_blur_v1';
-const MIGRATION_ALWAYS_ASK_V232 = 'strava_pulse_2fa_always_ask_v232';
+const MIGRATION_ALWAYS_ASK_V233 = 'strava_pulse_2fa_always_ask_v233';
 
 const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
@@ -88,13 +88,20 @@ export function getSecurity2FAConfig(): Security2FAConfig {
     const raw = localStorage.getItem(SECURITY_2FA_KEY);
     if (raw) {
       const parsed: Security2FAConfig = JSON.parse(raw);
-      // Einmalige Migration auf v2.3.2: Standardmäßig bei jedem App-Start abfragen (rememberDeviceDays = 0)
-      if (!localStorage.getItem(MIGRATION_ALWAYS_ASK_V232)) {
+      // Falls bereits ein PIN oder Touch ID (webAuthnCredentialId) hinterlegt wurde, sicherstellen dass enabled = true ist
+      if ((parsed.pinHash || parsed.webAuthnCredentialId) && ! localStorage.getItem(MIGRATION_ALWAYS_ASK_V233)) {
+        parsed.enabled = true;
         parsed.rememberDeviceDays = 0;
         localStorage.setItem(SECURITY_2FA_KEY, JSON.stringify(parsed));
         localStorage.removeItem(TRUSTED_SESSION_KEY);
         sessionStorage.removeItem(TRUSTED_SESSION_KEY);
-        localStorage.setItem(MIGRATION_ALWAYS_ASK_V232, 'true');
+        localStorage.setItem(MIGRATION_ALWAYS_ASK_V233, 'true');
+      } else if (!localStorage.getItem(MIGRATION_ALWAYS_ASK_V233)) {
+        parsed.rememberDeviceDays = 0;
+        localStorage.setItem(SECURITY_2FA_KEY, JSON.stringify(parsed));
+        localStorage.removeItem(TRUSTED_SESSION_KEY);
+        sessionStorage.removeItem(TRUSTED_SESSION_KEY);
+        localStorage.setItem(MIGRATION_ALWAYS_ASK_V233, 'true');
       }
       return parsed;
     }

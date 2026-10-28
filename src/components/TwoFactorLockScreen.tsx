@@ -53,7 +53,10 @@ export const TwoFactorLockScreen: React.FC<TwoFactorLockScreenProps> = ({
         }
       }
 
-      markSessionAuthenticated(rememberDevice, rememberDevice ? config.rememberDeviceDays || 30 : 0);
+      markSessionAuthenticated(
+        rememberDevice && config.rememberDeviceDays > 0,
+        rememberDevice ? config.rememberDeviceDays : 0
+      );
       onUnlocked();
     } catch (err: any) {
       setError(`Fehler bei der Verifizierung: ${err.message || 'Unbekannter Fehler'}`);
@@ -69,13 +72,16 @@ export const TwoFactorLockScreen: React.FC<TwoFactorLockScreenProps> = ({
     try {
       const ok = await verifyBiometricPasskey(config.webAuthnCredentialId);
       if (ok) {
-        markSessionAuthenticated(rememberDevice, config.rememberDeviceDays || 30);
+        markSessionAuthenticated(
+          rememberDevice && config.rememberDeviceDays > 0,
+          rememberDevice ? config.rememberDeviceDays : 0
+        );
         onUnlocked();
       } else {
         setError('Biometrische Authentifizierung nicht bestätigt.');
       }
     } catch (err: any) {
-      setError('Touch ID / Face ID abgebrochen oder nicht verfügbar. Bitte PIN + Authenticator-Code nutzen.');
+      setError('Touch ID / Face ID abgebrochen oder nicht verfügbar. Bitte PIN nutzen.');
     } finally {
       setIsVerifying(false);
     }
