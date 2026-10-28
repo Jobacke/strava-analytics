@@ -1,3 +1,3 @@
-export const APP_VERSION = 'v2.2.0';
-export const APP_RELEASE_NAME = 'Locked Athlete Baseline & Startup Verification Edition';
-export const APP_BUILD_DATE = '2026-10-27';
+export const APP_VERSION = 'v2.3.0';
+export const APP_RELEASE_NAME = 'DSGVO Privacy & 2FA Security Suite Edition';
+export const APP_BUILD_DATE = '2026-10-28';

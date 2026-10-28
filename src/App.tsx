@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   StravaActivity,
   UserAthleteSettings,
-  CoachInsight,
 } from './types/strava';
 import {
-  DEFAULT_SETTINGS,
   JOHANNES_BASELINE_SETTINGS,
   loadVerifiedSettings,
   hasSettingsDeviation,
@@ -39,13 +37,37 @@ import { ActivityDetailModal } from './components/ActivityDetailModal';
 import { StravaConnectModal } from './components/StravaConnectModal';
 import { UserSettingsModal } from './components/UserSettingsModal';
 import { ClaudeCoachModal, ClaudeCoachMode } from './components/ClaudeCoachModal';
+import { PrivacyGdprModal } from './components/PrivacyGdprModal';
+import { TwoFactorLockScreen } from './components/TwoFactorLockScreen';
+import { GdprConsentBanner } from './components/GdprConsentBanner';
+import {
+  getGdprConsent,
+  getSecurity2FAConfig,
+  isSessionAuthenticated,
+  lockSessionNow,
+  getPrivacyBlurMode,
+  setPrivacyBlurMode,
+  enforceDataRetentionPolicy,
+  GdprConsentRecord,
+  Security2FAConfig,
+} from './utils/gdprSecurity';
 import { buildAnalysisPrompt, buildPlanPrompt } from './services/aiPromptBuilder';
 import { APP_VERSION } from './version';
-import { subDays, parseISO, isAfter, addDays, format } from 'date-fns';
+import { subDays, parseISO, isAfter } from 'date-fns';
 
 export function App() {
   const [stravaConfig, setStravaConfig] = useState<StravaConfig | null>(() => getStoredStravaConfig());
-  const [userActivities, setUserActivities] = useState<StravaActivity[] | null>(() => getStoredActivities());
+  const [gdprConsent, setGdprConsent] = useState<GdprConsentRecord | null>(() => getGdprConsent());
+  const [security2FA, setSecurity2FA] = useState<Security2FAConfig>(() => getSecurity2FAConfig());
+  const [is2FAUnlocked, setIs2FAUnlocked] = useState<boolean>(() => isSessionAuthenticated());
+  const [privacyBlur, setPrivacyBlur] = useState<boolean>(() => getPrivacyBlurMode());
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState<boolean>(false);
+
+  const [userActivities, setUserActivities] = useState<StravaActivity[] | null>(() => {
+    const raw = getStoredActivities();
+    const consent = getGdprConsent();
+    return enforceDataRetentionPolicy(raw, consent?.retentionDays ?? 365);
+  });
 
   const [settings, setSettings] = useState<UserAthleteSettings>(() => loadVerifiedSettings());
 
@@ -153,7 +175,33 @@ export function App() {
     };
   }, [filteredActivities]);
 
-  const athleteName = stravaConfig?.athleteName || 'Johannes Backhaus';
+  const athleteName = privacyBlur ? 'Athlet' : stravaConfig?.athleteName || 'Johannes Backhaus';
+
+  // Auto-Lock timer upon user inactivity when 2FA is enabled (Art. 32 DSGVO)
+  useEffect(() => {
+    if (!security2FA.enabled || !is2FAUnlocked || !security2FA.autoLockMinutes) return;
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        lockSessionNow();
+        setIs2FAUnlocked(false);
+      }, security2FA.autoLockMinutes * 60 * 1000);
+    };
+    resetTimer();
+    const events = ['mousedown', 'keydown', 'touchstart', 'scroll'];
+    events.forEach((ev) => window.addEventListener(ev, resetTimer, { passive: true }));
+    return () => {
+      clearTimeout(timeoutId);
+      events.forEach((ev) => window.removeEventListener(ev, resetTimer));
+    };
+  }, [security2FA.enabled, security2FA.autoLockMinutes, is2FAUnlocked]);
+
+  const handleTogglePrivacyBlur = (nextState?: boolean) => {
+    const target = typeof nextState === 'boolean' ? nextState : !privacyBlur;
+    setPrivacyBlur(target);
+    setPrivacyBlurMode(target);
+  };
 
   // Prompt 1: Reine Leistungsdiagnose & Datenanalyse (Basis: 14 Tage)
   const defaultAnalysis = useMemo(() => {
@@ -182,7 +230,22 @@ export function App() {
     });
   }, [athleteName, stats, hrDistribution, settings, sportFilter, filteredActivities]);
 
-  const athleteSummary = defaultAnalysis.prompt;
+  // Enforce 2-Factor Authentication Lock Screen before rendering health/training dashboard (Art. 32 DSGVO)
+  if (security2FA.enabled && !is2FAUnlocked) {
+    return (
+      <TwoFactorLockScreen
+        config={security2FA}
+        onUnlocked={() => setIs2FAUnlocked(true)}
+        onEmergencyReset={() => {
+          setStravaConfig(null);
+          setUserActivities(null);
+          setGdprConsent(null);
+          setSecurity2FA(getSecurity2FAConfig());
+          setIs2FAUnlocked(true);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
@@ -196,12 +259,16 @@ export function App() {
           }
         }}
         onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
+        onOpenPrivacyModal={() => setIsPrivacyModalOpen(true)}
         stravaConfig={stravaConfig}
         onSyncStrava={handleSyncStrava}
         isSyncing={isSyncing}
         sportFilter={sportFilter}
         onSportFilterChange={setSportFilter}
         activitiesCount={filteredActivities.length}
+        privacyBlur={privacyBlur}
+        onTogglePrivacyBlur={() => handleTogglePrivacyBlur()}
+        is2FAEnabled={security2FA.enabled}
       />
 
       {/* Athleten-Basis-Check Leiste (Verifizierte Referenzwerte auf einen Blick beim Start) */}
@@ -226,27 +293,39 @@ export function App() {
 
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-300 font-mono">
               <span>
-                FTP: <strong className="text-amber-400">{settings.ftpWatts || 236} W</strong>
+                FTP:{' '}
+                <strong className="text-amber-400">
+                  {privacyBlur ? '••• W' : `${settings.ftpWatts || 236} W`}
+                </strong>
               </span>
               <span>&bull;</span>
               <span>
-                Gewicht: <strong className="text-emerald-400">{settings.weightKg || 95} kg</strong>{' '}
+                Gewicht:{' '}
+                <strong className="text-emerald-400">
+                  {privacyBlur ? '•• kg' : `${settings.weightKg || 95} kg`}
+                </strong>{' '}
                 <span className="text-slate-400">
-                  ({((settings.ftpWatts || 236) / (settings.weightKg || 95)).toFixed(2)} W/kg)
+                  ({privacyBlur ? '•.•• W/kg' : `${((settings.ftpWatts || 236) / (settings.weightKg || 95)).toFixed(2)} W/kg`})
                 </span>
               </span>
               <span>&bull;</span>
               <span>
-                HFmax: <strong className="text-rose-400">{settings.maxHeartRate || 176} bpm</strong>
+                HFmax:{' '}
+                <strong className="text-rose-400">
+                  {privacyBlur ? '••• bpm' : `${settings.maxHeartRate || 176} bpm`}
+                </strong>
               </span>
               <span>&bull;</span>
               <span>
-                Ruhepuls: <strong className="text-cyan-400">{settings.restingHeartRate || 55} bpm</strong>
+                Ruhepuls:{' '}
+                <strong className="text-cyan-400">
+                  {privacyBlur ? '•• bpm' : `${settings.restingHeartRate || 55} bpm`}
+                </strong>
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {isDeviatingFromHardBaseline && (
               <button
                 onClick={() => {
@@ -255,11 +334,17 @@ export function App() {
                   handleSaveSettings(clean);
                 }}
                 className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-[11px] transition shadow-sm"
-                title="Stellt sofort deine fest hinterlegten Stammwerte (236 W • 95 kg • 176 bpm • 55 bpm) wieder her"
+                title="Stellt sofort deine fest hinterlegten Stammwerte wieder her"
               >
-                ↺ Auf Stammwerte (236 W / 95 kg / 176 bpm) zurücksetzen
+                ↺ Auf Stammwerte zurücksetzen
               </button>
             )}
+            <button
+              onClick={() => setIsPrivacyModalOpen(true)}
+              className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold underline underline-offset-2 transition"
+            >
+              🛡️ DSGVO & 2FA
+            </button>
             <button
               onClick={() => setIsSettingsModalOpen(true)}
               className="text-[11px] text-slate-400 hover:text-white underline underline-offset-2 transition"
@@ -378,14 +463,52 @@ export function App() {
         planTitle={defaultPlan.title}
       />
 
+      {/* DSGVO, 2FA & Security Center Modal */}
+      <PrivacyGdprModal
+        isOpen={isPrivacyModalOpen}
+        onClose={() => setIsPrivacyModalOpen(false)}
+        privacyBlur={privacyBlur}
+        onTogglePrivacyBlur={(active) => handleTogglePrivacyBlur(active)}
+        onDataErased={() => {
+          setStravaConfig(null);
+          setUserActivities(null);
+          setGdprConsent(null);
+          setSecurity2FA(getSecurity2FAConfig());
+        }}
+        onLockNow={() => setIs2FAUnlocked(false)}
+        onSecurityConfigChanged={(cfg) => setSecurity2FA(cfg)}
+        onRetentionChanged={(days) => {
+          if (userActivities) {
+            const filtered = enforceDataRetentionPolicy(userActivities, days);
+            setUserActivities(filtered);
+            if (filtered) saveStoredActivities(filtered);
+          }
+        }}
+      />
+
+      {/* Initial GDPR Art. 9 Health Data Consent Banner */}
+      {!gdprConsent && (
+        <GdprConsentBanner
+          onAccepted={(rec) => setGdprConsent(rec)}
+          onOpenPrivacyCenter={() => setIsPrivacyModalOpen(true)}
+        />
+      )}
+
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-6 mt-12 text-center text-xs text-slate-500">
-        <p className="flex items-center justify-center gap-2">
+        <p className="flex flex-wrap items-center justify-center gap-2">
           <span>Analytics</span>
           <span className="text-amber-400 font-mono font-bold px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[11px]">
             {APP_VERSION}
           </span>
-          <span>&bull; Smarte Trainingsauswertung & Belastungssteuerung für Ausdauersportler &bull; Lokale Datenverarbeitung</span>
+          <span>&bull; Smarte Trainingsauswertung & Belastungssteuerung &bull; 100% Lokale Browser-Verarbeitung (DSGVO-konform)</span>
+          <span>&bull;</span>
+          <button
+            onClick={() => setIsPrivacyModalOpen(true)}
+            className="text-emerald-400 hover:text-emerald-300 underline underline-offset-2 font-semibold"
+          >
+            🛡️ Datenschutz (DSGVO), 2FA & Datenauskunft
+          </button>
         </p>
       </footer>
     </div>

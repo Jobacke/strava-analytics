@@ -1,27 +1,35 @@
 import React from 'react';
-import { Activity, Sliders, Upload, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Activity, Sliders, Upload, RefreshCw, ShieldCheck, Shield, EyeOff, Eye } from 'lucide-react';
 import { StravaConfig } from '../services/stravaApi';
 import { APP_VERSION } from '../version';
 
 interface NavbarProps {
   onOpenConnectModal: () => void;
   onOpenSettingsModal: () => void;
+  onOpenPrivacyModal: () => void;
   stravaConfig: StravaConfig | null;
   onSyncStrava?: () => void;
   isSyncing?: boolean;
   sportFilter: string;
   onSportFilterChange: (sport: string) => void;
   activitiesCount: number;
+  privacyBlur?: boolean;
+  onTogglePrivacyBlur?: () => void;
+  is2FAEnabled?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenConnectModal,
   onOpenSettingsModal,
+  onOpenPrivacyModal,
   stravaConfig,
   onSyncStrava,
   isSyncing,
   sportFilter,
   onSportFilterChange,
+  privacyBlur,
+  onTogglePrivacyBlur,
+  is2FAEnabled,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
@@ -108,7 +116,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               {stravaConfig ? (
                 <>
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="hidden sm:inline">Verbunden: {stravaConfig.athleteName || 'Strava'}</span>
+                  <span className="hidden sm:inline">
+                    Verbunden: {privacyBlur ? '••••••••' : stravaConfig.athleteName || 'Strava'}
+                  </span>
                   <span className="sm:hidden">Verbunden</span>
                 </>
               ) : (
@@ -117,6 +127,39 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span>Strava verbinden</span>
                 </>
               )}
+            </button>
+
+            {/* 1-Click Privacy Blur Toggle (Art. 25 DSGVO) */}
+            {onTogglePrivacyBlur && (
+              <button
+                onClick={onTogglePrivacyBlur}
+                className={`p-2 rounded-xl border transition ${
+                  privacyBlur
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700/60'
+                }`}
+                title={
+                  privacyBlur
+                    ? 'Sichtschutz aktiv (Persönliche Werte geschwärzt) – Klicken zum Einblenden'
+                    : '1-Klick-Sichtschutz (Art. 25 DSGVO): Persönliche Werte auf dem Bildschirm schwärzen'
+                }
+              >
+                {privacyBlur ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            )}
+
+            {/* DSGVO & 2FA Security Center Button */}
+            <button
+              onClick={onOpenPrivacyModal}
+              className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl border text-xs font-bold transition ${
+                is2FAEnabled
+                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/25'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700/60'
+              }`}
+              title="DSGVO-Datenschutz, Zwei-Faktor-Authentifizierung (2FA) & Datenauskunft"
+            >
+              <Shield className="w-4 h-4 text-emerald-400" />
+              <span className="hidden lg:inline">{is2FAEnabled ? 'DSGVO • 2FA' : 'DSGVO'}</span>
             </button>
 
             {/* Settings Button */}
