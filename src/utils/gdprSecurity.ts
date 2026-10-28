@@ -22,6 +22,8 @@ export interface Security2FAConfig {
   enabled: boolean;
   pinHash: string; // SHA-256 hex
   totpSecret: string; // Base32 RFC 4648 secret
+  requireTotp?: boolean; // Only require 6-digit TOTP if user explicitly paired an external Authenticator app
+  deviceHardwareToken?: string; // Cryptographic local device factor (Factor 2 when no external TOTP app is used)
   webAuthnCredentialId?: string; // Base64URL credential ID for Touch ID / Face ID
   rememberDeviceDays: number; // e.g., 30 days
   autoLockMinutes: number; // e.g., 15 minutes

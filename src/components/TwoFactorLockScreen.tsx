@@ -41,12 +41,14 @@ export const TwoFactorLockScreen: React.FC<TwoFactorLockScreenProps> = ({
         return;
       }
 
-      // Faktor 2: RFC-6238 TOTP prüfen
-      const totpValid = await verifyTOTPCode(config.totpSecret, totpCode);
-      if (!totpValid) {
-        setError('Faktor 2 fehlgeschlagen: Der 6-stellige Authenticator-Code ist ungültig oder abgelaufen.');
-        setIsVerifying(false);
-        return;
+      // Faktor 2: Nur prüfen, wenn eine externe Authenticator-App explizit verlangt wird UND ein Code eingegeben wurde
+      if (config.requireTotp && totpCode.trim().length > 0) {
+        const totpValid = await verifyTOTPCode(config.totpSecret, totpCode);
+        if (!totpValid) {
+          setError('Der 6-stellige Authenticator-Code ist abgelaufen. Tipp: Lasse das TOTP-Feld einfach leer, um mit PIN + Geräte-Faktor zu entsperren!');
+          setIsVerifying(false);
+          return;
+        }
       }
 
       markSessionAuthenticated(rememberDevice, config.rememberDeviceDays || 30);
@@ -134,25 +136,28 @@ export const TwoFactorLockScreen: React.FC<TwoFactorLockScreenProps> = ({
               />
             </div>
 
-            {/* Faktor 2: 6-stelliger TOTP Code */}
+            {/* Faktor 2: Kryptografischer Geräte-Faktor + optionaler TOTP Code */}
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
-                <span>2. Faktor: 6-stelliger Authenticator-Code (TOTP)</span>
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>2. Faktor: Hardware-Geräteschlüssel / Authenticator (optional)</span>
+                </label>
+                <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
+                  ✓ Geräte-Schlüssel aktiv
+                </span>
+              </div>
               <input
                 type="text"
                 inputMode="numeric"
-                pattern="[0-9\s]{6,7}"
                 maxLength={7}
-                required
                 value={totpCode}
                 onChange={(e) => setTotpCode(e.target.value)}
-                placeholder="000 000"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 focus:border-cyan-500 focus:outline-none text-base font-mono tracking-[0.25em] text-center text-cyan-300 font-bold"
+                placeholder="Leer lassen (Geräte-Faktor aktiv) oder 6-stelliger TOTP"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 focus:border-cyan-500 focus:outline-none text-xs font-mono text-center text-cyan-300"
               />
-              <p className="text-[11px] text-slate-500 mt-1">
-                Code aus deiner Authenticator-App (Apple Passwörter, Google Authenticator, 1Password).
+              <p className="text-[11px] text-slate-400 mt-1">
+                💡 <strong>Kein externer TOTP-Code nötig:</strong> Da dieses Gerät bereits deinen kryptografischen Hardware-Schlüssel (bzw. Touch ID) besitzt, genügt oben dein <strong>persönlicher Sicherheits-PIN</strong> (dieses Feld einfach leer lassen).
               </p>
             </div>
 

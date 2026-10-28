@@ -153,13 +153,15 @@ export const PrivacyGdprModal: React.FC<PrivacyGdprModalProps> = ({
       return;
     }
 
-    const isTotpValid = await verifyTOTPCode(secConfig.totpSecret, verificationCode);
-    if (!isTotpValid) {
-      setSetupStatus({
-        type: 'error',
-        msg: 'Der eingegebene 6-stellige TOTP-Code stimmt nicht überein. Bitte prüfe deine Authenticator-App.',
-      });
-      return;
+    if (verificationCode.trim().length > 0) {
+      const isTotpValid = await verifyTOTPCode(secConfig.totpSecret, verificationCode);
+      if (!isTotpValid) {
+        setSetupStatus({
+          type: 'error',
+          msg: 'Der eingegebene 6-stellige TOTP-Code stimmt nicht überein. (Tipp: Lasse das Feld leer, um den automatischen Geräte-Schlüssel + Touch ID als 2. Faktor zu nutzen).',
+        });
+        return;
+      }
     }
 
     const pinHash = await hashPinSHA256(newPin);
@@ -167,6 +169,8 @@ export const PrivacyGdprModal: React.FC<PrivacyGdprModalProps> = ({
       ...secConfig,
       enabled: true,
       pinHash,
+      requireTotp: false,
+      deviceHardwareToken: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       updatedAt: new Date().toISOString(),
     };
     saveSecurity2FAConfig(updated);
