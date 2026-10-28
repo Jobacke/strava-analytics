@@ -209,11 +209,13 @@ DEINE AUFGABE ALS MEIN RADTRAINER:
    - Für Grundlagentage (Z2): Konkrete Zwift RoboPacer-Gruppen (z.B. "Bernie" ~1.5 W/kg, "Miguel" ~1.8 W/kg, "Maria" ~2.2 W/kg) oder bewährte Social Group Rides (z.B. BMTR, Pack, 3R Endurance Rides).
    - Für Intervall- & Schwellentage: Exakter Name des Workouts aus der Zwift-Bibliothek (z.B. unter "60-90 Minutes to Burn", "FTP Builder" oder "Zwift Academy") oder passende Zwift-Rennen/Time Trials.
    - Nenne jeweils die empfohlene Leistungskategorie (A, B, C oder D basierend auf meinem W/kg-Verhältnis) und die empfohlene Zwift-Welt/Strecke (z.B. Tempus Fugit in Watopia für gleichmäßiges Pacing ohne störende Steigungen).
-4. BENUTZERDEFINIERTE ZWIFT-WORKOUTS ALS DATEI (.ZWO):
+4. BENUTZERDEFINIERTE ZWIFT-WORKOUTS ALS DATEI (.ZWO) – CHRONOLOGISCHE ZWIFT-SORTIERUNG:
+   • WICHTIG FÜR CHRONOLOGISCHE REIHENFOLGE IN ZWIFT (IMMER ZWEISTELLIGE TAG-NUMMER MIT FÜHRENDER NULL!):
+     Da Zwift benutzerdefinierte Workouts alphabetisch nach dem <name>-Tag sortiert, MÜSSEN die Tag-Nummern zwingend zweistellig mit führender Null geschrieben werden (Tag01, Tag02, Tag03 ... Tag09, Tag10, Tag11 ... Tag14), damit Tag01 vor Tag10 erscheint!
    • ANWEISUNG FÜR ANTIGRAVITY (Mac - Direkte Auto-Ablage):
      Da du direkten Dateisystemzugriff auf meinem Mac hast, erstelle für JEDEN Rad-Trainingstag die vollständige .zwo XML-Datei und speichere sie DIREKT mit deinen Datei-Werkzeugen in folgendem Ordner ab:
      /Users/johannes/Documents/Zwift/Workouts/1304674/
-     (Verwende saubere Dateinamen, z.B. JB_Tag2_Di_Erholung_45.zwo, JB_Tag4_Do_VO2max_4x3.zwo, etc.).
+     (Verwende sowohl für den Dateinamen als auch für das <name>-Tag innerhalb der .zwo-Datei IMMER zweistellige Tag-Nummern mit führender Null, z.B. JB_Tag01_Di_GA1_Basis_50.zwo, JB_Tag02_Mi_Erholung_45.zwo, ..., JB_Tag10_Do_Rekom_45.zwo).
    • ANWEISUNG FÜR CLAUDE (iPhone / Web):
      Gib für jede Radeinheit den vollständigen Code im offiziellen Zwift-Workout-Format (.zwo XML-Codeblock) aus, sodass ich die Datei bei Bedarf manuell kopieren kann.
 5. REGENERATION & ERNÄHRUNG: 3 wichtige Praxistipps für diesen ${planDays}-Tage-Trainingsblock auf dem Kickr Core (inkl. optionaler kurzer Laufeinheiten als Rekom).
