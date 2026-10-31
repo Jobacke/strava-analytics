@@ -4,8 +4,16 @@ import {
   UserAthleteSettings,
 } from './types/strava';
 import {
+  AthleteProfileId,
   JOHANNES_BASELINE_SETTINGS,
+  VERONIKA_BASELINE_SETTINGS,
+  getActiveProfileId,
+  setActiveProfileId,
   loadVerifiedSettings,
+  loadVeronikaSettings,
+  saveVeronikaSettings,
+  getVeronikaActivities,
+  saveVeronikaActivities,
   hasSettingsDeviation,
   saveBaselineSettings,
   calculateFitnessAndFatigue,
@@ -40,6 +48,7 @@ import { ClaudeCoachModal, ClaudeCoachMode } from './components/ClaudeCoachModal
 import { PrivacyGdprModal } from './components/PrivacyGdprModal';
 import { TwoFactorLockScreen } from './components/TwoFactorLockScreen';
 import { GdprConsentBanner } from './components/GdprConsentBanner';
+import { WahooBoltModal } from './components/WahooBoltModal';
 import {
   getGdprConsent,
   getSecurity2FAConfig,
@@ -56,24 +65,38 @@ import { APP_VERSION } from './version';
 import { subDays, parseISO, isAfter } from 'date-fns';
 
 export function App() {
+  const [activeProfile, setActiveProfile] = useState<AthleteProfileId>(() => getActiveProfileId());
   const [stravaConfig, setStravaConfig] = useState<StravaConfig | null>(() => getStoredStravaConfig());
   const [gdprConsent, setGdprConsent] = useState<GdprConsentRecord | null>(() => getGdprConsent());
   const [security2FA, setSecurity2FA] = useState<Security2FAConfig>(() => getSecurity2FAConfig());
   const [is2FAUnlocked, setIs2FAUnlocked] = useState<boolean>(() => isSessionAuthenticated());
   const [privacyBlur, setPrivacyBlur] = useState<boolean>(() => getPrivacyBlurMode());
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState<boolean>(false);
+  const [isWahooModalOpen, setIsWahooModalOpen] = useState<boolean>(false);
 
   const [userActivities, setUserActivities] = useState<StravaActivity[] | null>(() => {
     const raw = getStoredActivities();
     const consent = getGdprConsent();
     return enforceDataRetentionPolicy(raw, consent?.retentionDays ?? 365);
   });
+  const [veronikaActivities, setVeronikaActivities] = useState<StravaActivity[]>(() =>
+    getVeronikaActivities()
+  );
 
-  const [settings, setSettings] = useState<UserAthleteSettings>(() => loadVerifiedSettings());
+  const [johannesSettings, setJohannesSettings] = useState<UserAthleteSettings>(() =>
+    loadVerifiedSettings()
+  );
+  const [veronikaSettings, setVeronikaSettings] = useState<UserAthleteSettings>(() =>
+    loadVeronikaSettings()
+  );
+
+  const settings = activeProfile === 'veronika' ? veronikaSettings : johannesSettings;
+  const activeBaseline =
+    activeProfile === 'veronika' ? VERONIKA_BASELINE_SETTINGS : JOHANNES_BASELINE_SETTINGS;
 
   const isDeviatingFromHardBaseline = useMemo(
-    () => hasSettingsDeviation(settings, JOHANNES_BASELINE_SETTINGS),
-    [settings]
+    () => hasSettingsDeviation(settings, activeBaseline),
+    [settings, activeBaseline]
   );
 
   const [sportFilter, setSportFilter] = useState<string>('Ride');
@@ -85,8 +108,14 @@ export function App() {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [oauthStatus, setOauthStatus] = useState<string | null>(null);
 
-  // Active activity dataset based on user's stored Strava activities
-  const baseActivities = userActivities || [];
+  const handleProfileChange = (nextProfile: AthleteProfileId) => {
+    setActiveProfile(nextProfile);
+    setActiveProfileId(nextProfile);
+  };
+
+  // Active activity dataset based on selected profile (Johannes Strava vs. Veronika Wahoo Kickr/Bolt)
+  const baseActivities =
+    activeProfile === 'veronika' ? veronikaActivities : userActivities || [];
 
   const filteredActivities = useMemo(() => {
     if (sportFilter === 'ALL') return baseActivities;
@@ -142,10 +171,29 @@ export function App() {
     }
   };
 
-  // Save settings
+  // Save settings for the currently active profile
   const handleSaveSettings = (newSettings: UserAthleteSettings) => {
-    setSettings(newSettings);
-    localStorage.setItem('strava_pulse_settings', JSON.stringify(newSettings));
+    if (activeProfile === 'veronika') {
+      setVeronikaSettings(newSettings);
+      saveVeronikaSettings(newSettings);
+    } else {
+      setJohannesSettings(newSettings);
+      localStorage.setItem('strava_pulse_settings', JSON.stringify(newSettings));
+    }
+  };
+
+  const handleAddVeronikaActivities = (newItems: StravaActivity[]) => {
+    const merged = [...newItems, ...veronikaActivities].sort(
+      (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+    );
+    setVeronikaActivities(merged);
+    saveVeronikaActivities(merged);
+  };
+
+  const handleDeleteVeronikaActivity = (id: string | number) => {
+    const next = veronikaActivities.filter((a) => String(a.id) !== String(id));
+    setVeronikaActivities(next);
+    saveVeronikaActivities(next);
   };
 
   // Training load analytics calculations (90 days)
@@ -175,7 +223,11 @@ export function App() {
     };
   }, [filteredActivities]);
 
-  const athleteName = privacyBlur ? 'Athlet' : stravaConfig?.athleteName || 'Johannes Backhaus';
+  const athleteName = privacyBlur
+    ? 'Athlet'
+    : activeProfile === 'veronika'
+    ? 'Veronika Backhaus'
+    : stravaConfig?.athleteName || 'Johannes Backhaus';
 
   // Auto-Lock timer upon user inactivity AND when closing/minimizing the Mac Dock Web App window (Art. 32 DSGVO)
   useEffect(() => {
@@ -287,6 +339,9 @@ export function App() {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       {/* Navbar */}
       <Navbar
+        activeProfile={activeProfile}
+        onProfileChange={handleProfileChange}
+        onOpenWahooModal={() => setIsWahooModalOpen(true)}
         onOpenConnectModal={() => {
           if (!stravaConfig) {
             startDirectStravaOAuth();
@@ -316,6 +371,8 @@ export function App() {
         className={`border-b px-4 py-2 transition-colors ${
           isDeviatingFromHardBaseline
             ? 'bg-amber-950/40 border-amber-500/40'
+            : activeProfile === 'veronika'
+            ? 'bg-emerald-950/30 border-emerald-500/30'
             : 'bg-slate-900/60 border-slate-800/80'
         }`}
       >
@@ -325,41 +382,58 @@ export function App() {
               className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-bold text-[11px] border ${
                 isDeviatingFromHardBaseline
                   ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  : activeProfile === 'veronika'
+                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
                   : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
               }`}
             >
-              {isDeviatingFromHardBaseline ? '⚠️ Basis-Check: Werte geändert' : '🔒 Athleten-Basis gesichert'}
+              {isDeviatingFromHardBaseline
+                ? '⚠️ Basis-Check: Werte geändert'
+                : activeProfile === 'veronika'
+                ? '🌿 Profil Veronika (63 J. • Wahoo KICKR CORE & BOLT)'
+                : '🔒 Athleten-Basis gesichert'}
             </span>
 
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-300 font-mono">
               <span>
                 FTP:{' '}
                 <strong className="text-amber-400">
-                  {privacyBlur ? '••• W' : `${settings.ftpWatts || 236} W`}
+                  {privacyBlur ? '••• W' : `${settings.ftpWatts || activeBaseline.ftpWatts} W`}
                 </strong>
               </span>
+              {activeProfile === 'veronika' && (
+                <>
+                  <span>&bull;</span>
+                  <span>
+                    Wohlfühl-Zone 2:{' '}
+                    <strong className="text-cyan-300">
+                      {Math.round((settings.ftpWatts || 90) * 0.56)}–{Math.round((settings.ftpWatts || 90) * 0.75)} W
+                    </strong>
+                  </span>
+                </>
+              )}
               <span>&bull;</span>
               <span>
                 Gewicht:{' '}
                 <strong className="text-emerald-400">
-                  {privacyBlur ? '•• kg' : `${settings.weightKg || 95} kg`}
+                  {privacyBlur ? '•• kg' : `${settings.weightKg || activeBaseline.weightKg} kg`}
                 </strong>{' '}
                 <span className="text-slate-400">
-                  ({privacyBlur ? '•.•• W/kg' : `${((settings.ftpWatts || 236) / (settings.weightKg || 95)).toFixed(2)} W/kg`})
+                  ({privacyBlur ? '•.•• W/kg' : `${((settings.ftpWatts || activeBaseline.ftpWatts || 90) / (settings.weightKg || activeBaseline.weightKg || 55)).toFixed(2)} W/kg`})
                 </span>
               </span>
               <span>&bull;</span>
               <span>
                 HFmax:{' '}
                 <strong className="text-rose-400">
-                  {privacyBlur ? '••• bpm' : `${settings.maxHeartRate || 176} bpm`}
+                  {privacyBlur ? '••• bpm' : `${settings.maxHeartRate || activeBaseline.maxHeartRate} bpm`}
                 </strong>
               </span>
               <span>&bull;</span>
               <span>
                 Ruhepuls:{' '}
                 <strong className="text-cyan-400">
-                  {privacyBlur ? '•• bpm' : `${settings.restingHeartRate || 55} bpm`}
+                  {privacyBlur ? '•• bpm' : `${settings.restingHeartRate || activeBaseline.restingHeartRate} bpm`}
                 </strong>
               </span>
             </div>
@@ -369,16 +443,24 @@ export function App() {
             {isDeviatingFromHardBaseline && (
               <button
                 onClick={() => {
-                  const clean = { ...JOHANNES_BASELINE_SETTINGS };
-                  saveBaselineSettings(clean);
+                  const clean = { ...activeBaseline };
+                  if (activeProfile === 'johannes') {
+                    saveBaselineSettings(clean);
+                  }
                   handleSaveSettings(clean);
                 }}
                 className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-[11px] transition shadow-sm"
-                title="Stellt sofort deine fest hinterlegten Stammwerte wieder her"
+                title="Stellt sofort die fest hinterlegten Stammwerte wieder her"
               >
                 ↺ Auf Stammwerte zurücksetzen
               </button>
             )}
+            <button
+              onClick={() => setIsWahooModalOpen(true)}
+              className="text-[11px] text-cyan-400 hover:text-cyan-300 font-bold underline underline-offset-2 transition cursor-pointer"
+            >
+              ⚡ Wahoo BOLT / KICKR
+            </button>
             <button
               onClick={() => setIsPrivacyModalOpen(true)}
               className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold underline underline-offset-2 transition"
@@ -402,8 +484,46 @@ export function App() {
         </div>
       )}
 
-      {/* Connection Hint Banner when no data is loaded yet */}
-      {!stravaConfig && baseActivities.length === 0 && (
+      {/* Veronika Wahoo KICKR CORE & ELEMNT BOLT Action Banner */}
+      {activeProfile === 'veronika' && (
+        <div className="bg-gradient-to-r from-emerald-950/60 via-cyan-950/50 to-slate-900 border-b border-emerald-500/30 px-4 py-3">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="text-emerald-200">
+              🌿 <strong>Veronikas Wahoo KICKR CORE &amp; ELEMNT BOLT Cockpit (63 J. • 55 kg):</strong>{' '}
+              Kein Strava nötig! Du kannst Fahrten direkt vom Wahoo ELEMNT BOLT (.fit / .tcx oder Display-Werte) laden oder sofort eine Leistungsanalyse &amp; einen entspannten Wohlfühl-Trainingsplan erstellen.
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setIsWahooModalOpen(true)}
+                className="px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-[11px] transition cursor-pointer"
+              >
+                📂 Wahoo BOLT Daten / Fahrt eintragen
+              </button>
+              <button
+                onClick={() => {
+                  setClaudeModalMode('analysis');
+                  setIsClaudeModalOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-[11px] transition cursor-pointer"
+              >
+                🔬 Leistungsanalyse für Veronika
+              </button>
+              <button
+                onClick={() => {
+                  setClaudeModalMode('plan');
+                  setIsClaudeModalOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-[11px] transition cursor-pointer"
+              >
+                🚴‍♀️ Entspannter Trainingsplan (7/14 Tage)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Connection Hint Banner when no data is loaded yet (for Johannes) */}
+      {activeProfile === 'johannes' && !stravaConfig && baseActivities.length === 0 && (
         <div className="bg-orange-500/10 border-b border-orange-500/20 px-4 py-2">
           <div className="max-w-7xl mx-auto flex items-center justify-between text-xs">
             <span className="text-orange-300">
@@ -477,6 +597,28 @@ export function App() {
           setStravaConfig(cfg);
           if (!cfg) setUserActivities(null);
         }}
+      />
+
+      {/* Wahoo KICKR CORE & ELEMNT BOLT Hub Modal */}
+      <WahooBoltModal
+        isOpen={isWahooModalOpen}
+        onClose={() => setIsWahooModalOpen(false)}
+        athleteName={athleteName}
+        settings={settings}
+        activities={baseActivities}
+        onAddActivities={(newItems) => {
+          if (activeProfile === 'veronika') {
+            handleAddVeronikaActivities(newItems);
+          } else {
+            const next = [...newItems, ...(userActivities || [])];
+            setUserActivities(next);
+            saveStoredActivities(next);
+          }
+        }}
+        onDeleteActivity={
+          activeProfile === 'veronika' ? handleDeleteVeronikaActivity : undefined
+        }
+        onUpdateSettings={handleSaveSettings}
       />
 
       {/* User Settings Modal */}

@@ -75,14 +75,21 @@ export function buildAnalysisPrompt(options: PromptBuilderOptions): { prompt: st
   const mdFilename = `${title}.md`;
   const filename = `${title}.pdf`;
 
+  const isVeronika = athleteName.toLowerCase().includes('veronika');
   const runNote = lookback.runningCount > 0 
     ? `\n- Ergänzende Laufeinheiten im Zeitraum: ${lookback.runningCount} (nur als aktive Erholung/Alternative)` 
+    : '';
+  const veronikaProfileNote = isVeronika
+    ? `\n- BESONDERES ATHLETEN-PROFIL (VERONIKA BACKHAUS):
+  • Alter: 63 Jahre | Körpergewicht: ${settings.weightKg || 55} kg
+  • Trainingsgerät: Wahoo KICKR CORE Smart-Trainer (mit speziell auf Veronika eingestelltem Rahmen) + Wahoo ELEMNT BOLT Radcomputer (kein Strava-Account, Datenaufzeichnung direkt über Wahoo ELEMNT BOLT / Kickr Core).
+  • Trainingsphilosophie: Ganz entspanntes, gelenkschonendes Wohlfühl-, Gesundheits- und Herz-Kreislauf-Radtraining ohne Leistungsdruck! Fokus auf Freude an der Bewegung, Grundfitness (Zone 1 & Zone 2 bei ca. 50–68 Watt bzw. 110–128 bpm) und flüssige Trittfrequenz. Falls noch keine oder wenige Einheiten dokumentiert sind, erstelle eine fundierte sportmedizinische Ausgangs- & Potenzialanalyse (inkl. Karvonen-Herzfrequenzzonen, Wohlfühl-Wattbereichen auf dem Wahoo Kickr Core und Empfehlungen zur sanften Kalibrierung über den Wahoo ELEMNT BOLT).`
     : '';
 
   const prompt = `Du bist mein persönlicher Sportwissenschaftler und Leistungsdiagnostiker für den Radsport.
 Hier sind meine aktuellen, echten Leistungs- und Belastungsdaten aus meiner Trainingsanalyse für Athlet "${athleteName}":
 
-LEISTUNGSPROFIL & BELASTUNGSDATEN (Coggan & Banister Modell - Zeitraum: ${startDay} - ${endDay} / ${weekLabel} Radsport):
+LEISTUNGSPROFIL & BELASTUNGSDATEN (Coggan & Banister Modell - Zeitraum: ${startDay} - ${endDay} / ${weekLabel} Radsport):${veronikaProfileNote}
 - Sportarten-Fokus: 100 % RADSPORT (Wahoo Kickr Core Indoor Smart-Trainer & Rennrad Outdoor)
 - Rad-Trainingsvolumen (letzte ${lookbackDays} Tage): ${lookback.hours} Stunden (${lookback.km} km in ${lookback.count} Radeinheiten, ${lookback.elevation} Höhenmeter)${runNote}
 - Wochenvolumen (letzte 7 Tage Referenz): ${stats.weeklyHours} Stunden (${stats.weeklyKm} km, ${stats.kmDeltaPercent >= 0 ? '+' : ''}${stats.kmDeltaPercent}% vs. Vorwoche)
@@ -163,11 +170,22 @@ export function buildPlanPrompt(options: PromptBuilderOptions): { prompt: string
   const filename = `${title}.pdf`;
 
   const isTwoWeeks = planDays === 14;
+  const isVeronika = athleteName.toLowerCase().includes('veronika');
+  const initials = isVeronika ? 'VB' : 'JB';
+  const veronikaPlanNote = isVeronika
+    ? `\n- BESONDERES ATHLETEN-PROFIL & ZIELSETZUNG (VERONIKA BACKHAUS):
+  • Alter: 63 Jahre | Körpergewicht: ${settings.weightKg || 55} kg
+  • Trainingsgerät: Wahoo KICKR CORE Smart-Trainer (mit speziell auf Veronika eingestelltem Rahmen) + am Trainer verbauter Wahoo ELEMNT BOLT Radcomputer.
+  • WICHTIG FÜR DEN TRAININGSPLAN VON VERONIKA:
+    Gestalte diesen Trainingsplan als GANZ ENTSPANNTEN, GELENKSCHONENDEN WOHLFÜHL- & GESUNDHEITS-RADTRAININGSPLAN (3 bis 4 lockere Einheiten pro Woche à 25–45 Minuten, dazwischen erholsame Ruhetage).
+    Verzichte auf harte VO2max-Ausbelastung! Setze stattdessen auf sanftes Rollen in Zone 1 & Zone 2 (ca. 45–68 Watt, Wohlfühl-Puls 105–128 bpm), flüssige Trittfrequenz-Spiele (75–85 RPM) und Freude auf dem Rad.
+    Gib bei JEDER Trainingseinheit zusätzlich die direkte Einstellung für den Wahoo ELEMNT BOLT am Kickr Core an (z.B. "Am Wahoo ELEMNT BOLT im ERG-Modus: 5 Min. 45 W Warmup -> 20 Min. 60 W Wohlfühl-Rollen -> 5 Min. 45 W Ausrollen"), sodass Veronika die Einheit wahlweise komplett ohne Zwift direkt über den Wahoo ELEMNT BOLT ODER in Zwift fahren kann!`
+    : '';
 
   const prompt = `Du bist mein persönlicher Sportwissenschaftler und Ausdauertrainer für den Radsport.
-Hier sind meine aktuellen, echten Leistungs- und Belastungsdaten aus meiner Strava-Trainingsanalyse für Athlet "${athleteName}":
+Hier sind meine aktuellen, echten Leistungs- und Belastungsdaten aus meiner Trainingsanalyse für Athlet "${athleteName}":
 
-LEISTUNGSPROFIL & VORBELASTUNG (Coggan & Banister Modell - Basis: Letzte ${lookbackDays} Tage Radsport):
+LEISTUNGSPROFIL & VORBELASTUNG (Coggan & Banister Modell - Basis: Letzte ${lookbackDays} Tage Radsport):${veronikaPlanNote}
 - Sportarten-Fokus: 100 % RADSPORT (Wahoo Kickr Core Indoor Smart-Trainer & Rennrad Outdoor)
 - Rad-Trainingsvolumen der letzten ${lookbackDays} Tage: ${lookback.hours} Stunden (${lookback.km} km in ${lookback.count} Radeinheiten, ${lookback.elevation} Höhenmeter)
 - Letzte 7 Tage Referenz: ${stats.weeklyHours} Stunden (${stats.weeklyKm} km, ${stats.kmDeltaPercent >= 0 ? '+' : ''}${stats.kmDeltaPercent}% vs. Vorwoche)
@@ -215,7 +233,7 @@ DEINE AUFGABE ALS MEIN RADTRAINER:
    • ANWEISUNG FÜR ANTIGRAVITY (Mac - Direkte Auto-Ablage):
      Da du direkten Dateisystemzugriff auf meinem Mac hast, erstelle für JEDEN Rad-Trainingstag die vollständige .zwo XML-Datei und speichere sie DIREKT mit deinen Datei-Werkzeugen in folgendem Ordner ab:
      /Users/johannes/Documents/Zwift/Workouts/1304674/
-     (Verwende sowohl für den Dateinamen als auch für das <name>-Tag innerhalb der .zwo-Datei IMMER zweistellige Tag-Nummern mit führender Null, z.B. JB_Tag01_Di_GA1_Basis_50.zwo, JB_Tag02_Mi_Erholung_45.zwo, ..., JB_Tag10_Do_Rekom_45.zwo).
+     (Verwende sowohl für den Dateinamen als auch für das <name>-Tag innerhalb der .zwo-Datei IMMER zweistellige Tag-Nummern mit führender Null und dem Kürzel ${initials}_, z.B. ${initials}_Tag01_Di_GA1_Basis_40.zwo, ${initials}_Tag02_Mi_Erholung_35.zwo, ..., ${initials}_Tag10_Do_Rekom_40.zwo).
    • ANWEISUNG FÜR CLAUDE (iPhone / Web):
      Gib für jede Radeinheit den vollständigen Code im offiziellen Zwift-Workout-Format (.zwo XML-Codeblock) aus, sodass ich die Datei bei Bedarf manuell kopieren kann.
 5. REGENERATION & ERNÄHRUNG: 3 wichtige Praxistipps für diesen ${planDays}-Tage-Trainingsblock auf dem Kickr Core (inkl. optionaler kurzer Laufeinheiten als Rekom).

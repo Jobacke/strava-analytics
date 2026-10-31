@@ -1,6 +1,8 @@
 import { StravaActivity, DayTrainingLoad, UserAthleteSettings } from '../types/strava';
 import { format, subDays, parseISO, isSameDay } from 'date-fns';
 
+export type AthleteProfileId = 'johannes' | 'veronika';
+
 /**
  * Fest hinterlegte persönliche Stamm-Basis für Johannes Backhaus
  * (Schützt vor Datenverlust bei Browser-Cache-Leerung oder Gerätewechsel)
@@ -14,13 +16,85 @@ export const JOHANNES_BASELINE_SETTINGS: UserAthleteSettings = {
   weightKg: 95,
 };
 
+/**
+ * Sportmedizinisch fundierte Stamm-Basis für Veronika Backhaus (63 Jahre, 55 kg)
+ * - HFmax nach Tanaka-Formel (208 - 0.7 * 63 = 164 bpm)
+ * - Ruhepuls Startbasis: 62 bpm
+ * - Sanfte Gesundheits-/Wohlfühl-FTP: 90 Watt (~1.64 W/kg -> Zone 2 bei entspannten 50-68 W auf dem Wahoo Kickr Core)
+ */
+export const VERONIKA_BASELINE_SETTINGS: UserAthleteSettings = {
+  maxHeartRate: 164,
+  restingHeartRate: 62,
+  ftpWatts: 90,
+  thresholdPaceSecPerKm: 390, // 6:30 min/km
+  weeklyGoalKm: 50,
+  weightKg: 55,
+};
+
 export const DEFAULT_SETTINGS: UserAthleteSettings = {
   ...JOHANNES_BASELINE_SETTINGS,
 };
 
+const ACTIVE_PROFILE_KEY = 'strava_pulse_active_profile_v1';
 const SETTINGS_STORAGE_KEY = 'strava_pulse_settings';
 const BASELINE_STORAGE_KEY = 'strava_pulse_baseline_settings';
+const VERONIKA_SETTINGS_KEY = 'strava_pulse_settings_veronika_v1';
+const VERONIKA_ACTIVITIES_KEY = 'strava_pulse_activities_veronika_v1';
 const MIGRATION_KEY_V220 = 'strava_pulse_migrated_baseline_v220';
+
+export function getActiveProfileId(): AthleteProfileId {
+  try {
+    const saved = localStorage.getItem(ACTIVE_PROFILE_KEY);
+    if (saved === 'veronika') return 'veronika';
+  } catch {}
+  return 'johannes';
+}
+
+export function setActiveProfileId(profileId: AthleteProfileId): void {
+  try {
+    localStorage.setItem(ACTIVE_PROFILE_KEY, profileId);
+  } catch {}
+}
+
+export function loadVeronikaSettings(): UserAthleteSettings {
+  try {
+    const raw = localStorage.getItem(VERONIKA_SETTINGS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        maxHeartRate: Number(parsed.maxHeartRate) || VERONIKA_BASELINE_SETTINGS.maxHeartRate,
+        restingHeartRate: Number(parsed.restingHeartRate) || VERONIKA_BASELINE_SETTINGS.restingHeartRate,
+        ftpWatts: Number(parsed.ftpWatts) || VERONIKA_BASELINE_SETTINGS.ftpWatts,
+        thresholdPaceSecPerKm: Number(parsed.thresholdPaceSecPerKm) || VERONIKA_BASELINE_SETTINGS.thresholdPaceSecPerKm,
+        weeklyGoalKm: Number(parsed.weeklyGoalKm) || VERONIKA_BASELINE_SETTINGS.weeklyGoalKm,
+        weightKg: Number(parsed.weightKg) || VERONIKA_BASELINE_SETTINGS.weightKg,
+      };
+    }
+  } catch {}
+  return { ...VERONIKA_BASELINE_SETTINGS };
+}
+
+export function saveVeronikaSettings(settings: UserAthleteSettings): void {
+  try {
+    localStorage.setItem(VERONIKA_SETTINGS_KEY, JSON.stringify(settings));
+  } catch {}
+}
+
+export function getVeronikaActivities(): StravaActivity[] {
+  try {
+    const raw = localStorage.getItem(VERONIKA_ACTIVITIES_KEY);
+    if (raw) {
+      return JSON.parse(raw);
+    }
+  } catch {}
+  return [];
+}
+
+export function saveVeronikaActivities(activities: StravaActivity[]): void {
+  try {
+    localStorage.setItem(VERONIKA_ACTIVITIES_KEY, JSON.stringify(activities));
+  } catch {}
+}
 
 /**
  * Lädt die gesicherte Stamm-Basis (Fallback: fest verdrahtete JOHANNES_BASELINE_SETTINGS)

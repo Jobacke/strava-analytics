@@ -1,9 +1,13 @@
 import React from 'react';
-import { Activity, Sliders, Upload, RefreshCw, ShieldCheck, Shield, EyeOff, Eye, Lock } from 'lucide-react';
+import { Activity, Sliders, Upload, RefreshCw, ShieldCheck, Shield, EyeOff, Eye, Lock, Gauge } from 'lucide-react';
 import { StravaConfig } from '../services/stravaApi';
+import { AthleteProfileId } from '../utils/trainingMath';
 import { APP_VERSION } from '../version';
 
 interface NavbarProps {
+  activeProfile: AthleteProfileId;
+  onProfileChange: (profile: AthleteProfileId) => void;
+  onOpenWahooModal: () => void;
   onOpenConnectModal: () => void;
   onOpenSettingsModal: () => void;
   onOpenPrivacyModal: () => void;
@@ -20,6 +24,9 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
+  activeProfile,
+  onProfileChange,
+  onOpenWahooModal,
   onOpenConnectModal,
   onOpenSettingsModal,
   onOpenPrivacyModal,
@@ -37,7 +44,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo & Title */}
+          {/* Logo & Title + Profile Switcher */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
               <Activity className="w-6 h-6 text-white" />
@@ -54,6 +61,34 @@ export const Navbar: React.FC<NavbarProps> = ({
               <p className="text-xs text-slate-400 hidden sm:block">
                 Smarte Trainingssteuerung & Leistungsdiagnostik
               </p>
+            </div>
+
+            {/* 1-Click Athlete Profile Switcher (Johannes <-> Veronika) */}
+            <div className="ml-2 flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <button
+                type="button"
+                onClick={() => onProfileChange('johannes')}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeProfile === 'johannes'
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Profil Johannes Backhaus (95 kg • FTP 236 W • Strava & Kickr Core)"
+              >
+                🚴‍♂️ Johannes
+              </button>
+              <button
+                type="button"
+                onClick={() => onProfileChange('veronika')}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeProfile === 'veronika'
+                    ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Profil Veronika Backhaus (63 J. • 55 kg • Wahoo KICKR CORE & ELEMNT BOLT)"
+              >
+                🌿 Veronika
+              </button>
             </div>
           </div>
 
@@ -93,43 +128,56 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Buttons */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Sync Button if connected */}
-            {stravaConfig && onSyncStrava && (
+            {activeProfile === 'veronika' ? (
               <button
-                onClick={onSyncStrava}
-                disabled={isSyncing}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition"
-                title="Neueste Aktivitäten von Strava synchronisieren"
+                onClick={onOpenWahooModal}
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 shadow-md shadow-cyan-500/20 transition cursor-pointer"
+                title="Wahoo ELEMNT BOLT (.fit / .tcx) importieren, Fahrt vom Display eintragen oder 15-Min Kickr-Test starten"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-orange-400' : ''}`} />
-                <span className="hidden sm:inline">{isSyncing ? 'Synchronisiere...' : 'Sync'}</span>
+                <Gauge className="w-3.5 h-3.5" />
+                <span>⚡ Wahoo BOLT / KICKR Daten</span>
               </button>
-            )}
+            ) : (
+              <>
+                {/* Sync Button if connected */}
+                {stravaConfig && onSyncStrava && (
+                  <button
+                    onClick={onSyncStrava}
+                    disabled={isSyncing}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition"
+                    title="Neueste Aktivitäten von Strava synchronisieren"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-orange-400' : ''}`} />
+                    <span className="hidden sm:inline">{isSyncing ? 'Synchronisiere...' : 'Sync'}</span>
+                  </button>
+                )}
 
-            {/* Connect / Upload Strava Button */}
-            <button
-              onClick={onOpenConnectModal}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition shadow-sm ${
-                stravaConfig
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
-                  : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-orange-500/20'
-              }`}
-            >
-              {stravaConfig ? (
-                <>
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="hidden sm:inline">
-                    Verbunden: {privacyBlur ? '••••••••' : stravaConfig.athleteName || 'Strava'}
-                  </span>
-                  <span className="sm:hidden">Verbunden</span>
-                </>
-              ) : (
-                <>
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Strava verbinden</span>
-                </>
-              )}
-            </button>
+                {/* Connect / Upload Strava Button */}
+                <button
+                  onClick={onOpenConnectModal}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition shadow-sm ${
+                    stravaConfig
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
+                      : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-orange-500/20'
+                  }`}
+                >
+                  {stravaConfig ? (
+                    <>
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="hidden sm:inline">
+                        Verbunden: {privacyBlur ? '••••••••' : stravaConfig.athleteName || 'Strava'}
+                      </span>
+                      <span className="sm:hidden">Verbunden</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Strava verbinden</span>
+                    </>
+                  )}
+                </button>
+              </>
+            )}
 
             {/* 1-Click Privacy Blur Toggle (Art. 25 DSGVO) */}
             {onTogglePrivacyBlur && (
