@@ -455,12 +455,14 @@ export function App() {
                 ↺ Auf Stammwerte zurücksetzen
               </button>
             )}
-            <button
-              onClick={() => setIsWahooModalOpen(true)}
-              className="text-[11px] text-cyan-400 hover:text-cyan-300 font-bold underline underline-offset-2 transition cursor-pointer"
-            >
-              ⚡ Wahoo BOLT / KICKR
-            </button>
+            {activeProfile === 'veronika' && (
+              <button
+                onClick={() => setIsWahooModalOpen(true)}
+                className="text-[11px] text-cyan-400 hover:text-cyan-300 font-bold underline underline-offset-2 transition cursor-pointer"
+              >
+                ⚡ Wahoo BOLT / KICKR
+              </button>
+            )}
             <button
               onClick={() => setIsPrivacyModalOpen(true)}
               className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold underline underline-offset-2 transition"
@@ -477,8 +479,8 @@ export function App() {
         </div>
       </div>
 
-      {/* OAuth Status Banner */}
-      {oauthStatus && (
+      {/* OAuth Status Banner (only for Johannes) */}
+      {activeProfile === 'johannes' && oauthStatus && (
         <div className="bg-orange-500 text-white text-xs font-semibold py-2 px-4 text-center animate-pulse">
           {oauthStatus}
         </div>
@@ -490,7 +492,7 @@ export function App() {
           <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="text-emerald-200">
               🌿 <strong>Veronikas Wahoo KICKR CORE &amp; ELEMNT BOLT Cockpit (63 J. • 55 kg):</strong>{' '}
-              Kein Strava nötig! Du kannst Fahrten direkt vom Wahoo ELEMNT BOLT (.fit / .tcx oder Display-Werte) laden oder sofort eine Leistungsanalyse &amp; einen entspannten Wohlfühl-Trainingsplan erstellen.
+              Lade Fahrten direkt vom Wahoo ELEMNT BOLT (.fit / .tcx oder Display-Werte) oder erstelle sofort eine Leistungsanalyse &amp; einen entspannten Wohlfühl-Trainingsplan inkl. <code>.zwo</code>-Workouts für Zwift.
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -515,7 +517,7 @@ export function App() {
                 }}
                 className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-[11px] transition cursor-pointer"
               >
-                🚴‍♀️ Entspannter Trainingsplan (7/14 Tage)
+                🚴‍♀️ Trainingsplan &amp; .zwo (7/14 Tage)
               </button>
             </div>
           </div>
@@ -588,38 +590,34 @@ export function App() {
         settings={settings}
       />
 
-      {/* Strava Connect Modal */}
-      <StravaConnectModal
-        isOpen={isConnectModalOpen}
-        onClose={() => setIsConnectModalOpen(false)}
-        stravaConfig={stravaConfig}
-        onConfigUpdated={(cfg) => {
-          setStravaConfig(cfg);
-          if (!cfg) setUserActivities(null);
-        }}
-      />
+      {/* Strava Connect Modal (exclusively for Johannes) */}
+      {activeProfile === 'johannes' && (
+        <StravaConnectModal
+          isOpen={isConnectModalOpen}
+          onClose={() => setIsConnectModalOpen(false)}
+          stravaConfig={stravaConfig}
+          onConfigUpdated={(cfg) => {
+            setStravaConfig(cfg);
+            if (!cfg) setUserActivities(null);
+          }}
+        />
+      )}
 
-      {/* Wahoo KICKR CORE & ELEMNT BOLT Hub Modal */}
-      <WahooBoltModal
-        isOpen={isWahooModalOpen}
-        onClose={() => setIsWahooModalOpen(false)}
-        athleteName={athleteName}
-        settings={settings}
-        activities={baseActivities}
-        onAddActivities={(newItems) => {
-          if (activeProfile === 'veronika') {
+      {/* Wahoo KICKR CORE & ELEMNT BOLT Hub Modal (exclusively for Veronika) */}
+      {activeProfile === 'veronika' && (
+        <WahooBoltModal
+          isOpen={isWahooModalOpen}
+          onClose={() => setIsWahooModalOpen(false)}
+          athleteName={athleteName}
+          settings={settings}
+          activities={baseActivities}
+          onAddActivities={(newItems) => {
             handleAddVeronikaActivities(newItems);
-          } else {
-            const next = [...newItems, ...(userActivities || [])];
-            setUserActivities(next);
-            saveStoredActivities(next);
-          }
-        }}
-        onDeleteActivity={
-          activeProfile === 'veronika' ? handleDeleteVeronikaActivity : undefined
-        }
-        onUpdateSettings={handleSaveSettings}
-      />
+          }}
+          onDeleteActivity={handleDeleteVeronikaActivity}
+          onUpdateSettings={handleSaveSettings}
+        />
+      )}
 
       {/* User Settings Modal */}
       <UserSettingsModal

@@ -225,7 +225,7 @@ export const WahooBoltModal: React.FC<WahooBoltModalProps> = ({
                 Wahoo KICKR CORE &amp; ELEMNT BOLT Hub ({athleteName})
               </h3>
               <p className="text-xs text-slate-400">
-                Direkte Leistungsdaten ohne Strava-Account: .FIT/.TCX Import, Bolt-Schnelleingabe &amp; 15-Min Wohlfühl-Test
+                Direkte Leistungsdaten vom Wahoo KICKR CORE &amp; ELEMNT BOLT: .FIT/.TCX Import, Display-Schnelleingabe &amp; 15-Min Wohlfühl-Test
               </p>
             </div>
           </div>
@@ -348,7 +348,7 @@ export const WahooBoltModal: React.FC<WahooBoltModalProps> = ({
                     Öffne nach Veronikas Fahrt die <strong>Wahoo ELEMNT App</strong> auf dem iPhone → Reiter <strong>Verlauf (History)</strong> → Fahrt antippen.
                   </li>
                   <li>
-                    Tippe oben rechts auf das <strong>Teilen-Symbol (↑)</strong> → <strong>Файл / Workout-Datei teilen (.fit)</strong> → per <strong>AirDrop</strong> an deinen Mac senden.
+                    Tippe oben rechts auf das <strong>Teilen-Symbol (↑)</strong> → <strong>Workout-Datei teilen (.fit)</strong> → per <strong>AirDrop</strong> an deinen Mac senden.
                   </li>
                   <li>
                     Ziehe die empfangene <code>.fit</code>-Datei aus deinem Downloads-Ordner einfach in das Feld oben!

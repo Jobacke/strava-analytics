@@ -82,7 +82,7 @@ export function buildAnalysisPrompt(options: PromptBuilderOptions): { prompt: st
   const veronikaProfileNote = isVeronika
     ? `\n- BESONDERES ATHLETEN-PROFIL (VERONIKA BACKHAUS):
   • Alter: 63 Jahre | Körpergewicht: ${settings.weightKg || 55} kg
-  • Trainingsgerät: Wahoo KICKR CORE Smart-Trainer (mit speziell auf Veronika eingestelltem Rahmen) + Wahoo ELEMNT BOLT Radcomputer (kein Strava-Account, Datenaufzeichnung direkt über Wahoo ELEMNT BOLT / Kickr Core).
+  • Trainingsgerät: Wahoo KICKR CORE Smart-Trainer (mit speziell auf Veronika eingestelltem Rahmen) + Wahoo ELEMNT BOLT Radcomputer (Datenaufzeichnung direkt über Wahoo ELEMNT BOLT & Kickr Core).
   • Trainingsphilosophie: Ganz entspanntes, gelenkschonendes Wohlfühl-, Gesundheits- und Herz-Kreislauf-Radtraining ohne Leistungsdruck! Fokus auf Freude an der Bewegung, Grundfitness (Zone 1 & Zone 2 bei ca. 50–68 Watt bzw. 110–128 bpm) und flüssige Trittfrequenz. Falls noch keine oder wenige Einheiten dokumentiert sind, erstelle eine fundierte sportmedizinische Ausgangs- & Potenzialanalyse (inkl. Karvonen-Herzfrequenzzonen, Wohlfühl-Wattbereichen auf dem Wahoo Kickr Core und Empfehlungen zur sanften Kalibrierung über den Wahoo ELEMNT BOLT).`
     : '';
 
@@ -231,9 +231,9 @@ DEINE AUFGABE ALS MEIN RADTRAINER:
    • WICHTIG FÜR CHRONOLOGISCHE REIHENFOLGE IN ZWIFT (IMMER ZWEISTELLIGE TAG-NUMMER MIT FÜHRENDER NULL!):
      Da Zwift benutzerdefinierte Workouts alphabetisch nach dem <name>-Tag sortiert, MÜSSEN die Tag-Nummern zwingend zweistellig mit führender Null geschrieben werden (Tag01, Tag02, Tag03 ... Tag09, Tag10, Tag11 ... Tag14), damit Tag01 vor Tag10 erscheint!
    • ANWEISUNG FÜR ANTIGRAVITY (Mac - Direkte Auto-Ablage):
-     Da du direkten Dateisystemzugriff auf meinem Mac hast, erstelle für JEDEN Rad-Trainingstag die vollständige .zwo XML-Datei und speichere sie DIREKT mit deinen Datei-Werkzeugen in folgendem Ordner ab:
+     Da du direkten Dateisystemzugriff auf meinem Mac hast, erstelle für JEDEN Rad-Trainingstag die vollständige .zwo XML-Datei${isVeronika ? ' (inkl. <category>Veronika Backhaus</category> für die saubere Gruppierung in Zwift)' : ''} und speichere sie DIREKT mit deinen Datei-Werkzeugen in folgendem Ordner ab:
      /Users/johannes/Documents/Zwift/Workouts/1304674/
-     (Verwende sowohl für den Dateinamen als auch für das <name>-Tag innerhalb der .zwo-Datei IMMER zweistellige Tag-Nummern mit führender Null und dem Kürzel ${initials}_, z.B. ${initials}_Tag01_Di_GA1_Basis_40.zwo, ${initials}_Tag02_Mi_Erholung_35.zwo, ..., ${initials}_Tag10_Do_Rekom_40.zwo).
+     (Verwende sowohl für den Dateinamen als auch für das <name>-Tag innerhalb der .zwo-Datei IMMER zweistellige Tag-Nummern mit führender Null und dem Kürzel ${initials}_, z.B. ${initials}_Tag01_${isVeronika ? 'Wohlfuehl_Check_25' : 'Di_GA1_Basis_40'}.zwo, ${initials}_Tag03_${isVeronika ? 'Grundlagen_Zone2_35' : 'Do_Erholung_35'}.zwo).
    • ANWEISUNG FÜR CLAUDE (iPhone / Web):
      Gib für jede Radeinheit den vollständigen Code im offiziellen Zwift-Workout-Format (.zwo XML-Codeblock) aus, sodass ich die Datei bei Bedarf manuell kopieren kann.
 5. REGENERATION & ERNÄHRUNG: 3 wichtige Praxistipps für diesen ${planDays}-Tage-Trainingsblock auf dem Kickr Core (inkl. optionaler kurzer Laufeinheiten als Rekom).
@@ -287,10 +287,14 @@ export function buildDailyCheckPrompt(options: PromptBuilderOptions): {
       ? cyclingActivities.find((a) => String(a.id) === String(selectedActivityId))
       : undefined) || cyclingActivities[0];
 
+  const isVeronika = athleteName.toLowerCase().includes('veronika');
+
   if (!targetActivity) {
     return {
       title: `Tages-Check (Soll vs. Ist) für ${athleteName}`,
-      prompt: 'Keine Radeinheit für den Soll/Ist-Abgleich gefunden. Bitte synchronisiere zuerst deine aktuelle Einheit mit Strava.',
+      prompt: isVeronika
+        ? 'Keine Radeinheit für den Soll/Ist-Abgleich gefunden. Bitte trage zuerst deine aktuelle Einheit über "⚡ Wahoo BOLT / KICKR Daten" ein oder importiere die .fit/.tcx-Datei vom Wahoo ELEMNT BOLT.'
+        : 'Keine Radeinheit für den Soll/Ist-Abgleich gefunden. Bitte synchronisiere zuerst deine aktuelle Einheit mit Strava.',
     };
   }
 
@@ -377,7 +381,7 @@ WICHTIGE VORGABE FÜR DIESE AUSWERTUNG:
 - **KEINE PDF-ERSTELLUNG & KEINE DATEI-SPEICHERUNG:** Erstelle für diesen Tages-Check ausdrücklich KEINE PDF-Datei, KEINE Markdown-Datei und KEINE neuen .zwo-Workouts!
 - Gib mir deine Auswertung direkt, kompakt und übersichtlich **hier im Chatfenster** aus.
 
-1. DATEN DER ABSOLVIERTEN TRAININGSEINHEIT (IST-DATEN AUS STRAVA):
+1. DATEN DER ABSOLVIERTEN TRAININGSEINHEIT (${isVeronika ? 'IST-DATEN VOM WAHOO ELEMNT BOLT / KICKR CORE' : 'IST-DATEN AUS STRAVA'}):
 - Datum der Einheit: ${actDateDE} (ISO: ${actDateISO})
 - Name der Einheit: "${targetActivity.name}"
 - Trainingsumgebung: ${envLabel}
@@ -413,7 +417,7 @@ ${recentContext}
 1. **KURZ-FAZIT & ZIELERREICHUNG (🟢 / 🟡 / 🔴):**
    - Wurde der geplante Trainingsreiz für den ${actDateDE} getroffen? (Kurzes, motivierendes und ehrliches 2-3-Satz-Urteil).
 2. **SOLL-VS.-IST-VERGLEICH (KOMPAKTE TABELLE):**
-   - Stelle **Soll (laut Trainingsplan)** und **Ist (gefahrene Strava-Einheit)** übersichtlich gegenüber:
+   - Stelle **Soll (laut Trainingsplan)** und **Ist (${isVeronika ? 'gefahrene Wahoo Kickr / Bolt-Einheit' : 'gefahrene Strava-Einheit'})** übersichtlich gegenüber:
      • Workout-Typ / Trainingsziel
      • Dauer (Soll vs. Ist)
      • Leistung (Soll-Watt vs. Ø ${avgWatts ?? '-'} W / NP ${npWatts ?? '-'} W)

@@ -73,7 +73,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 shadow-sm'
                     : 'text-slate-400 hover:text-white'
                 }`}
-                title="Profil Johannes Backhaus (95 kg • FTP 236 W • Strava & Kickr Core)"
+                title="Profil Johannes Backhaus (95 kg • FTP 236 W • Strava & Zwift)"
               >
                 🚴‍♂️ Johannes
               </button>
@@ -85,7 +85,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 shadow-sm'
                     : 'text-slate-400 hover:text-white'
                 }`}
-                title="Profil Veronika Backhaus (63 J. • 55 kg • Wahoo KICKR CORE & ELEMNT BOLT)"
+                title="Profil Veronika Backhaus (63 J. • 55 kg • Wahoo KICKR CORE, ELEMNT BOLT & Zwift .zwo)"
               >
                 🌿 Veronika
               </button>
@@ -93,38 +93,46 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Center Filters */}
-          <div className="hidden md:flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800/80">
-            <button
-              onClick={() => onSportFilterChange('ALL')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                sportFilter === 'ALL'
-                  ? 'bg-orange-500 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Alle Sportarten
-            </button>
-            <button
-              onClick={() => onSportFilterChange('Run')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                sportFilter === 'Run'
-                  ? 'bg-orange-500 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              🏃 Laufen
-            </button>
-            <button
-              onClick={() => onSportFilterChange('Ride')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                sportFilter === 'Ride'
-                  ? 'bg-orange-500 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              🚴 Radfahren
-            </button>
-          </div>
+          {activeProfile === 'veronika' ? (
+            <div className="hidden md:flex items-center gap-2 bg-slate-950 px-3.5 py-1.5 rounded-xl border border-emerald-500/30 text-xs font-semibold text-emerald-300">
+              <span>🚴‍♀️ 100 % Radtraining</span>
+              <span className="text-slate-600">&bull;</span>
+              <span className="text-cyan-300">Wahoo KICKR CORE &amp; ELEMNT BOLT + Zwift (.zwo)</span>
+            </div>
+          ) : (
+            <div className="hidden md:flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800/80">
+              <button
+                onClick={() => onSportFilterChange('ALL')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  sportFilter === 'ALL'
+                    ? 'bg-orange-500 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Alle Sportarten
+              </button>
+              <button
+                onClick={() => onSportFilterChange('Run')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  sportFilter === 'Run'
+                    ? 'bg-orange-500 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                🏃 Laufen
+              </button>
+              <button
+                onClick={() => onSportFilterChange('Ride')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  sportFilter === 'Ride'
+                    ? 'bg-orange-500 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                🚴 Radfahren
+              </button>
+            </div>
+          )}
 
           {/* Right Action Buttons */}
           <div className="flex items-center gap-2 sm:gap-3">
