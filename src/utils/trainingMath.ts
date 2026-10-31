@@ -40,6 +40,7 @@ const SETTINGS_STORAGE_KEY = 'strava_pulse_settings';
 const BASELINE_STORAGE_KEY = 'strava_pulse_baseline_settings';
 const VERONIKA_SETTINGS_KEY = 'strava_pulse_settings_veronika_v1';
 const VERONIKA_ACTIVITIES_KEY = 'strava_pulse_activities_veronika_v1';
+const VERONIKA_ACTIVITIES_BACKUP_KEY = 'strava_pulse_activities_veronika_backup_v1';
 const MIGRATION_KEY_V220 = 'strava_pulse_migrated_baseline_v220';
 
 export function getActiveProfileId(): AthleteProfileId {
@@ -82,17 +83,44 @@ export function saveVeronikaSettings(settings: UserAthleteSettings): void {
 
 export function getVeronikaActivities(): StravaActivity[] {
   try {
-    const raw = localStorage.getItem(VERONIKA_ACTIVITIES_KEY);
+    const raw =
+      localStorage.getItem(VERONIKA_ACTIVITIES_KEY) ||
+      localStorage.getItem(VERONIKA_ACTIVITIES_BACKUP_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch {}
   return [];
 }
 
+/**
+ * Speichert Veronikas Einheiten in einem vollständig vom Strava-Sync entkoppelten,
+ * doppelt gesicherten lokalen Tresor (inkl. Backup-Key).
+ * Dadurch verschwinden auf Strava gelöschte Fahrten NIEMALS aus Veronikas Profil!
+ */
 export function saveVeronikaActivities(activities: StravaActivity[]): void {
   try {
-    localStorage.setItem(VERONIKA_ACTIVITIES_KEY, JSON.stringify(activities));
+    // Deduplizieren nach ID bzw. identischem Startzeitpunkt + Dauer
+    const seen = new Set<string>();
+    const unique: StravaActivity[] = [];
+    for (const act of activities) {
+      const sig = `${act.start_date}_${act.moving_time}`;
+      const idKey = String(act.id);
+      if (!seen.has(idKey) && !seen.has(sig)) {
+        seen.add(idKey);
+        seen.add(sig);
+        unique.push({
+          ...act,
+          id: String(act.id).startsWith('veronika_')
+            ? act.id
+            : `veronika_vault_${act.id}`,
+        });
+      }
+    }
+    const serialized = JSON.stringify(unique);
+    localStorage.setItem(VERONIKA_ACTIVITIES_KEY, serialized);
+    localStorage.setItem(VERONIKA_ACTIVITIES_BACKUP_KEY, serialized);
   } catch {}
 }
 

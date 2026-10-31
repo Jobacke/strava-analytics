@@ -159,10 +159,25 @@ export function App() {
       setIsSyncing(true);
       setOauthStatus('Lade neueste Aktivitäten von Strava...');
       const activities = await fetchStravaActivities(1000);
+
+      // Automatische Erkennung: Falls eine Zwift-Fahrt mit "VB_Tag" oder "Veronika" im Namen dabei ist,
+      // wird sie sofort dauerhaft in Veronikas eigenem Tresor gesichert!
+      const autoVeronikaRides = activities.filter((a) => {
+        const n = (a.name || '').toLowerCase();
+        return n.includes('vb_tag') || n.includes('veronika');
+      });
+      if (autoVeronikaRides.length > 0) {
+        handleAddVeronikaActivities(autoVeronikaRides);
+      }
+
       setUserActivities(activities);
       saveStoredActivities(activities);
-      setOauthStatus(`Sync abgeschlossen: ${activities.length} Aktivitäten geladen!`);
-      setTimeout(() => setOauthStatus(null), 3000);
+      setOauthStatus(
+        autoVeronikaRides.length > 0
+          ? `Sync abgeschlossen: ${autoVeronikaRides.length} Zwift-Fahrt(en) von Veronika automatisch in ihrem Tresor gesichert!`
+          : `Sync abgeschlossen: ${activities.length} Aktivitäten geladen!`
+      );
+      setTimeout(() => setOauthStatus(null), 4500);
     } catch (err: any) {
       alert(`Synchronisationsfehler: ${err.message}`);
       setOauthStatus(null);
@@ -183,11 +198,35 @@ export function App() {
   };
 
   const handleAddVeronikaActivities = (newItems: StravaActivity[]) => {
-    const merged = [...newItems, ...veronikaActivities].sort(
+    const tagged = newItems.map((item) => ({
+      ...item,
+      id: String(item.id).startsWith('veronika_')
+        ? item.id
+        : `veronika_vault_${item.id}`,
+    }));
+    const merged = [...tagged, ...veronikaActivities].sort(
       (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
     );
-    setVeronikaActivities(merged);
     saveVeronikaActivities(merged);
+    setVeronikaActivities(getVeronikaActivities());
+  };
+
+  // Überträgt eine Fahrt (z.B. aus Zwift/Strava) dauerhaft in Veronikas Tresor und entfernt sie aus Johannes' Liste
+  const handleTransferActivityToVeronika = (act: StravaActivity) => {
+    const permanentCopy: StravaActivity = {
+      ...act,
+      id: `veronika_vault_${act.id}_${Date.now()}`,
+    };
+    handleAddVeronikaActivities([permanentCopy]);
+    if (userActivities) {
+      const remaining = userActivities.filter((a) => String(a.id) !== String(act.id));
+      setUserActivities(remaining);
+      saveStoredActivities(remaining);
+    }
+    setOauthStatus(
+      `🌿 Einheit "${act.name}" wurde dauerhaft in Veronikas Profil gesichert! Du kannst sie jetzt bedenkenlos auf Strava löschen.`
+    );
+    setTimeout(() => setOauthStatus(null), 6000);
   };
 
   const handleDeleteVeronikaActivity = (id: string | number) => {
@@ -588,6 +627,8 @@ export function App() {
         activity={selectedActivity}
         onClose={() => setSelectedActivity(null)}
         settings={settings}
+        activeProfile={activeProfile}
+        onTransferToVeronika={handleTransferActivityToVeronika}
       />
 
       {/* Strava Connect Modal (exclusively for Johannes) */}

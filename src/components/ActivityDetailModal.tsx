@@ -9,12 +9,16 @@ interface ActivityDetailModalProps {
   activity: StravaActivity | null;
   onClose: () => void;
   settings: UserAthleteSettings;
+  activeProfile?: 'johannes' | 'veronika';
+  onTransferToVeronika?: (activity: StravaActivity) => void;
 }
 
 export const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
   activity,
   onClose,
   settings,
+  activeProfile = 'johannes',
+  onTransferToVeronika,
 }) => {
   if (!activity) return null;
 
@@ -203,7 +207,24 @@ export const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 border-t border-slate-800 flex justify-end">
+        <div className="p-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          {activeProfile === 'johannes' && onTransferToVeronika ? (
+            <button
+              type="button"
+              onClick={() => {
+                onTransferToVeronika(activity);
+                onClose();
+              }}
+              className="px-3.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-xs font-extrabold text-emerald-300 transition cursor-pointer"
+              title="Speichert diese Einheit dauerhaft in Veronikas eigenem Tresor. Selbst wenn du sie danach auf Strava löschst, bleibt sie bei Veronika für immer erhalten!"
+            >
+              🌿 Dauerhaft in Veronikas Profil sichern (bleibt nach Strava-Löschung erhalten)
+            </button>
+          ) : (
+            <span className="text-[11px] text-emerald-400 font-semibold">
+              🔒 Dauerhaft lokal in Veronikas Tresor gespeichert (unabhängig von Strava)
+            </span>
+          )}
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition"
