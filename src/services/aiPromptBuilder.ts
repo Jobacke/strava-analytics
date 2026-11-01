@@ -66,7 +66,7 @@ export function formatActivitiesSample(activities: StravaActivity[], maxItems = 
 export function buildAnalysisPrompt(options: PromptBuilderOptions): { prompt: string; title: string; filename: string } {
   const { lookbackDays, athleteName, stats, hrDistribution, settings, filteredActivities } = options;
   const lookback = getLookbackStats(filteredActivities, lookbackDays);
-  const sample = formatActivitiesSample(lookback.activities, 10);
+  const sample = formatActivitiesSample(lookback.activities, Math.max(15, lookback.count));
   const today = new Date();
   const startDay = format(subDays(today, lookbackDays - 1), 'dd.MM.yyyy');
   const endDay = format(today, 'dd.MM.yyyy');
@@ -76,14 +76,10 @@ export function buildAnalysisPrompt(options: PromptBuilderOptions): { prompt: st
   const filename = `${title}.pdf`;
 
   const isVeronika = athleteName.toLowerCase().includes('veronika');
-  const runNote = lookback.runningCount > 0 
-    ? `\n- Ergänzende Laufeinheiten im Zeitraum: ${lookback.runningCount} (nur als aktive Erholung/Alternative)` 
-    : '';
   const veronikaProfileNote = isVeronika
     ? `\n- BESONDERES ATHLETEN-PROFIL (VERONIKA BACKHAUS):
   • Alter: 63 Jahre | Körpergewicht: ${settings.weightKg || 55} kg
-  • Trainingsgerät: Wahoo KICKR CORE Smart-Trainer (mit speziell auf Veronika eingestelltem Rahmen) + Wahoo ELEMNT BOLT Radcomputer (Datenaufzeichnung direkt über Wahoo ELEMNT BOLT & Kickr Core).
-  • Trainingsphilosophie: Ganz entspanntes, gelenkschonendes Wohlfühl-, Gesundheits- und Herz-Kreislauf-Radtraining ohne Leistungsdruck! Fokus auf Freude an der Bewegung, Grundfitness (Zone 1 & Zone 2 bei ca. 50–68 Watt bzw. 110–128 bpm) und flüssige Trittfrequenz. Falls noch keine oder wenige Einheiten dokumentiert sind, erstelle eine fundierte sportmedizinische Ausgangs- & Potenzialanalyse (inkl. Karvonen-Herzfrequenzzonen, Wohlfühl-Wattbereichen auf dem Wahoo Kickr Core und Empfehlungen zur sanften Kalibrierung über den Wahoo ELEMNT BOLT).`
+  • Trainingsgerät: Wahoo KICKR CORE Smart-Trainer (mit speziell auf Veronika eingestelltem Rahmen) + Wahoo ELEMNT BOLT Radcomputer (Datenaufzeichnung direkt über Wahoo ELEMNT BOLT & Kickr Core).`
     : '';
 
   const prompt = `Du bist mein persönlicher Sportwissenschaftler und Leistungsdiagnostiker für den Radsport.
@@ -91,7 +87,7 @@ Hier sind meine aktuellen, echten Leistungs- und Belastungsdaten aus meiner Trai
 
 LEISTUNGSPROFIL & BELASTUNGSDATEN (Coggan & Banister Modell - Zeitraum: ${startDay} - ${endDay} / ${weekLabel} Radsport):${veronikaProfileNote}
 - Sportarten-Fokus: 100 % RADSPORT (Wahoo Kickr Core Indoor Smart-Trainer & Rennrad Outdoor)
-- Rad-Trainingsvolumen (letzte ${lookbackDays} Tage): ${lookback.hours} Stunden (${lookback.km} km in ${lookback.count} Radeinheiten, ${lookback.elevation} Höhenmeter)${runNote}
+- Rad-Trainingsvolumen (letzte ${lookbackDays} Tage): ${lookback.hours} Stunden (${lookback.km} km in ${lookback.count} Radeinheiten, ${lookback.elevation} Höhenmeter)
 - Wochenvolumen (letzte 7 Tage Referenz): ${stats.weeklyHours} Stunden (${stats.weeklyKm} km, ${stats.kmDeltaPercent >= 0 ? '+' : ''}${stats.kmDeltaPercent}% vs. Vorwoche)
 - Verletzungs- & Überlastungsradar (ACWR): ${stats.currentACWR.toFixed(2)} (Optimalbereich: 0.85 - 1.25)
 - Chronische Fitness (CTL, 42-Tage-Basis): ${stats.currentFitnessCTL}
@@ -112,9 +108,44 @@ DOKUMENTIERTE RADEINHEITEN DER LETZTEN ${lookbackDays} TAGE:
 ${sample}
 
 DEINE AUFGABE ALS SPORTWISSENSCHAFTLICHER ANALYST:
-Analysiere ausschließlich diese vorliegenden Daten der letzten ${lookbackDays} Tage (${weekLabel}) tiefgehend und ziehe fundierte sportwissenschaftliche Schlussfolgerungen für meine Rad-Leistungsfähigkeit.
-WICHTIGE VORGABE: Bitte erstelle KEINEN Trainingsplan und KEINE benutzerdefinierten Zwift-Workouts oder .zwo-Dateien. Konzentriere dich zu 100 % auf die Auswertung des Ist-Zustands, Trends und strategische Erkenntnisse!
-(Laufeinheiten fließen nicht in die Trainingspläne ein; sie dienen höchstens als allgemeine Ausgleichsbewegung).
+Analysiere ausschließlich die oben aufgeführten Daten des angegebenen Analysezeitraums (${lookbackDays} Tage / ${weekLabel}: ${startDay} - ${endDay}). Erstelle eine streng sportwissenschaftliche Befundanalyse des Ist-Zustands. Erstelle KEINEN Trainingsplan, KEINE Workouts und KEINE .zwo-Dateien. Laufeinheiten sind nicht Gegenstand der Analyse.
+
+GRUNDREGELN (verbindlich, haben Vorrang vor allen anderen Vorgaben):
+
+1. Evidenzpflicht
+   Jede Aussage muss einer der folgenden drei Kategorien angehören:
+   [M] Messwert – ein Wert, der wörtlich im Datenblock oben steht.
+   [B] Berechnung – ein Wert, der ausschließlich aus Werten des Datenblocks berechnet wird. Formel und Rechenweg werden angegeben (z. B. "149 W / 236 W = 0,63 = 63 % FTP").
+   [L] Literatur – ein Referenzwert oder Befund aus der Fachliteratur, mit Autor und Jahr. Zusätzlich wird angegeben, an welcher Population/Sportart er erhoben wurde und ob es sich um eine peer-reviewte Studie oder eine Praxisheuristik (z. B. Software-Hersteller, Trainerliteratur) handelt.
+   Aussagen, die in keine dieser Kategorien fallen, werden nicht geschrieben.
+
+2. Keine Vermutungen
+   - Keine physiologischen Ursachen oder Mechanismen, die nicht direkt gemessen wurden (z. B. Glykogenstatus, Muskelfaserrekrutierung, Thermoregulation, Flüssigkeitshaushalt, Schlagvolumen, autonomes Nervensystem, Superkompensation, Fettoxidation, mitochondriale Anpassung).
+   - Wenn ein Befund unterschiedlich erklärbar ist, wird keine Erklärung gewählt. Stattdessen wird angegeben, welche zusätzliche Messgröße zur Klärung erforderlich wäre.
+   - Aus dem Titel einer Einheit (z. B. "GA 1", "Sweet Spots", "Group Ride") wird kein Inhalt, keine Struktur und keine Intensitätsabsicht abgeleitet. Ein Titel darf nur zitiert werden, wenn er einem Messwert gegenübergestellt wird.
+   - Keine Aussagen über Wohlbefinden, Motivation, mentale Stärke, Disziplin oder Belastbarkeit des Athleten.
+
+3. Keine Schätzungen
+   - Die Wörter "ca.", "etwa", "rund", "ungefähr", "knapp", "deutlich", "spürbar" sind unzulässig. Berechnete Werte werden exakt angegeben (auf zwei Dezimalstellen bzw. ganze Prozent gerundet; die Rundung ist keine Schätzung).
+   - Keine Prognosen, Zielwerte oder Szenarien (z. B. zukünftige FTP, Ziel-W/kg, Gewichtsveränderung, Zeitpunkt einer Formspitze).
+   - Keine Herzfrequenz- oder Leistungsgrenzen aus Faustformeln (z. B. %HFmax- oder Karvonen-Bereiche) als physiologische Schwellen ausgeben. %HFmax und %HFR dürfen als reine Rechenwerte [B] angegeben werden, aber nicht einer Zone oder Schwelle (VT1, VT2, LT1, LT2) zugeordnet werden, da im Datenblock keine Zonengrenzen in bpm und keine Laktat- oder Spiroergometriewerte vorliegen.
+
+4. Keine Beschönigung, keine Wertungsrhetorik
+   - Unzulässig sind wertende Adjektive und Lob: z. B. herausragend, exzellent, sehr gut, hervorragend, perfekt, vorbildlich, Musterbeispiel, beeindruckend, hochwirksam, solide.
+   - Keine direkte Anrede, keine Motivations- oder Coaching-Sprache. Stil: sachlicher Befundbericht in der dritten Person ("Der Athlet …", "Im Analysezeitraum …").
+   - Ungünstige Befunde werden mit derselben Direktheit benannt wie günstige. Es wird nicht nach Ausgleich gesucht.
+   - Wenn es für einen Gliederungspunkt keinen belegbaren Befund gibt, steht dort: "Aus den vorliegenden Daten nicht bestimmbar." Anschließend wird genannt, welche Daten fehlen. Gliederungspunkte werden nicht mit Inhalt gefüllt, um eine Mindestanzahl zu erreichen.
+
+5. Methodische Sorgfalt (zwingend zu beachten und im Bericht zu benennen, wo relevant)
+   - Zeitraum-Abgleich: Kennzeichne bei jedem Wert, welchen Zeitraum er abbildet (7 Tage, 14 Tage, 30 Tage, 42 Tage EWMA). Werte aus abweichenden Zeiträumen werden nicht als Befund des Analysezeitraums dargestellt.
+   - ATL/CTL/TSB: Es handelt sich um exponentiell gewichtete Modellgrößen (Impulse-Response-Ansatz nach Banister et al., 1975; Umsetzung als PMC nach Coggan), keine Messungen des physiologischen Zustands. TSB-Bereiche wie "produktiver Aufbau" oder "wettkampffrisch" sind Praxisheuristiken und als solche zu kennzeichnen.
+   - ACWR: Prüfe rechnerisch, ob der ACWR-Wert dem Quotienten ATL/CTL entspricht. Falls ja, ist er keine unabhängige zweite Kennzahl und darf nicht als zusätzliche Bestätigung gewertet werden. Der im Datenblock angegebene "Optimalbereich" ist als Vorgabe der Analysesoftware zu kennzeichnen. Benenne, dass die ACWR-Referenzbereiche aus Teamsportpopulationen stammen (Gabbett, 2016) und das Konzept methodisch umstritten ist (u. a. mathematische Kopplung: Lolli et al., 2019; Impellizzeri et al., 2020). Kausale Verletzungs- oder Infektrisiken werden daraus nicht abgeleitet.
+   - Intensitätsverteilung: Das 80/20- bzw. polarisierte Modell (Seiler & Kjerland, 2006) basiert auf einem 3-Zonen-Modell mit Grenzen an VT1/VT2. Die vorliegende Verteilung basiert auf einem 5-Zonen-Herzfrequenzmodell mit unbekannten Grenzen. Die Übertragbarkeit ist eingeschränkt und muss benannt werden; ein Abgleich erfolgt nur unter ausdrücklichem Hinweis auf diese Einschränkung. Die HF-Verteilung misst Zeit-in-Zone der Herzfrequenz, nicht der Leistung.
+   - Leistungs-Puls-Verhältnis: Der Effizienzfaktor (EF) nach Coggan ist definiert als Normalized Power / Ø Herzfrequenz. Im Datenblock liegt nur die Ø Leistung vor. Der berechnete Quotient Ø Watt / Ø Puls ist daher als "Ø-Leistungs-Puls-Quotient" zu bezeichnen, nicht als EF. Ein Vergleich zwischen Einheiten ist nur zulässig, wenn die Einheiten in Dauer und Ø-Intensität vergleichbar sind; Einheiten mit vermutlich wechselnder Intensität dürfen in diesem Vergleich nur mit Hinweis auf die fehlende Vergleichbarkeit erscheinen.
+   - Kardiovaskuläre Drift ist ein Anstieg der Herzfrequenz innerhalb einer Einheit bei konstanter Leistung (Vergleich z. B. erste vs. zweite Hälfte). Aus Ø-Werten ganzer Einheiten ist Drift NICHT bestimmbar. Unterschiede zwischen Einheiten dürfen nicht als Drift bezeichnet werden.
+   - Höhenmeter auf dem Smart-Trainer sind virtuelle Werte der Software und sind als solche zu kennzeichnen.
+   - HFmax: Im Datenblock ist nicht angegeben, ob die HFmax gemessen oder per Formel geschätzt wurde. Alle %HFmax-Werte stehen unter diesem Vorbehalt.
+   - Literatur: Nur Quellen nennen, deren Existenz und Inhalt sicher bekannt sind. Im Zweifel die Quelle weglassen und die Aussage ebenfalls weglassen. Keine erfundenen Zahlen, Studien oder Zitate.
 
 SPEICHERORT & VERBINDLICHE PDF-ABLAGE FÜR ANTIGRAVITY (Mac):
 • TITEL & DATEINAME DER ANALYSE (MIT ZEITRAUM):
@@ -128,28 +159,54 @@ SPEICHERORT & VERBINDLICHE PDF-ABLAGE FÜR ANTIGRAVITY (Mac):
      python3 "/Users/johannes/Library/CloudStorage/OneDrive-Backhaus/Antigravity/Strava/scripts/md_to_pdf.py" "/Users/johannes/Documents/Zwift/Trainingspläne/${mdFilename}" --remove-md
   Damit liegt die Analyse sofort als "${filename}" im Ordner "/Users/johannes/Documents/Zwift/Trainingspläne/" zum jederzeitigen Nachlesen bereit!
 
-Bitte strukturiere deine Analyse präzise wie folgt:
+GLIEDERUNG DES BERICHTS (verbindlich):
 
-1. EXECUTIVE SUMMARY:
-   Prägnante 3-Satz-Zusammenfassung meines aktuellen Rad-Leistungs- und Erholungszustands (unter Berücksichtigung der letzten ${lookbackDays} Tage).
+0. DATENBASIS & KONSISTENZPRÜFUNG
+   - Tabelle aller verwendeten Eingangswerte mit Zeitraum, den sie abbilden.
+   - Rechnerische Prüfung: Stimmen Summe der Einzeldauern, Kilometer und Höhenmeter der dokumentierten Einheiten mit den Gesamtwerten überein? Stimmt TSB = CTL − ATL? Entspricht ACWR dem Quotienten ATL/CTL? Stimmt das Leistungsgewicht FTP / Körpergewicht?
+   - Benenne innere Widersprüche oder Auffälligkeiten im Datenblock (z. B. angegebene Outdoor-Nutzung ohne dokumentierte Outdoor-Einheit; geringe Volumensteigerung zur Vorwoche bei gleichzeitig hohem ATL/CTL-Verhältnis). Widersprüche werden benannt, nicht durch Annahmen aufgelöst.
+   - Liste fehlender Daten, die für die folgenden Abschnitte relevant wären (z. B. TSS, Normalized Power, IF je Einheit, Zonengrenzen in bpm/W, HF-Verlauf innerhalb der Einheiten, HRV, Herkunft von HFmax und FTP, Datum des FTP-Tests).
 
-2. BELASTUNGS- & ERHOLUNGSANALYSE (Coggan/Banister & ACWR):
-   - Wie ist das Verhältnis von akuter Belastung (ATL = ${stats.currentFatigueATL}) zu chronischer Fitness (CTL = ${stats.currentFitnessCTL})?
-   - Beurteilung des ACWR-Wertes (${stats.currentACWR.toFixed(2)}): Liege ich im "Sweet Spot", droht Überlastung oder bin ich unterfordert?
-   - Formwert (TSB = ${stats.currentFormTSB > 0 ? '+' : ''}${stats.currentFormTSB}): Bin ich wettkampffrisch, ermüdet oder in einer stabilen Aufbauphase?
+1. KURZBEFUND
+   Maximal drei Sätze. Ausschließlich [M]- und [B]-Werte. Keine Bewertung über das hinaus, was in den Abschnitten 2–4 belegt wird.
 
-3. INTENSITÄTSVERTEILUNG & POLARISIERUNG (80/20-Prinzip):
-   - Bewertung der Herzfrequenz-Verteilung auf dem Rad (GA1: ${hrDistribution.polarizedScore}%, Grauzone Z3: ${hrDistribution.junkZonePercentage}%, Intensiv Z4/Z5: ${hrDistribution.z4 + hrDistribution.z5}%).
-   - Ist mein Grundlagentraining effizient oder verbringe ich zu viel Zeit in der unproduktiven "Grauzone"?
+2. BELASTUNGS- & ERHOLUNGSANALYSE (Banister/Coggan-Modell & ACWR)
+   - ATL im Verhältnis zur CTL: Differenz und Quotient [B]; Einordnung als Modellgröße.
+   - ACWR: Wert, Ergebnis der Kopplungsprüfung aus Abschnitt 0, Lage relativ zum Software-Bereich und zu Literaturbereichen [L] mit Angabe der Herkunftspopulation und der methodischen Kritik.
+   - TSB: Wert und Lage relativ zu gängigen Praxisheuristiken [L], ausdrücklich als Heuristik gekennzeichnet.
+   - Ruhetage: Anzahl in 7 und 14 Tagen [M]; daraus abgeleitete Trainingstage [B]. Keine Bewertung als "ausreichend" oder "zu wenig" ohne Literaturbeleg [L].
 
-4. AEROBE EFFIZIENZ & INDOOR-TRAINING (Wahoo Kickr Core):
-   - Schlussfolgerungen aus den Watt- und Pulswerten meiner jüngsten Kickr Core Einheiten.
-   - Gibt es Anzeichen für kardiovaskuläre Drift oder gesteigerte aerobe Effizienz (Watt/Puls-Verhältnis)?
+3. INTENSITÄTSVERTEILUNG
+   - Darstellung der HF-Zonenverteilung mit Zeitraumangabe (sie umfasst nicht den Analysezeitraum allein).
+   - Abgleich mit dem polarisierten bzw. pyramidalen Modell [L] unter ausdrücklicher Benennung der Modellunterschiede (3 vs. 5 Zonen, unbekannte Grenzen, HF statt Leistung).
+   - Befund: Abweichung in Prozentpunkten [B]. Keine Aussage über "produktive" oder "unproduktive" Zeit, sofern nicht durch Literatur [L] mit Angabe der Studienlage belegt.
 
-5. SCHLUSSFOLGERUNGEN & STRATEGISCHE EMPFEHLUNGEN:
-   - 3 größte Stärken in meinem aktuellen Radtraining.
-   - 2 potenzielle Risikofaktoren oder "blinde Flecken".
-   - 3 strategische Hebel für die nächsten Wochen, um meine Radleistung und FTP gezielt zu steigern.`;
+4. EINHEITENANALYSE (Wahoo Kickr Core)
+   - Tabelle je Einheit: Datum, Dauer, Ø Leistung, Ø Leistung in % FTP [B], Ø Puls, Ø Puls in % HFmax [B], Ø Puls in % HFR nach Karvonen [B], Max Puls in % HFmax [B], Ø-Leistungs-Puls-Quotient [B].
+   - Gegenüberstellung von Einheitentitel und gemessener Ø-Intensität, ohne Zonenzuordnung.
+   - Vergleich des Ø-Leistungs-Puls-Quotienten nur zwischen vergleichbaren Einheiten; nicht vergleichbare Einheiten werden ausgewiesen.
+   - Aussage zur kardiovaskulären Drift: "Aus Ø-Werten nicht bestimmbar", sofern keine Abschnittsdaten vorliegen.
+   - Keine Ursachenzuschreibung für Unterschiede zwischen Einheiten (siehe Grundregel 2).
+
+5. SCHLUSSFOLGERUNGEN
+   - Belegte günstige Befunde: 0 bis 3, je mit Verweis auf den zugrunde liegenden [M]/[B]-Wert. Nur aufführen, was messbar belegt ist.
+   - Belegte Risikobefunde: 0 bis 3, je mit Verweis auf den zugrunde liegenden Wert und, sofern ein Risiko behauptet wird, mit Literaturbeleg [L] inkl. Evidenzqualität.
+   - Handlungsableitungen: maximal 3. Jede Ableitung nennt den Befund, aus dem sie folgt. Keine Zahlenvorgaben (Watt, bpm, Stunden, Tage, Kilogramm), die nicht direkt aus dem Datenblock berechnet sind. Keine Inhalte, die einem Trainingsplan entsprechen. Datenerhebungen zur Schließung von Datenlücken (z. B. Laktat- oder Stufentest, Export von NP/TSS) sind zulässige Ableitungen.
+
+6. METHODISCHE GRENZEN DIESER ANALYSE
+   Stichpunktartige Auflistung aller Einschränkungen, die die Aussagekraft der Abschnitte 2–5 begrenzen.
+
+7. QUELLEN
+   Liste aller unter [L] verwendeten Quellen (Autor, Jahr, Titel, Zeitschrift/Verlag).
+
+ABSCHLUSSPRÜFUNG VOR DER AUSGABE:
+Prüfe den fertigen Bericht Satz für Satz:
+- Ist jeder Satz einer Kategorie [M], [B] oder [L] zuzuordnen? Wenn nicht: Satz streichen.
+- Ist jede Berechnung mit Formel angegeben und rechnerisch korrekt? Nachrechnen.
+- Enthält der Text eines der unzulässigen Wörter aus Grundregel 3 oder 4? Wenn ja: umformulieren oder streichen.
+- Wird irgendwo eine Ursache, ein Mechanismus, ein Zielwert oder eine Prognose genannt? Wenn ja: streichen.
+- Wird ein Wert aus einem anderen Zeitraum als Befund des Analysezeitraums dargestellt? Wenn ja: korrigieren.
+Die Kategorienkennzeichnung [M]/[B]/[L] bleibt im fertigen Bericht sichtbar.`;
 
   return { prompt, title, filename };
 }
