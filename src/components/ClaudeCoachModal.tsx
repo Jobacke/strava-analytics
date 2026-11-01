@@ -271,7 +271,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                     : 'KI Tages-Check: Soll vs. Ist (Einheiten-Abgleich)'}
                 </h2>
                 <span className="hidden sm:inline px-1.5 py-0.5 text-[9px] font-bold uppercase rounded-md bg-slate-800 text-amber-400 border border-amber-500/30">
-                  {isDaily ? 'Direkt im Chat • Kein PDF' : '100 % Radsport • Zwift Sync'}
+                  {isDaily ? 'Chat + PDF • .fit Rohdaten-Check' : '100 % Radsport • Zwift Sync'}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 leading-tight">
@@ -279,7 +279,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                   ? `Radanalyse der letzten ${analysisLookback} Tage (Wahoo Kickr Core & Outdoor)`
                   : isPlan
                   ? `${planHorizon}-Tage-Radplan (${planHorizon === 14 ? '2 Wochen Mesozyklus' : '1 Woche'}) mit .zwo-Ablage in Zwift`
-                  : 'Vergleicht deine absolvierte Radeinheit direkt im Chat mit dem aktuellen Trainingsplan (ohne PDF-Speicherung)'}
+                  : 'Nüchterner, datenbasierter Soll-vs.-Ist-Abgleich (.fit-Sekundendaten, Segmenttabelle, Ampel & PDF-Ablage)'}
               </p>
             </div>
           </div>
@@ -479,7 +479,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
               <span className="text-[10px] font-extrabold text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Terminal className="w-3.5 h-3.5 text-orange-400" />
                 {isDaily
-                  ? 'Empfohlen auf dem Mac • Automatischer Trainingsplan-Abgleich im Chat'
+                  ? 'Empfohlen auf dem Mac • .fit-Rohdaten-Abgleich (Chat + PDF-Ablage)'
                   : 'Empfohlen auf dem Mac • Direkte PDF- & Dateiablage'}
               </span>
               <div className="p-1 rounded-md bg-orange-500/20 text-orange-400">
@@ -498,7 +498,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
                 </>
               ) : (
                 <>
-                  Antigravity liest deinen aktuellen Trainingsplan aus <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong> (sowie die heutige <strong><code>.zwo</code></strong>-Datei) und vergleicht die Soll-Vorgabe direkt im Chat mit deiner absolvierten Einheit <strong>„{dynamicDaily.activity?.name || 'Aktuelle Fahrt'}“</strong> – <strong>bewusst ohne PDF-Speicherung</strong>.
+                  Antigravity liest die 1-s-Rohdaten (<strong><code>.fit</code></strong>) aus <strong><code>~/Documents/Zwift/Activities/</code></strong>, deinen aktuellen Trainingsplan sowie die zugehörige <strong><code>.zwo</code></strong>-Datei und erstellt für <strong>„{dynamicDaily.activity?.name || 'Aktuelle Fahrt'}“</strong> eine ungeschönte, datenbasierte Soll-vs.-Ist-Auswertung <strong>direkt im Chat und als PDF</strong> unter <strong><code>~/Documents/Zwift/Trainingspläne/</code></strong>.
                 </>
               )}
             </p>
@@ -647,7 +647,7 @@ export const ClaudeCoachModal: React.FC<ClaudeCoachModalProps> = ({
               ? `Status: Rad-Analyse (${analysisLookback} Tage)${hasManualEdits ? ' • Manuell modifiziert' : ''}`
               : isPlan
               ? `Status: ${planHorizon}-Tage-Radplan (${planHorizon === 14 ? '2 Wochen' : '1 Woche'}) • Basis: ${planLookback} Tage${hasManualEdits ? ' • Manuell modifiziert' : ''}`
-              : `Status: Tages-Check (${dynamicDaily.activity?.name || 'Aktuelle Einheit'}) • Kein PDF${hasManualEdits ? ' • Manuell modifiziert' : ''}`}
+              : `Status: Tages-Check (${dynamicDaily.activity?.name || 'Aktuelle Einheit'}) • Chat + PDF (.fit-Rohdaten)${hasManualEdits ? ' • Manuell modifiziert' : ''}`}
           </span>
           <button
             onClick={onClose}

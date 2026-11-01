@@ -355,80 +355,170 @@ export function buildDailyCheckPrompt(options: PromptBuilderOptions): {
     ? Math.round(targetActivity.average_cadence)
     : null;
   const kj = targetActivity.kilojoules ? Math.round(targetActivity.kilojoules) : null;
-  const trimp = targetActivity.trimp ? Math.round(targetActivity.trimp) : null;
 
-  let hrZoneBlock = 'Keine detaillierte Zonenverteilung für diese Einheit hinterlegt.';
-  if (targetActivity.hrZones) {
-    const z = targetActivity.hrZones;
-    const totalZ = Math.max(1, z.z1 + z.z2 + z.z3 + z.z4 + z.z5);
-    const fmtZ = (sec: number) => `${Math.round(sec / 60)} min (${Math.round((sec / totalZ) * 100)}%)`;
-    hrZoneBlock = [
-      `  • Zone 1 (Regeneration): ${fmtZ(z.z1)}`,
-      `  • Zone 2 (GA1 Grundlagen): ${fmtZ(z.z2)}`,
-      `  • Zone 3 (Tempo / Grauzone): ${fmtZ(z.z3)}`,
-      `  • Zone 4 (Schwelle): ${fmtZ(z.z4)}`,
-      `  • Zone 5 (VO2max / Anaerob): ${fmtZ(z.z5)}`,
-    ].join('\n');
-  }
+  const title = `Tages-Check für ${athleteName} vom ${actDateDE}`;
+  const mdFilename = `${title}.md`;
+  const pdfFilename = `${title}.pdf`;
 
-  const recentContext = formatActivitiesSample(cyclingActivities.slice(0, 5), 5);
-  const title = `Tages-Check (Soll vs. Ist): ${targetActivity.name} (${actDateDE})`;
-
-  const prompt = `Du bist mein persönlicher Sportwissenschaftler und Radsport-Coach.
-Ich habe gerade eine Trainingseinheit absolviert und möchte einen präzisen, tagesaktuellen **Soll-vs.-Ist-Abgleich** dieser Einheit mit meinem aktuellen Trainingsplan für Athlet "${athleteName}".
-
-WICHTIGE VORGABE FÜR DIESE AUSWERTUNG:
-- **KEINE PDF-ERSTELLUNG & KEINE DATEI-SPEICHERUNG:** Erstelle für diesen Tages-Check ausdrücklich KEINE PDF-Datei, KEINE Markdown-Datei und KEINE neuen .zwo-Workouts!
-- Gib mir deine Auswertung direkt, kompakt und übersichtlich **hier im Chatfenster** aus.
-
-1. DATEN DER ABSOLVIERTEN TRAININGSEINHEIT (${isVeronika ? 'IST-DATEN VOM WAHOO ELEMNT BOLT / KICKR CORE' : 'IST-DATEN AUS STRAVA'}):
+  const prompt = `TAGES-INPUT (AUSGEWÄHLTE EINHEIT & BELASTUNGSKONTEXT AUS DER APP):
 - Datum der Einheit: ${actDateDE} (ISO: ${actDateISO})
-- Name der Einheit: "${targetActivity.name}"
-- Trainingsumgebung: ${envLabel}
-- Netto-Fahrzeit (Moving Time): ${durationFormatted}
-- Distanz & Höhenmeter: ${distKm} km | ${elevM} Hm | Ø Geschwindigkeit: ${avgSpeedKmh} km/h
-- Leistungsdaten (Referenz-FTP: ${ftp} W bei ${weight} kg = ${(ftp / weight).toFixed(2)} W/kg):
-  • Durchschnittsleistung (Ø Watt): ${avgWatts !== null ? `${avgWatts} W (${pctFtpAvg}% FTP | ${wKgAvg} W/kg)` : 'nicht erfasst'}
-  • Gewichtete Leistung / Normalized Power (NP): ${npWatts !== null ? `${npWatts} W (${pctFtpNp}% FTP)` : 'nicht erfasst'}
-  • Intensity Factor (IF): ${intensityFactor ?? 'k.A.'} | Variability Index (VI = NP/ØW): ${variabilityIndex ?? 'k.A.'}
-  • Geschätzter Training Stress Score (TSS): ${estTss !== null ? `${estTss} TSS` : 'k.A.'} | Mechanische Arbeit: ${kj !== null ? `${kj} kJ` : 'k.A.'}
-- Herzfrequenz & Effizienz (Referenz-HFmax: ${maxHr} bpm, Ruhepuls: ${settings.restingHeartRate} bpm):
-  • Durchschnittspuls (Ø HF): ${avgHr !== null ? `${avgHr} bpm (${pctMaxHr}% HFmax)` : 'nicht erfasst'}
-  • Maximalpuls (Max HF): ${maxHrAct !== null ? `${maxHrAct} bpm` : 'nicht erfasst'}
-  • Aerobe Effizienz (Efficiency Factor EF = Watt / Puls): ${efficiencyFactor !== null ? `${efficiencyFactor} W/bpm` : 'nicht erfasst'}
-  • TRIMP-Belastungswert der Einheit: ${trimp !== null ? trimp : 'k.A.'}
-- Trittfrequenz (Ø Kadenz): ${cadence !== null ? `${cadence} rpm` : 'nicht erfasst'}
-- Zeit in den Herzfrequenz-Zonen während dieser Einheit:
-${hrZoneBlock}
+- Athlet: ${athleteName} | Trainingsumgebung: ${envLabel}
+- App-/Strava-Referenzdaten der Einheit (zur Plausibilitätsprüfung gegen die .fit-Rohdaten):
+  • Name: "${targetActivity.name}" | Moving Time: ${durationFormatted} | Distanz: ${distKm} km | ${elevM} Hm | Ø Speed: ${avgSpeedKmh} km/h
+  • Leistung: Ø ${avgWatts !== null ? `${avgWatts} W (${pctFtpAvg}% FTP | ${wKgAvg} W/kg)` : 'k.A.'} | NP: ${npWatts !== null ? `${npWatts} W (${pctFtpNp}% FTP)` : 'k.A.'} | IF: ${intensityFactor ?? 'k.A.'} | VI: ${variabilityIndex ?? 'k.A.'} | TSS: ${estTss !== null ? `${estTss} TSS` : 'k.A.'} | Arbeit: ${kj !== null ? `${kj} kJ` : 'k.A.'}
+  • Herzfrequenz & Kadenz: Ø HF ${avgHr !== null ? `${avgHr} bpm (${pctMaxHr}% HFmax)` : 'k.A.'} | Max HF: ${maxHrAct !== null ? `${maxHrAct} bpm` : 'k.A.'} | EF: ${efficiencyFactor !== null ? `${efficiencyFactor} W/bpm` : 'k.A.'} | Ø Kadenz: ${cadence !== null ? `${cadence} rpm` : 'k.A.'}
+- Hinterlegte Referenzwerte in der App: FTP: ${ftp} W | Gewicht: ${weight} kg (${(ftp / weight).toFixed(2)} W/kg) | HFmax: ${maxHr} bpm | Basis-Ruhepuls: ${settings.restingHeartRate} bpm
+- Belastungskontext (Coggan/Banister aus der App): CTL (42d): ${stats.currentFitnessCTL} | ATL (7d): ${stats.currentFatigueATL} | TSB (Form): ${stats.currentFormTSB > 0 ? '+' : ''}${stats.currentFormTSB} | ACWR: ${stats.currentACWR.toFixed(2)}
+- Selbstauskunft / Rahmenbedingungen (falls nicht ausgefüllt = "nicht erhoben", nicht schätzen):
+  • Getrunken (ml / Elektrolyte): nicht erhoben
+  • Raumtemperatur / Ventilatorstufe: nicht erhoben
+  • Körpergewicht vorher / nachher (kg): nicht erhoben
+  • Morgen-Ruhepuls (bpm) / HRV (ms): nicht erhoben
+  • RPE (Borg CR-10 Gesamt / Beine / Atmung) & Beschwerden: nicht erhoben
 
-2. AKTUELLER BELASTUNGS- & ERHOLUNGSKONTEXT (COGGAN / BANISTER):
-- Chronische Fitness (CTL, 42 Tage): ${stats.currentFitnessCTL}
-- Akute Ermüdung (ATL, 7 Tage): ${stats.currentFatigueATL}
-- Aktuelle Form / Frische (TSB = CTL - ATL): ${stats.currentFormTSB > 0 ? '+' : ''}${stats.currentFormTSB}
-- Überlastungsradar (ACWR): ${stats.currentACWR.toFixed(2)} (Optimalbereich: 0.85 - 1.25)
-- Letzte 5 Radeinheiten im Überblick:
-${recentContext}
+====================================================================
 
-3. SOLL-VORGABE AUS MEINEM AKTUELLEN TRAININGSPLAN (AUTOMATISCH AUSLESEN):
-- FÜR ANTIGRAVITY AUF DEM MAC:
-  Lies selbstständig meinen aktuell gültigen Trainingsplan im Ordner \`/Users/johannes/Documents/Zwift/Trainingspläne/\` (die neueste PDF-Datei \`Trainingsplan für ${athleteName}...\`) sowie ggf. die zugehörige \`.zwo\`-Workout-Datei für den **${actDateDE}** in \`/Users/johannes/Documents/Zwift/Workouts/1304674/\` aus, um die exakte **Soll-Vorgabe** für diesen Tag (geplanter Workout-Typ, geplante Dauer, Ziel-Wattbereich, Puls-Obergrenze, Kadenz) zu ermitteln.
+Du bist mein Sportwissenschaftler und Radsport-Coach. Deine Aufgabe ist eine nüchterne, datenbasierte Auswertung, keine Motivation. Ich will wissen, was die Daten tatsächlich zeigen, auch wenn das Ergebnis unbequem ist. Eine geschönte Auswertung ist für mich wertlos, weil ich darauf meine Trainingssteuerung aufbaue.
 
-4. DEINE AUFGABE – BITTE STRUKTURIERE DEN TAGES-CHECK IM CHAT WIE FOLGT:
-1. **KURZ-FAZIT & ZIELERREICHUNG (🟢 / 🟡 / 🔴):**
-   - Wurde der geplante Trainingsreiz für den ${actDateDE} getroffen? (Kurzes, motivierendes und ehrliches 2-3-Satz-Urteil).
-2. **SOLL-VS.-IST-VERGLEICH (KOMPAKTE TABELLE):**
-   - Stelle **Soll (laut Trainingsplan)** und **Ist (${isVeronika ? 'gefahrene Wahoo Kickr / Bolt-Einheit' : 'gefahrene Strava-Einheit'})** übersichtlich gegenüber:
-     • Workout-Typ / Trainingsziel
-     • Dauer (Soll vs. Ist)
-     • Leistung (Soll-Watt vs. Ø ${avgWatts ?? '-'} W / NP ${npWatts ?? '-'} W)
-     • Herzfrequenz (Ziel-Pulsbereich vs. Ø ${avgHr ?? '-'} bpm / Max ${maxHrAct ?? '-'} bpm)
-     • Trittfrequenz (Ziel-RPM vs. Ø ${cadence ?? '-'} rpm)
-3. **PHYSIOLOGISCHE & PACING-ANALYSE DER EINHEIT:**
-   - Wie gleichmäßig wurde gepacet (VI = ${variabilityIndex ?? '-'}, IF = ${intensityFactor ?? '-'})?
-   - Wie hat das Herz-Kreislauf-System auf die Wattvorgabe reagiert (EF = ${efficiencyFactor ?? '-'} W/bpm, Zonenverteilung, Einhaltung der Puls-Obergrenze bzw. Hinweis auf Cardiac Drift)?
-4. **AUSBLICK & EMPFEHLUNG FÜR MORGEN:**
-   - Was sieht der aktuelle Trainingsplan für morgen vor?
-   - Kann die morgige Einheit angesichts der heutigen Umsetzung und meines aktuellen Status (TSB: ${stats.currentFormTSB > 0 ? '+' : ''}${stats.currentFormTSB}, ACWR: ${stats.currentACWR.toFixed(2)}) **1:1 wie geplant** durchgeführt werden, oder empfiehlst du eine kleine Anpassung?`;
+Athlet: ${athleteName}. Aufgabe: Soll-vs.-Ist-Abgleich der Einheit vom oben angegebenen Datum (${actDateDE} / ISO ${actDateISO}) mit meinem aktuellen Trainingsplan.
+
+====================================================================
+A. AUSGABE-VORGABEN
+====================================================================
+- KEINE bleibende Markdown-Datei, KEINE neuen .zwo-Workouts. Ausgabe direkt hier im Chat und als pdf file.
+  • Für die PDF-Erstellung auf dem Mac: Speichere den Bericht temporär als \`/Users/johannes/Documents/Zwift/Trainingspläne/${mdFilename}\` und wandle ihn sofort mit \`python3 "/Users/johannes/Library/CloudStorage/OneDrive-Backhaus/Antigravity/Strava/scripts/md_to_pdf.py" "/Users/johannes/Documents/Zwift/Trainingspläne/${mdFilename}" --remove-md\` in \`/Users/johannes/Documents/Zwift/Trainingspläne/${pdfFilename}\` um (sodass keine .md-Datei zurückbleibt).
+- Sachlicher Ton. Kompakt: maximal ca. 600 Wörter plus Tabellen.
+- Rechne mit Code (z. B. Python mit fitparse/pandas oder binärem .fit-Parser), nicht im Kopf und nicht geschätzt.
+
+====================================================================
+B. GRUNDREGELN GEGEN SCHÖNFÄRBEREI (VERBINDLICH)
+====================================================================
+1. Jede Aussage braucht einen Beleg. Kennzeichne jede inhaltliche Aussage mit genau einem Typ:
+   [M] Messwert aus der Datei, [B] daraus berechnet (Formel nennen), [I] Interpretation, [A] Annahme.
+   Interpretationen [I] dürfen nur auf [M]/[B] aufbauen und müssen mindestens eine alternative Erklärung nennen.
+2. Fehlende Daten werden NICHT ergänzt, geschätzt oder umschrieben. Schreibe dann wörtlich „nicht auswertbar – fehlt: …“.
+3. Keine physiologischen Schlüsse aus dem Körpergefühl. Aus „Beine fühlten sich frisch an“ folgt NICHTS über Laktat, Fettstoffwechsel, Mitochondrien, Kapillarisierung oder Muskelfasertypen. Das subjektive Empfinden wird nur als [M] (Selbstauskunft) berichtet.
+4. ERG-Modus beachten: Im ERG-Modus regelt die Rolle die Leistung. Ein VI um 1,00 und das Treffen der Soll-Watt sind deshalb KEINE Leistung des Athleten und werden nicht gelobt. Nur Abweichungen davon sind eine Aussage wert.
+5. Keine Vergleiche mit Altersklassen, „durchschnittlichen“ Sportlern oder Normwerten ohne konkrete, benannte Quelle. Ohne Quelle: weglassen.
+6. Keine pseudo-präzisen Versprechen („senkt den Puls um 5–7 Schläge“, „steigert die CTL um X“). Wirkungen nur qualitativ oder mit Quelle.
+7. Verbotene Wörter und Wendungen (auch sinngemäß): herausragend, exzellent, erstklassig, chirurgisch, Punktlandung, lehrbuchmäßig, beeindruckend, perfekt, beweist, zweifelsfrei, eindeutig (ohne Beleg), „völlig normal“ (ohne Kriterium), „jung geblieben“. Lob ist nur erlaubt, wenn ein Kriterium aus Abschnitt E erfüllt ist – dann nenne das Kriterium statt eines Adjektivs.
+8. Fachbegriffe korrekt verwenden. Beispiele: EPOC wirkt Stunden, nicht bis zum Folgetag; Laktat ist nicht gleich Übersäuerung; Cardiac Drift nur behaupten, wenn er über Decoupling oder den HF-Verlauf bei gleicher Leistung nachgewiesen ist.
+9. Probleme zuerst. Wenn ein Kriterium verfehlt wurde, steht das im Kurz-Fazit, nicht versteckt weiter unten.
+10. Gesundheit: Keine orthopädischen oder medizinischen Urteile. Nur beobachtbare Daten nennen; bei Auffälligkeiten an Arzt bzw. Physiotherapeut verweisen.
+
+====================================================================
+C. DATENQUELLEN – SELBSTSTÄNDIG EINLESEN (ANTIGRAVITY AUF DEM MAC)
+====================================================================
+1. TRAININGSPLAN (Soll):
+   Neueste PDF „Trainingsplan für ${athleteName}…“ in \`/Users/johannes/Documents/Zwift/Trainingspläne/\`.
+   - Ermittle aus dem Plan, welcher Plantag (z. B. „Tag 8“) auf das Datum (${actDateDE}) fällt, sowie die Referenzwerte (FTP, HFmax, Ruhepuls, Gewicht, Pulszonen). Nenne die Quelle der Referenzwerte.
+   - Lade die zugehörige .zwo-Datei aus \`/Users/johannes/Documents/Zwift/Workouts/1304674/\` und lies die Segmente (Dauer, Zielleistung in % FTP → Watt, Ziel-Kadenz) aus.
+   - Ist laut Plan Ruhetag: sage das und prüfe nur, ob trotzdem trainiert wurde.
+
+2. ROHDATEN DER EINHEIT (Ist):
+   Alle .fit-Dateien vom Datum (${actDateISO}) in \`/Users/johannes/Documents/Zwift/Activities/\` (Zeitstempel in der Datei prüfen, nicht nur den Dateinamen).
+   - Genau eine Datei: auswerten.
+   - Mehrere Dateien: alle auflisten; ausgewertet wird die Fahrt, deren Segmentstruktur am besten zur .zwo passt. Die übrigen nur kurz mit Dauer/Ø-Watt/Ø-HF nennen.
+   - Keine Datei: sage das ganz oben und bitte mich, die .fit/.gpx-Datei anzuhängen. Keine Auswertung auf Basis von Vermutungen.
+   - Fahrtname, Dauer, Ø/NP-Leistung, IF, TSS, VI, Ø/Max-HF, EF, Kadenz berechnest du selbst aus den Rohdaten.
+
+3. HISTORIE (Belastung & Trend):
+   Alle .fit-Dateien der letzten 90 Tage aus demselben Ordner.
+   - Letzte 5 Einheiten: Datum, Dauer, Ø-Watt, Ø-HF, TSS (Tabelle, kurz).
+   - CTL/ATL/TSB/ACWR: Wenn oben im Tages-Input angegeben, diese verwenden. Sonst aus den TSS-Werten selbst berechnen (CTL 42 Tage, ATL 7 Tage, exponentiell gewichtet) und als [B] kennzeichnen – mit Hinweis, dass Einheiten außerhalb von Zwift (Outdoor, Laufen) darin fehlen.
+   - Vergleichseinheiten: frühere Einheiten desselben Typs (z. B. GA1 ≥ 60 min) für den Trend von EF und Decoupling.
+
+====================================================================
+D. EINHEITENTYP BESTIMMEN
+====================================================================
+Ordne die Einheit genau einem Typ zu – primär nach der .zwo, sonst nach dem Datenprofil – und nenne den Typ:
+- GA1 / Z2 / Grundlage
+- Regeneration / Z1
+- Intervalle (Sweet Spot, Schwelle, VO2max, Kadenz-/Technik-Intervalle)
+- Freie Fahrt / Gruppenfahrt / Rennen ohne Planvorgabe
+- Abweichung vom Plan: anderer Typ gefahren als geplant → als eigenes Kriterium 🔴 werten und den Plan-Soll trotzdem nennen.
+
+====================================================================
+E. BEWERTUNGSKRITERIEN FÜR DIE AMPEL (FEST, NICHT VERHANDELBAR)
+====================================================================
+Jede Teilbewertung bekommt genau eine Farbe. Die GESAMT-Ampel ist die SCHLECHTESTE Teilbewertung – kein Mittelwert, keine Doppel-Ampel.
+„Hauptteil“ = Einheit ohne Warm-up und Cool-down laut .zwo.
+
+Für ALLE Plan-Einheiten:
+- Umfang: Dauer ≥ 95 % Soll → 🟢 | 80–95 % → 🟡 | < 80 % → 🔴
+
+GA1 / Z2 / Grundlage:
+- Leistung Hauptteil: Ø je Segment im Soll-Bereich → 🟢 | Abweichung ≤ 5 % → 🟡 | > 5 % → 🔴
+- Puls-Obergrenze: Zeitanteil im Hauptteil über der Soll-Obergrenze < 10 % → 🟢 | 10–25 % → 🟡 | > 25 % → 🔴
+- Aerobe Entkopplung (Pa:HR-Decoupling Hauptteil, 1. vs. 2. Hälfte; nur bei Hauptteil ≥ 45 min): < 5 % → 🟢 | 5–8 % → 🟡 | > 8 % → 🔴
+
+Regeneration / Z1:
+- Ø-Leistung ≤ Soll-Obergrenze (typisch ≤ 55 % FTP) → 🟢 | bis 10 % darüber → 🟡 | mehr → 🔴
+- Zeit über der Puls-Obergrenze < 5 % → 🟢 | 5–15 % → 🟡 | > 15 % → 🔴
+
+Intervalle:
+- Alle Intervalle vollständig und Ø-Leistung je Intervall ≥ 97 % Soll → 🟢 | ein Intervall verkürzt oder 93–97 % → 🟡 | Abbruch oder < 93 % → 🔴
+- HF-Anstieg letztes vs. erstes Intervall gleicher Leistung (letzte 60 s je Intervall): < 8 bpm → 🟢 | 8–12 bpm → 🟡 | > 12 bpm → 🔴
+- Ziel-Kadenz (falls vorgegeben) im Mittel ± 5 rpm getroffen → 🟢 | ± 10 rpm → 🟡 | mehr → 🔴
+- RPE (falls angegeben) passend zur Zielintensität (z. B. Sweet Spot 6–7) → 🟢 | deutlich höher → 🟡/🔴 (begründen)
+
+Freie Fahrt / Rennen ohne Plan:
+- Keine Ampel für Zielerreichung. Stattdessen: Zeit in Zonen, TSS, IF, und ob die Belastung zum Plan der umliegenden Tage passt (z. B. hartes Rennen am Tag vor geplanten Intervallen → Hinweis).
+
+Belastungssteuerung (fließt in die Empfehlung ein, nicht in die Tagesampel):
+- ACWR 0,8–1,3 → unauffällig | 1,3–1,5 → erhöht, Steigerung bremsen | > 1,5 → hohes Risiko, Umfang reduzieren
+- TSB −10 bis −30 → produktive Belastung | < −30 → Überlastungsrisiko
+- Hinweis: ACWR ist wissenschaftlich umstritten; als Warnsignal nutzen, nicht als Beweis.
+
+====================================================================
+F. PFLICHT-BERECHNUNGEN AUS DEN ROHDATEN
+====================================================================
+1. Segmenttabelle laut .zwo: je Segment Soll-Watt, Ist-Ø-Watt, Ø-HF, HF am Anfang und Ende (jeweils 60-s-Mittel), Ø-Kadenz. Bei Intervallen: jedes Intervall einzeln.
+2. Pa:HR-Decoupling über den Hauptteil (bei GA1 ≥ 45 min): EF(1. Hälfte) vs. EF(2. Hälfte), in %.
+3. Zeit in HF-Zonen (Minuten und %), Zonen laut Plan; zur Kontrolle zusätzlich nach Karvonen (mit Ruhepuls). Zeit über der Soll-Puls-Obergrenze im Hauptteil gesondert ausweisen.
+4. Zeitpunkt und Leistung beim Max-Puls (Artefakt-Prüfung: abrupter Sprung = Verdacht auf Messfehler; gleichmäßiger Anstieg = echt).
+5. HF-Abfall im Cool-down: HF zu Beginn vs. Ende des Cool-downs.
+6. Trend: EF und Decoupling vs. die letzten 3–5 vergleichbaren Einheiten (sonst „kein Vergleich möglich“).
+7. Falls Gewicht vorher/nachher vorliegt: Schweißrate (l/h) = (Gewichtsverlust in kg + Trinkmenge in l) / Dauer in h.
+8. Falls Ruhepuls/HRV angegeben: Abweichung zum Mittel der Werte, die ich in früheren Tages-Checks angegeben habe (falls im Verlauf verfügbar; sonst nur Rohwert nennen).
+
+====================================================================
+G. STRUKTUR DER AUSGABE
+====================================================================
+0. DATENBASIS (1–3 Zeilen): Gelesene Dateien (Plan, .zwo, .fit), Plantag, Einheitentyp, Referenzwerte mit Quelle, was fehlt.
+
+1. KURZ-FAZIT + GESAMT-AMPEL (max. 3 Sätze):
+   Gesamtfarbe nach Abschnitt E, das entscheidende Kriterium mit Zahl, der wichtigste verfehlte Punkt zuerst.
+
+2. SOLL-VS.-IST-TABELLE:
+   Spalten: Kriterium | Soll | Ist | Abweichung | Ampel
+   Zeilen: Workout-Typ, Dauer, Leistung je Segment/Intervall, Puls (Zeit über Obergrenze), Decoupling bzw. HF-Anstieg über die Intervalle, Kadenz.
+
+3. ANALYSE (nur belegte Aussagen, mit [M]/[B]/[I]/[A]):
+   a) Herz-Kreislauf-Reaktion auf die Leistungsvorgabe (HF-Verlauf je Segment, Decoupling, Zonenzeit).
+   b) Mögliche Ursachen für Auffälligkeiten – jeweils mit Daten, die DAFÜR sprechen, und Daten, die DAGEGEN sprechen. Ursachen ohne Daten als [A] kennzeichnen.
+   c) Trend gegenüber früheren Einheiten.
+
+4. WAS DIESE AUSWERTUNG NICHT SAGEN KANN (2–4 Punkte).
+
+5. EMPFEHLUNG:
+   a) Plan für morgen und übermorgen (Plantag, Workout-Name, Dauer, Zielwatt).
+   b) Entscheidung: „1:1 wie geplant“ / „angepasst“ / „ersetzen durch …“ – mit dem auslösenden Kriterium (Ampel, ACWR, TSB, Morgen-Ruhepuls).
+   c) Konkrete, prüfbare Anpassungen (z. B. „ERG-Leistung um 5–10 W senken, sobald HF > Obergrenze im Hauptteil“) statt allgemeiner Ratschläge.
+   d) Bedingungen für morgen früh (z. B. „Wenn Ruhepuls > Schnitt + 5 bpm → Einheit kürzen/ersetzen“).
+   e) Was ich bei der nächsten vergleichbaren Einheit messen bzw. anders machen soll, um offene Fragen zu klären.
+
+====================================================================
+H. SELBSTPRÜFUNG VOR DER AUSGABE
+====================================================================
+Prüfe deinen Text vor dem Senden und korrigiere ihn, falls nötig:
+- Passt die ausgewertete .fit-Datei zum Datum und zur .zwo des Plantags?
+- Steht ein verbotenes Wort aus B7 im Text? → ersetzen durch Kriterium + Zahl.
+- Hat jede Interpretation eine Datenbasis und eine Alternativerklärung?
+- Ist die Gesamtampel die schlechteste Teilbewertung?
+- Wird ein verfehltes Kriterium irgendwo kleingeredet („leicht“, „nur“, „klassisch“, „völlig normal“)?
+- Wurden fehlende Daten erfunden oder geschätzt statt als „nicht auswertbar“ markiert?
+- Würde ein kritischer Sportwissenschaftler jede Aussage mit den vorliegenden Daten unterschreiben?`;
 
   return { prompt, title, activity: targetActivity };
 }

@@ -86,7 +86,7 @@ export const CoachInsights: React.FC<CoachInsightsProps> = ({
             <button
               onClick={() => onOpenClaudeModal('daily')}
               className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/35 text-xs font-bold transition-all hover:scale-[1.01] active:scale-[0.99]"
-              title="Vergleicht deine aktuelle Trainingseinheit direkt im Chat mit dem aktuellen Trainingsplan (ohne PDF)"
+              title="Öffnet den datenbasierten Soll-vs.-Ist Tages-Check (.fit-Rohdaten, Segmentanalyse, feste Ampel-Kriterien & PDF-Ablage)"
             >
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               <span>Tages-Check (Soll vs. Ist)</span>
