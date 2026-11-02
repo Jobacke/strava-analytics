@@ -23,17 +23,21 @@ interface UserSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   settings: UserAthleteSettings;
-  onSaveSettings: (settings: UserAthleteSettings) => void;
+  baselineSettings?: UserAthleteSettings;
+  onSaveSettings: (settings: UserAthleteSettings, saveAsNewBaseline?: boolean) => void;
 }
 
 export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   isOpen,
   onClose,
   settings,
+  baselineSettings,
   onSaveSettings,
 }) => {
+  const activeBaseline = baselineSettings || JOHANNES_BASELINE_SETTINGS;
   const [formData, setFormData] = useState<UserAthleteSettings>({ ...settings });
   const [isLocked, setIsLocked] = useState<boolean>(true);
+  const [savePermanentlyAsBaseline, setSavePermanentlyAsBaseline] = useState<boolean>(true);
   const [selectedIcon, setSelectedIcon] = useState(
     () => localStorage.getItem('strava_pulse_selected_icon') || 'kickr-pulse'
   );
@@ -43,6 +47,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
     if (isOpen) {
       setFormData({ ...settings });
       setIsLocked(true);
+      setSavePermanentlyAsBaseline(true);
     }
   }, [isOpen, settings]);
 
@@ -64,33 +69,34 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   };
 
   const handleResetToHardBaseline = () => {
-    const clean = { ...JOHANNES_BASELINE_SETTINGS };
+    const clean = { ...activeBaseline };
     setFormData(clean);
-    saveBaselineSettings(clean);
-    onSaveSettings(clean);
+    onSaveSettings(clean, false);
     setIsLocked(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const validated: UserAthleteSettings = {
-      maxHeartRate: Number(formData.maxHeartRate) || JOHANNES_BASELINE_SETTINGS.maxHeartRate,
-      restingHeartRate: Number(formData.restingHeartRate) || JOHANNES_BASELINE_SETTINGS.restingHeartRate,
-      ftpWatts: Number(formData.ftpWatts) || JOHANNES_BASELINE_SETTINGS.ftpWatts,
-      weightKg: Number(formData.weightKg) || JOHANNES_BASELINE_SETTINGS.weightKg,
-      weeklyGoalKm: Number(formData.weeklyGoalKm) || JOHANNES_BASELINE_SETTINGS.weeklyGoalKm,
+      maxHeartRate: Number(formData.maxHeartRate) || activeBaseline.maxHeartRate,
+      restingHeartRate: Number(formData.restingHeartRate) || activeBaseline.restingHeartRate,
+      ftpWatts: Number(formData.ftpWatts) || activeBaseline.ftpWatts,
+      weightKg: Number(formData.weightKg) || activeBaseline.weightKg,
+      weeklyGoalKm: Number(formData.weeklyGoalKm) || activeBaseline.weeklyGoalKm,
       thresholdPaceSecPerKm:
-        Number(formData.thresholdPaceSecPerKm) || JOHANNES_BASELINE_SETTINGS.thresholdPaceSecPerKm,
+        Number(formData.thresholdPaceSecPerKm) || activeBaseline.thresholdPaceSecPerKm,
     };
-    saveBaselineSettings(validated);
-    onSaveSettings(validated);
+    if (savePermanentlyAsBaseline) {
+      saveBaselineSettings(validated);
+    }
+    onSaveSettings(validated, savePermanentlyAsBaseline);
     setIsLocked(true);
     onClose();
   };
 
   const wPerKg = (
-    (Number(formData.ftpWatts) || JOHANNES_BASELINE_SETTINGS.ftpWatts || 236) /
-    (Number(formData.weightKg) || JOHANNES_BASELINE_SETTINGS.weightKg || 95)
+    (Number(formData.ftpWatts) || activeBaseline.ftpWatts || 236) /
+    (Number(formData.weightKg) || activeBaseline.weightKg || 94)
   ).toFixed(2);
 
   return (
@@ -275,23 +281,48 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
             </div>
           </div>
 
-          {/* 1-Click Reset to Hardwired Personal Baseline */}
-          <div className="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-[11px] text-slate-300">
-              <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0" />
-              <span>
-                Feste Stamm-Basis: <strong>236 W • 95 kg • 176 / 55 bpm</strong>
-              </span>
+          {/* Option: Permanent Baseline Update vs. Temporary Test + Current Baseline Overview */}
+          <div className="p-3 rounded-xl bg-slate-950/90 border border-slate-800 space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-[11px] text-slate-300">
+                <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0" />
+                <span>
+                  Aktuelle Stamm-Basis:{' '}
+                  <strong>
+                    {activeBaseline.ftpWatts} W • {activeBaseline.weightKg} kg •{' '}
+                    {activeBaseline.maxHeartRate} / {activeBaseline.restingHeartRate} bpm
+                  </strong>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleResetToHardBaseline}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-cyan-300 border border-cyan-500/30 transition shrink-0"
+                title="Lädt die aktuell gespeicherte Stamm-Basis"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Basis laden</span>
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleResetToHardBaseline}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-cyan-300 border border-cyan-500/30 transition shrink-0"
-              title="Stellt sofort deine fest verdrahteten Stammwerte wieder her"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>Stammwerte laden</span>
-            </button>
+
+            {!isLocked && (
+              <label className="flex items-start gap-2 pt-2 border-t border-slate-800/80 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={savePermanentlyAsBaseline}
+                  onChange={(e) => setSavePermanentlyAsBaseline(e.target.checked)}
+                  className="mt-0.5 rounded border-slate-700 bg-slate-900 text-orange-500 focus:ring-orange-500"
+                />
+                <div className="text-[11px] leading-snug">
+                  <span className="font-bold text-emerald-300 block">
+                    Basiswerte dauerhaft ändern (keine starre Stamm-Basis)
+                  </span>
+                  <span className="text-slate-400">
+                    Übernimmt deine Änderung dauerhaft als neue Stamm-Basis ohne Basis-Check-Warnung und synchronisiert sie automatisch zwischen iPhone &amp; Mac.
+                  </span>
+                </div>
+              </label>
+            )}
           </div>
 
           {/* App Icon Selection for iPhone & Mac Home Screen */}
@@ -342,7 +373,9 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                 type="submit"
                 className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-xs font-bold text-white transition shadow-lg shadow-orange-500/20"
               >
-                Als neue Stamm-Basis speichern
+                {savePermanentlyAsBaseline
+                  ? 'Dauerhaft als neue Stamm-Basis speichern'
+                  : 'Nur temporär anwenden'}
               </button>
             )}
           </div>

@@ -5,13 +5,14 @@ import {
 } from './types/strava';
 import {
   AthleteProfileId,
-  JOHANNES_BASELINE_SETTINGS,
-  VERONIKA_BASELINE_SETTINGS,
   getActiveProfileId,
   setActiveProfileId,
   loadVerifiedSettings,
+  getSavedBaselineSettings,
   loadVeronikaSettings,
   saveVeronikaSettings,
+  getSavedVeronikaBaselineSettings,
+  saveVeronikaBaselineSettings,
   getVeronikaActivities,
   saveVeronikaActivities,
   hasSettingsDeviation,
@@ -20,6 +21,12 @@ import {
   isCyclingActivity,
   isRunningActivity,
 } from './utils/trainingMath';
+import {
+  pullAthleteSettingsFromCloud,
+  pushAthleteSettingsToCloud,
+  getLocalSettingsUpdatedAt,
+  setLocalSettingsUpdatedAt,
+} from './services/cloudSettingsSync';
 import { analyzeTrainingCoach } from './utils/coachEngine';
 import {
   getStoredStravaConfig,
@@ -87,13 +94,19 @@ export function App() {
   const [johannesSettings, setJohannesSettings] = useState<UserAthleteSettings>(() =>
     loadVerifiedSettings()
   );
+  const [johannesBaseline, setJohannesBaseline] = useState<UserAthleteSettings>(() =>
+    getSavedBaselineSettings()
+  );
   const [veronikaSettings, setVeronikaSettings] = useState<UserAthleteSettings>(() =>
     loadVeronikaSettings()
+  );
+  const [veronikaBaseline, setVeronikaBaseline] = useState<UserAthleteSettings>(() =>
+    getSavedVeronikaBaselineSettings()
   );
 
   const settings = activeProfile === 'veronika' ? veronikaSettings : johannesSettings;
   const activeBaseline =
-    activeProfile === 'veronika' ? VERONIKA_BASELINE_SETTINGS : JOHANNES_BASELINE_SETTINGS;
+    activeProfile === 'veronika' ? veronikaBaseline : johannesBaseline;
 
   const isDeviatingFromHardBaseline = useMemo(
     () => hasSettingsDeviation(settings, activeBaseline),
@@ -195,8 +208,57 @@ export function App() {
     [stravaConfig, handleAddVeronikaActivities]
   );
 
+  // Cloud-Synchronisation für Athleten-Stammwerte zwischen iPhone & Mac
+  const syncAthleteSettingsWithCloud = useCallback(async () => {
+    const cloud = await pullAthleteSettingsFromCloud();
+    const localUpdatedAt = getLocalSettingsUpdatedAt();
+
+    if (cloud && cloud.updatedAt && cloud.updatedAt > 1000) {
+      if (cloud.updatedAt > localUpdatedAt) {
+        if (cloud.johannesSettings) {
+          setJohannesSettings(cloud.johannesSettings);
+          localStorage.setItem('strava_pulse_settings', JSON.stringify(cloud.johannesSettings));
+        }
+        if (cloud.johannesBaseline) {
+          setJohannesBaseline(cloud.johannesBaseline);
+          saveBaselineSettings(cloud.johannesBaseline);
+        }
+        if (cloud.veronikaSettings) {
+          setVeronikaSettings(cloud.veronikaSettings);
+          saveVeronikaSettings(cloud.veronikaSettings);
+        }
+        if (cloud.veronikaBaseline) {
+          setVeronikaBaseline(cloud.veronikaBaseline);
+          saveVeronikaBaselineSettings(cloud.veronikaBaseline);
+        }
+        setLocalSettingsUpdatedAt(cloud.updatedAt);
+      } else if (localUpdatedAt > cloud.updatedAt) {
+        await pushAthleteSettingsToCloud({
+          johannesSettings: loadVerifiedSettings(),
+          johannesBaseline: getSavedBaselineSettings(),
+          veronikaSettings: loadVeronikaSettings(),
+          veronikaBaseline: getSavedVeronikaBaselineSettings(),
+          updatedAt: localUpdatedAt,
+        });
+      }
+    } else {
+      // Initialisiere Cloud-Speicher mit aktuellen verifizierten Stammwerten (94 kg)
+      const now = localUpdatedAt > 1000 ? localUpdatedAt : Date.now();
+      setLocalSettingsUpdatedAt(now);
+      await pushAthleteSettingsToCloud({
+        johannesSettings: loadVerifiedSettings(),
+        johannesBaseline: getSavedBaselineSettings(),
+        veronikaSettings: loadVeronikaSettings(),
+        veronikaBaseline: getSavedVeronikaBaselineSettings(),
+        updatedAt: now,
+      });
+    }
+  }, []);
+
   // Handle OAuth code in URL on mount OR automatically sync when opening the app
   useEffect(() => {
+    syncAthleteSettingsWithCloud();
+
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const tempClientId = localStorage.getItem('strava_temp_client_id') || DEFAULT_STRAVA_CLIENT_ID;
@@ -225,12 +287,13 @@ export function App() {
       // Automatischer Sync beim Öffnen der App (Mac & iPhone)
       handleSyncStrava(true);
     }
-  }, [handleSyncStrava]);
+  }, [handleSyncStrava, syncAthleteSettingsWithCloud]);
 
   // Automatischer Sync beim Zurückkehren in die App auf dem iPhone / Mac (visibilitychange / pageshow / focus)
   useEffect(() => {
     const checkAutoSyncOnResume = () => {
       if (document.visibilityState && document.visibilityState !== 'visible') return;
+      syncAthleteSettingsWithCloud();
       if (!getStoredStravaConfig() || syncInFlightRef.current) return;
       const last = getLastSyncTimestamp() || 0;
       // Sync automatisch, wenn der letzte Sync länger als 2 Minuten zurückliegt
@@ -239,26 +302,64 @@ export function App() {
       }
     };
 
+    const intervalId = setInterval(() => {
+      if (!document.visibilityState || document.visibilityState === 'visible') {
+        syncAthleteSettingsWithCloud();
+      }
+    }, 20000);
+
     document.addEventListener('visibilitychange', checkAutoSyncOnResume);
     window.addEventListener('focus', checkAutoSyncOnResume);
     window.addEventListener('pageshow', checkAutoSyncOnResume);
 
     return () => {
+      clearInterval(intervalId);
       document.removeEventListener('visibilitychange', checkAutoSyncOnResume);
       window.removeEventListener('focus', checkAutoSyncOnResume);
       window.removeEventListener('pageshow', checkAutoSyncOnResume);
     };
-  }, [handleSyncStrava]);
+  }, [handleSyncStrava, syncAthleteSettingsWithCloud]);
 
-  // Save settings for the currently active profile
-  const handleSaveSettings = (newSettings: UserAthleteSettings) => {
+  // Save settings for the currently active profile (default: permanently update baseline & push to Cloud)
+  const handleSaveSettings = (
+    newSettings: UserAthleteSettings,
+    saveAsNewBaseline: boolean = true
+  ) => {
+    const now = Date.now();
+    setLocalSettingsUpdatedAt(now);
+
+    let nextJohannesSettings = johannesSettings;
+    let nextJohannesBaseline = johannesBaseline;
+    let nextVeronikaSettings = veronikaSettings;
+    let nextVeronikaBaseline = veronikaBaseline;
+
     if (activeProfile === 'veronika') {
+      nextVeronikaSettings = newSettings;
       setVeronikaSettings(newSettings);
       saveVeronikaSettings(newSettings);
+      if (saveAsNewBaseline) {
+        nextVeronikaBaseline = newSettings;
+        setVeronikaBaseline(newSettings);
+        saveVeronikaBaselineSettings(newSettings);
+      }
     } else {
+      nextJohannesSettings = newSettings;
       setJohannesSettings(newSettings);
       localStorage.setItem('strava_pulse_settings', JSON.stringify(newSettings));
+      if (saveAsNewBaseline) {
+        nextJohannesBaseline = newSettings;
+        setJohannesBaseline(newSettings);
+        saveBaselineSettings(newSettings);
+      }
     }
+
+    pushAthleteSettingsToCloud({
+      johannesSettings: nextJohannesSettings,
+      johannesBaseline: nextJohannesBaseline,
+      veronikaSettings: nextVeronikaSettings,
+      veronikaBaseline: nextVeronikaBaseline,
+      updatedAt: now,
+    });
   };
 
   // Überträgt eine Fahrt (z.B. aus Zwift/Strava) dauerhaft in Veronikas Tresor und entfernt sie aus Johannes' Liste
@@ -528,21 +629,29 @@ export function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {isDeviatingFromHardBaseline && (
-              <button
-                onClick={() => {
-                  const clean = { ...activeBaseline };
-                  if (activeProfile === 'johannes') {
-                    saveBaselineSettings(clean);
-                  }
-                  handleSaveSettings(clean);
-                }}
-                className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-[11px] transition shadow-sm"
-                title="Stellt sofort die fest hinterlegten Stammwerte wieder her"
-              >
-                ↺ Auf Stammwerte zurücksetzen
-              </button>
+              <>
+                <button
+                  onClick={() => {
+                    handleSaveSettings({ ...settings }, true);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-[11px] transition shadow-sm"
+                  title="Übernimmt die aktuell eingestellten Werte dauerhaft als deine neue Stamm-Basis (inkl. Cloud-Sync für iPhone & Mac)"
+                >
+                  ✓ Dauerhaft als Stamm-Basis speichern
+                </button>
+                <button
+                  onClick={() => {
+                    const clean = { ...activeBaseline };
+                    handleSaveSettings(clean, false);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-[11px] transition shadow-sm"
+                  title="Stellt die zuletzt gespeicherte Stamm-Basis wieder her"
+                >
+                  ↺ Auf Stamm-Basis zurücksetzen
+                </button>
+              </>
             )}
             {activeProfile === 'veronika' && (
               <button
@@ -725,6 +834,7 @@ export function App() {
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
         settings={settings}
+        baselineSettings={activeBaseline}
         onSaveSettings={handleSaveSettings}
       />
 

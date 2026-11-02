@@ -91,21 +91,21 @@ export const HeartRateZonesChart: React.FC<HeartRateZonesChartProps> = ({
           </span>
         </div>
 
-        {/* Synchronized Timeframe Selector (30 / 60 / 90 / 120 Tage) */}
+        {/* Synchronized Timeframe Selector (7 / 14 / 30 / 60 / 90 / 120 Tage) */}
         {onDaysRangeChange && (
-          <div className="flex items-center justify-between bg-slate-950 p-1 rounded-xl border border-slate-800/80 mb-4">
-            {[30, 60, 90, 120].map((days) => (
+          <div className="flex flex-wrap items-center justify-between gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800/80 mb-4">
+            {[7, 14, 30, 60, 90, 120].map((days) => (
               <button
                 key={days}
                 type="button"
                 onClick={() => onDaysRangeChange(days)}
-                className={`flex-1 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
+                className={`flex-1 min-w-[48px] py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
                   daysRange === days
                     ? 'bg-orange-500 text-white shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                {days} Tage
+                {days}d
               </button>
             ))}
           </div>

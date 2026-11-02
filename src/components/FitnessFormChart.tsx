@@ -97,14 +97,14 @@ export const FitnessFormChart: React.FC<FitnessFormChartProps> = ({
           </p>
         </div>
 
-        {/* Range Buttons (controls global analysisDays) */}
-        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800/80 self-start sm:self-auto">
-          {[30, 60, 90, 120].map((days) => (
+        {/* Range Buttons (controls global analysisDays: 7 / 14 / 30 / 60 / 90 / 120 Tage) */}
+        <div className="flex flex-wrap items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800/80 self-start sm:self-auto">
+          {[7, 14, 30, 60, 90, 120].map((days) => (
             <button
               key={days}
               type="button"
               onClick={() => handleRangeChange(days)}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
                 daysRange === days
                   ? 'bg-orange-500 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'

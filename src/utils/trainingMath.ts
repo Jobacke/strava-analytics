@@ -4,8 +4,7 @@ import { format, subDays, parseISO, isSameDay } from 'date-fns';
 export type AthleteProfileId = 'johannes' | 'veronika';
 
 /**
- * Fest hinterlegte persönliche Stamm-Basis für Johannes Backhaus
- * (Schützt vor Datenverlust bei Browser-Cache-Leerung oder Gerätewechsel)
+ * Persönliche Start-Stamm-Basis für Johannes Backhaus (jederzeit dauerhaft anpassbar)
  */
 export const JOHANNES_BASELINE_SETTINGS: UserAthleteSettings = {
   maxHeartRate: 176,
@@ -13,7 +12,7 @@ export const JOHANNES_BASELINE_SETTINGS: UserAthleteSettings = {
   ftpWatts: 236,
   thresholdPaceSecPerKm: 270, // 4:30 min/km
   weeklyGoalKm: 120,
-  weightKg: 95,
+  weightKg: 94,
 };
 
 /**
@@ -39,9 +38,11 @@ const ACTIVE_PROFILE_KEY = 'strava_pulse_active_profile_v1';
 const SETTINGS_STORAGE_KEY = 'strava_pulse_settings';
 const BASELINE_STORAGE_KEY = 'strava_pulse_baseline_settings';
 const VERONIKA_SETTINGS_KEY = 'strava_pulse_settings_veronika_v1';
+const VERONIKA_BASELINE_STORAGE_KEY = 'strava_pulse_baseline_veronika_v1';
 const VERONIKA_ACTIVITIES_KEY = 'strava_pulse_activities_veronika_v1';
 const VERONIKA_ACTIVITIES_BACKUP_KEY = 'strava_pulse_activities_veronika_backup_v1';
 const MIGRATION_KEY_V220 = 'strava_pulse_migrated_baseline_v220';
+const MIGRATION_KEY_V246 = 'strava_pulse_migrated_baseline_v246';
 
 export function getActiveProfileId(): AthleteProfileId {
   try {
@@ -78,6 +79,31 @@ export function loadVeronikaSettings(): UserAthleteSettings {
 export function saveVeronikaSettings(settings: UserAthleteSettings): void {
   try {
     localStorage.setItem(VERONIKA_SETTINGS_KEY, JSON.stringify(settings));
+  } catch {}
+}
+
+export function getSavedVeronikaBaselineSettings(): UserAthleteSettings {
+  try {
+    const raw = localStorage.getItem(VERONIKA_BASELINE_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        maxHeartRate: Number(parsed.maxHeartRate) || VERONIKA_BASELINE_SETTINGS.maxHeartRate,
+        restingHeartRate: Number(parsed.restingHeartRate) || VERONIKA_BASELINE_SETTINGS.restingHeartRate,
+        ftpWatts: Number(parsed.ftpWatts) || VERONIKA_BASELINE_SETTINGS.ftpWatts,
+        thresholdPaceSecPerKm:
+          Number(parsed.thresholdPaceSecPerKm) || VERONIKA_BASELINE_SETTINGS.thresholdPaceSecPerKm,
+        weeklyGoalKm: Number(parsed.weeklyGoalKm) || VERONIKA_BASELINE_SETTINGS.weeklyGoalKm,
+        weightKg: Number(parsed.weightKg) || VERONIKA_BASELINE_SETTINGS.weightKg,
+      };
+    }
+  } catch {}
+  return { ...VERONIKA_BASELINE_SETTINGS };
+}
+
+export function saveVeronikaBaselineSettings(settings: UserAthleteSettings): void {
+  try {
+    localStorage.setItem(VERONIKA_BASELINE_STORAGE_KEY, JSON.stringify(settings));
   } catch {}
 }
 
@@ -125,13 +151,18 @@ export function saveVeronikaActivities(activities: StravaActivity[]): void {
 }
 
 /**
- * Lädt die gesicherte Stamm-Basis (Fallback: fest verdrahtete JOHANNES_BASELINE_SETTINGS)
+ * Lädt die gesicherte Stamm-Basis (Fallback: JOHANNES_BASELINE_SETTINGS)
  */
 export function getSavedBaselineSettings(): UserAthleteSettings {
   try {
     const raw = localStorage.getItem(BASELINE_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
+      const migrated246 = localStorage.getItem(MIGRATION_KEY_V246);
+      const weightVal =
+        !migrated246 && Number(parsed.weightKg) === 95
+          ? 94
+          : Number(parsed.weightKg) || JOHANNES_BASELINE_SETTINGS.weightKg;
       return {
         maxHeartRate: Number(parsed.maxHeartRate) || JOHANNES_BASELINE_SETTINGS.maxHeartRate,
         restingHeartRate: Number(parsed.restingHeartRate) || JOHANNES_BASELINE_SETTINGS.restingHeartRate,
@@ -139,11 +170,11 @@ export function getSavedBaselineSettings(): UserAthleteSettings {
         thresholdPaceSecPerKm:
           Number(parsed.thresholdPaceSecPerKm) || JOHANNES_BASELINE_SETTINGS.thresholdPaceSecPerKm,
         weeklyGoalKm: Number(parsed.weeklyGoalKm) || JOHANNES_BASELINE_SETTINGS.weeklyGoalKm,
-        weightKg: Number(parsed.weightKg) || JOHANNES_BASELINE_SETTINGS.weightKg,
+        weightKg: weightVal,
       };
     }
   } catch {
-    // Fallback auf feste Konstanten
+    // Fallback auf Start-Konstanten
   }
   return { ...JOHANNES_BASELINE_SETTINGS };
 }
@@ -152,22 +183,27 @@ export function getSavedBaselineSettings(): UserAthleteSettings {
  * Speichert eine neue verifizierte Stamm-Basis
  */
 export function saveBaselineSettings(settings: UserAthleteSettings): void {
-  localStorage.setItem(BASELINE_STORAGE_KEY, JSON.stringify(settings));
+  try {
+    localStorage.setItem(BASELINE_STORAGE_KEY, JSON.stringify(settings));
+  } catch {}
 }
 
 /**
  * Lädt und prüft die Athleten-Einstellungen beim Start der App.
- * Ersetzt alte generische Dummy-Werte (190 bpm / 50 bpm / 250 W / 75 kg) automatisch
- * durch die echte persönliche Stamm-Basis (176 bpm / 55 bpm / 236 W / 95 kg).
+ * Migriert einmalig das alte Standardgewicht (95 kg -> 94 kg) und synchronisiert
+ * die persönliche Stamm-Basis, damit dauerhaft geänderte Basiswerte ohne Fehlalarm gelten.
  */
 export function loadVerifiedSettings(): UserAthleteSettings {
   const baseline = getSavedBaselineSettings();
   try {
     const migrated = localStorage.getItem(MIGRATION_KEY_V220);
+    const migrated246 = localStorage.getItem(MIGRATION_KEY_V246);
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (!raw) {
       localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(baseline));
+      localStorage.setItem(BASELINE_STORAGE_KEY, JSON.stringify(baseline));
       localStorage.setItem(MIGRATION_KEY_V220, 'true');
+      localStorage.setItem(MIGRATION_KEY_V246, 'true');
       return { ...baseline };
     }
 
@@ -181,36 +217,51 @@ export function loadVerifiedSettings(): UserAthleteSettings {
 
     if (isOldGenericDefault) {
       localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(baseline));
+      localStorage.setItem(BASELINE_STORAGE_KEY, JSON.stringify(baseline));
       localStorage.setItem(MIGRATION_KEY_V220, 'true');
+      localStorage.setItem(MIGRATION_KEY_V246, 'true');
       return { ...baseline };
     }
 
-    localStorage.setItem(MIGRATION_KEY_V220, 'true');
-    return {
+    const resolvedWeight =
+      !migrated246 && Number(parsed.weightKg) === 95
+        ? 94
+        : Number(parsed.weightKg) || baseline.weightKg;
+
+    const resolved: UserAthleteSettings = {
       maxHeartRate: Number(parsed.maxHeartRate) || baseline.maxHeartRate,
       restingHeartRate: Number(parsed.restingHeartRate) || baseline.restingHeartRate,
       ftpWatts: Number(parsed.ftpWatts) || baseline.ftpWatts,
       thresholdPaceSecPerKm: Number(parsed.thresholdPaceSecPerKm) || baseline.thresholdPaceSecPerKm,
       weeklyGoalKm: Number(parsed.weeklyGoalKm) || baseline.weeklyGoalKm,
-      weightKg: Number(parsed.weightKg) || baseline.weightKg,
+      weightKg: resolvedWeight,
     };
+
+    if (!migrated246) {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(resolved));
+      localStorage.setItem(BASELINE_STORAGE_KEY, JSON.stringify(resolved));
+      localStorage.setItem(MIGRATION_KEY_V246, 'true');
+    }
+
+    localStorage.setItem(MIGRATION_KEY_V220, 'true');
+    return resolved;
   } catch {
     return { ...baseline };
   }
 }
 
 /**
- * Prüft, ob die aktuell aktiven Werte von der hinterlegten Stamm-Basis abweichen
+ * Prüft, ob die aktuell aktiven Werte von der gespeicherten Stamm-Basis abweichen
  */
 export function hasSettingsDeviation(
   current: UserAthleteSettings,
-  baseline: UserAthleteSettings = JOHANNES_BASELINE_SETTINGS
+  baseline: UserAthleteSettings = getSavedBaselineSettings()
 ): boolean {
   return (
     Number(current.maxHeartRate) !== Number(baseline.maxHeartRate) ||
     Number(current.restingHeartRate) !== Number(baseline.restingHeartRate) ||
     Number(current.ftpWatts || 236) !== Number(baseline.ftpWatts || 236) ||
-    Number(current.weightKg || 95) !== Number(baseline.weightKg || 95)
+    Number(current.weightKg || 94) !== Number(baseline.weightKg || 94)
   );
 }
 

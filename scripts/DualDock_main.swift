@@ -78,13 +78,13 @@ struct DashboardZone: Codable {
             DashboardZone(
                 id: "zone_media",
                 title: "📰 Medien & Alltag",
-                col: 6, row: 2, widthCols: 6, heightRows: 2,
+                col: 6, row: 2, widthCols: 7, heightRows: 2,
                 colorTheme: "blue"
             ),
             DashboardZone(
                 id: "zone_tools",
                 title: "🛠️ Werkzeuge & Freie Ablage",
-                col: 0, row: 4, widthCols: 12, heightRows: 2,
+                col: 0, row: 4, widthCols: 13, heightRows: 2,
                 colorTheme: "rose"
             )
         ]
@@ -1163,14 +1163,14 @@ class DashboardWindow: NSPanel {
     }
 }
 
-// MARK: - 12x6 Free-Placement Grid Canvas View (Constant Tile & Icon Size in 1-Row and Multi-Row Zones!)
+// MARK: - 13x6 Free-Placement Grid Canvas View (Constant Tile & Icon Size in 1-Row and Multi-Row Zones!)
 class DashboardCanvasView: NSView {
     static let fixedTileWidth: CGFloat = 86.0
     static let fixedTileHeight: CGFloat = 74.0
 
-    var cols: Int = 12
+    var cols: Int = 13
     var rows: Int = 6
-    var slotWidth: CGFloat = 102
+    var slotWidth: CGFloat = 98
     var slotHeight: CGFloat = 108
     var zones: [DashboardZone] = []
     var showGridSlots: Bool = false
@@ -1533,12 +1533,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let kSlotMap = "dashboard.slotMap.v2"
     private let kZonesData = "dashboard.zones.v2"
     private let kInitializedDefaults = "dashboard.initialized.v2"
+    private let kMigrated13Cols = "dashboard.migrated13Cols.v1"
     private let kBottomBarMode = "dashboard.bottomBarMode.v1"
     private let kCloseOnLaunch = "dashboard.closeOnLaunch.v1"
     private let kHotkeyPreset = "dashboard.hotkeyPreset.v1"
 
-    // 12 Columns x 6 Rows = 72 Slots
-    private let gridCols = 12
+    // 13 Columns x 6 Rows = 78 Slots (Column 6 = Exact Center)
+    private let gridCols = 13
     private let gridRows = 6
     private var totalSlots: Int { gridCols * gridRows }
 
@@ -1890,6 +1891,35 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         var hiddenSet = Set(defaults.stringArray(forKey: kHiddenKeys) ?? [])
         var slotMap = (defaults.dictionary(forKey: kSlotMap) as? [String: Int]) ?? [:]
 
+        if defaults.bool(forKey: kInitializedDefaults) && !defaults.bool(forKey: kMigrated13Cols) {
+            let oldCols = 12
+            var migratedMap: [String: Int] = [:]
+            for (key, oldSlot) in slotMap {
+                let oldRow = oldSlot / oldCols
+                let oldCol = oldSlot % oldCols
+                let newCol: Int
+                if key == "com.apple.findmy" || (oldRow == 0 && oldCol == 5) {
+                    newCol = 6 // Exact center column (0..5 left, 6 center, 7..12 right)
+                } else if oldCol >= 8 {
+                    newCol = min(oldCol + 1, gridCols - 1)
+                } else {
+                    newCol = oldCol
+                }
+                migratedMap[key] = oldRow * gridCols + newCol
+            }
+            slotMap = migratedMap
+            defaults.set(slotMap, forKey: kSlotMap)
+
+            var zones = loadZones()
+            for i in 0..<zones.count {
+                if zones[i].col >= 8 {
+                    zones[i].col = min(zones[i].col + 1, gridCols - zones[i].widthCols)
+                }
+            }
+            saveZones(zones)
+            defaults.set(true, forKey: kMigrated13Cols)
+        }
+
         if !defaults.bool(forKey: kInitializedDefaults) {
             saveZones(DashboardZone.defaultZones())
 
@@ -1967,6 +1997,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             defaults.set(Array(hiddenSet), forKey: kHiddenKeys)
             defaults.set(slotMap, forKey: kSlotMap)
             defaults.set(true, forKey: kInitializedDefaults)
+            defaults.set(true, forKey: kMigrated13Cols)
         } else {
             var occupied = Set<Int>()
             for item in items where !hiddenSet.contains(item.key) {
@@ -2021,7 +2052,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func showDashboardWindow() {
         ensureInitialDashboardLayout()
         let screen = currentMouseScreen()
-        let winWidth: CGFloat = 1268
+        let winWidth: CGFloat = 1318
         let winHeight: CGFloat = isDashboardEditMode ? 872 : 754
         let x = screen.frame.origin.x + (screen.frame.width - winWidth) * 0.5
         let y = screen.frame.origin.y + (screen.frame.height - winHeight) * 0.52
@@ -2071,8 +2102,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         rootCrystal.addSubview(titleLabel)
 
         let subtitleText = isDashboardEditMode
-            ? "Kristall-Editor (12×6): Rahmen an der Kopfzeile ✥ ziehen & unten rechts ⤡ skalieren • ✎ Name • ◐ Farbe • Icons frei ziehen"
-            : "12×6 Kristall-Board mit App-Bereichen • Icons frei per Drag & Drop verschieben • Klick startet App"
+            ? "Kristall-Editor (13×6): Rahmen an der Kopfzeile ✥ ziehen & unten rechts ⤡ skalieren • ✎ Name • ◐ Farbe • Icons frei ziehen"
+            : "13×6 Kristall-Board mit App-Bereichen • Icons frei per Drag & Drop verschieben • Klick startet App"
         let subLabel = NSTextField(labelWithString: subtitleText)
         subLabel.font = NSFont.systemFont(ofSize: 11.5, weight: .medium)
         subLabel.textColor = NSColor(calibratedRed: 0.56, green: 0.82, blue: 0.98, alpha: 0.88)
@@ -2131,8 +2162,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         divider.layer?.backgroundColor = NSColor(calibratedRed: 0.35, green: 0.82, blue: 1.0, alpha: 0.25).cgColor
         rootCrystal.addSubview(divider)
 
-        // 2. Main 12x6 Free-Placement Canvas (1224 x 648 -> 102 x 108 per cell)
-        let canvasWidth: CGFloat = 1224
+        // 2. Main 13x6 Free-Placement Canvas (1274 x 648 -> 98 x 108 per cell)
+        let canvasWidth: CGFloat = 1274
         let canvasHeight: CGFloat = 648
         let canvasX = (w - canvasWidth) * 0.5
         let canvasY = headerY - 10 - canvasHeight
@@ -2287,7 +2318,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         rootCrystal.addSubview(autoCloseBtn)
 
         // Sleek 4-Way Simultaneous Crystal Segmented Bar for Bottom Mode
-        let segContainerX: CGFloat = 348
+        let segContainerX: CGFloat = 373
         let segContainerW: CGFloat = 668
         let segContainer = NSView(frame: NSRect(x: segContainerX, y: 4, width: segContainerW, height: 30))
         segContainer.wantsLayer = true
@@ -2398,6 +2429,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func resetDefaultBoardLayout() {
         defaults.removeObject(forKey: kInitializedDefaults)
+        defaults.removeObject(forKey: kMigrated13Cols)
         defaults.removeObject(forKey: kSlotMap)
         defaults.removeObject(forKey: kZonesData)
         ensureInitialDashboardLayout()
