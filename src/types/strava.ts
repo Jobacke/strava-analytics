@@ -25,6 +25,7 @@ export interface StravaActivity {
   calories?: number;
   // Computed training metrics
   trimp?: number;
+  hrHistogram?: Record<string, number>; // exact seconds per bpm from 1s stream
   hrZones?: {
     z1: number; // seconds in zone
     z2: number;
@@ -68,6 +69,7 @@ export interface HeartRateZoneDistribution {
   junkZonePercentage: number; // Z3 percentage (gray zone)
   analysisDays?: number;
   activitiesWithHrCount?: number;
+  streamActivitiesCount?: number;
   totalActivitiesCount?: number;
 }
 

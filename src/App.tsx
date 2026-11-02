@@ -35,6 +35,7 @@ import {
   getLastSyncTimestamp,
   exchangeOAuthCode,
   fetchStravaActivities,
+  enrichActivitiesWithHrStreams,
   startDirectStravaOAuth,
   DEFAULT_STRAVA_CLIENT_ID,
   DEFAULT_STRAVA_CLIENT_SECRET,
@@ -184,6 +185,9 @@ export function App() {
         setUserActivities(retained);
         if (retained) {
           saveStoredActivities(retained);
+          enrichActivitiesWithHrStreams(retained, (updated) => {
+            setUserActivities(updated);
+          });
         }
         setLastSyncAt(Date.now());
 
@@ -284,6 +288,12 @@ export function App() {
           setTimeout(() => setOauthStatus(null), 5000);
         });
     } else if (getStoredStravaConfig()) {
+      const existing = getStoredActivities();
+      if (existing && existing.length > 0) {
+        enrichActivitiesWithHrStreams(existing, (updated) => {
+          setUserActivities(updated);
+        });
+      }
       // Automatischer Sync beim Öffnen der App (Mac & iPhone)
       handleSyncStrava(true);
     }

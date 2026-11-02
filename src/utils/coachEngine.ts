@@ -92,12 +92,20 @@ export function analyzeTrainingCoach(
   const last14Loads = dailyLoads.slice(-14);
   const restDaysLast14 = last14Loads.filter(d => d.activitiesCount === 0).length;
 
-  // 3. Heart Rate Distribution across the selected `analysisDays` timeframe (30 / 60 / 90 / 120 days)
+  // 3. Heart Rate Distribution across the selected `analysisDays` timeframe (7 / 14 / 30 / 60 / 90 / 120 days)
   const periodCutoff = subDays(now, analysisDays);
   const periodActivities = activities.filter(a => isAfter(parseISO(a.start_date), periodCutoff));
   const activitiesWithHr = periodActivities.filter(
-    a => (a.average_heartrate && a.average_heartrate > 0) || Boolean(a.hrZones)
+    a =>
+      (a.average_heartrate && a.average_heartrate > 0) ||
+      Boolean(a.hrZones) ||
+      Boolean(a.hrHistogram && Object.keys(a.hrHistogram).length > 0)
   );
+  const streamActivitiesCount = activitiesWithHr.filter(
+    a =>
+      Boolean(a.hrHistogram && Object.keys(a.hrHistogram).length > 0) ||
+      Boolean(a.hrZones)
+  ).length;
 
   let totalZ1 = 0, totalZ2 = 0, totalZ3 = 0, totalZ4 = 0, totalZ5 = 0;
   let totalTime = 0;
@@ -126,6 +134,7 @@ export function analyzeTrainingCoach(
     junkZonePercentage: hasHrData ? Math.round((totalZ3 / safeTotal) * 100) : 0,
     analysisDays,
     activitiesWithHrCount: activitiesWithHr.length,
+    streamActivitiesCount,
     totalActivitiesCount: periodActivities.length,
   };
 
@@ -183,6 +192,10 @@ export function analyzeTrainingCoach(
   // B. Intensity Distribution & Zone 3 Share (for selected `analysisDays`)
   if (hasHrData) {
     const highIntensityPct = hrDistribution.z4 + hrDistribution.z5;
+    const methodLabel =
+      streamActivitiesCount > 0
+        ? `sekundengenaue 1-s-Streamdaten für ${streamActivitiesCount} von ${activitiesWithHr.length} Radeinheiten`
+        : `Ø-Herzfrequenz je Radeinheit`;
     if (hrDistribution.junkZonePercentage > 25) {
       insights.push({
         id: 'hr-grayzone',
@@ -191,8 +204,8 @@ export function analyzeTrainingCoach(
         priority: 1,
         metricValue: `${hrDistribution.junkZonePercentage}% Z3 (${analysisDays}d)`,
         title: `Hoher Zeitanteil in Zone 3 (${hrDistribution.junkZonePercentage}% im ${analysisDays}-Tage-Zeitraum)`,
-        description: `[B] Im gewählten Analysezeitraum (${analysisDays} Tage, n = ${activitiesWithHr.length} Radeinheiten mit HF-Messung) entfallen ${hrDistribution.junkZonePercentage}% der Bewegungszeit auf Zone 3 (${hrLimits.z3.min}–${hrLimits.z3.max} bpm; 70–80% HFmax), ${hrDistribution.polarizedScore}% auf Zone 1–2 (<${hrLimits.z3.min} bpm) und ${highIntensityPct}% auf Zone 4–5 (≥${hrLimits.z4.min} bpm).`,
-        recommendation: `[L] Einordnung (Seiler & Kjerland, 2006; Stöggl & Sperlich, 2014): In polarisierten Ausdauermodellen wird ein geringer Anteil im mittleren Intensitätsbereich angestrebt. Methodischer Hinweis: Die Berechnung erfolgt im 5-Zonen-%HFmax-Modell anhand der Ø-Herzfrequenz je Radeinheit (sofern keine 1-s-Streamdaten vorliegen), nicht anhand spiroergometrischer Schwellen (VT1/VT2).`,
+        description: `[B] Im gewählten Analysezeitraum (${analysisDays} Tage, ${methodLabel}) entfallen ${hrDistribution.junkZonePercentage}% der Bewegungszeit auf Zone 3 (${hrLimits.z3.min}–${hrLimits.z3.max} bpm; 70–80% HFmax), ${hrDistribution.polarizedScore}% auf Zone 1–2 (<${hrLimits.z3.min} bpm) und ${highIntensityPct}% auf Zone 4–5 (≥${hrLimits.z4.min} bpm).`,
+        recommendation: `[L] Einordnung (Seiler & Kjerland, 2006; Stöggl & Sperlich, 2014): In polarisierten Ausdauermodellen wird ein geringer Anteil im mittleren Intensitätsbereich angestrebt. Methodischer Hinweis: Die Berechnung erfolgt im 5-Zonen-%HFmax-Modell (${methodLabel}).`,
       });
     } else {
       insights.push({
@@ -202,8 +215,8 @@ export function analyzeTrainingCoach(
         priority: 3,
         metricValue: `${hrDistribution.polarizedScore}% Z1/Z2 (${analysisDays}d)`,
         title: `Herzfrequenz-Zonenverteilung (${analysisDays} Tage): ${hrDistribution.polarizedScore}% Z1–Z2 / ${hrDistribution.junkZonePercentage}% Z3`,
-        description: `[B] Im Analysezeitraum (${analysisDays} Tage, n = ${activitiesWithHr.length} Radeinheiten mit HF-Messung) liegen ${hrDistribution.polarizedScore}% der Trainingszeit in Zone 1–2 (<${hrLimits.z3.min} bpm), ${hrDistribution.junkZonePercentage}% in Zone 3 (${hrLimits.z3.min}–${hrLimits.z3.max} bpm) und ${highIntensityPct}% in Zone 4–5 (≥${hrLimits.z4.min} bpm).`,
-        recommendation: `[L] Methodischer Hinweis: Das 80/20-Referenzmodell nach Seiler & Kjerland (2006) basiert auf einem 3-Zonen-Modell an ventilatorischen Schwellen (VT1/VT2). Die hier ausgewiesene Verteilung bildet ein rechnerisches 5-Zonen-Modell nach %HFmax (Basis: ${settings.maxHeartRate} bpm) ab.`,
+        description: `[B] Im Analysezeitraum (${analysisDays} Tage, ${methodLabel}) liegen ${hrDistribution.polarizedScore}% der Trainingszeit in Zone 1–2 (<${hrLimits.z3.min} bpm), ${hrDistribution.junkZonePercentage}% in Zone 3 (${hrLimits.z3.min}–${hrLimits.z3.max} bpm) und ${highIntensityPct}% in Zone 4–5 (≥${hrLimits.z4.min} bpm).`,
+        recommendation: `[L] Methodischer Hinweis: Das 80/20-Referenzmodell nach Seiler & Kjerland (2006) basiert auf einem 3-Zonen-Modell an ventilatorischen Schwellen (VT1/VT2). Die hier ausgewiesene Verteilung bildet ein 5-Zonen-Modell nach %HFmax (Basis: ${settings.maxHeartRate} bpm, ${methodLabel}) ab.`,
       });
     }
   }

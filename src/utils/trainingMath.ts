@@ -399,14 +399,44 @@ export function calculateActivityTrimp(
 
 /**
  * Maps an activity's duration to HR zones based strictly on measured data:
- * - Uses `activity.hrZones` if second-by-second zone data is present.
- * - Otherwise classifies `moving_time` by the measured `average_heartrate` into the 5-zone %HFmax model.
- * - If no heart rate was measured, returns 0 across all zones (no synthetic HR estimation).
+ * 1. Uses `activity.hrHistogram` (second-by-second 1-bpm stream histogram from Strava API) dynamically against `settings.maxHeartRate`.
+ * 2. Or uses `activity.hrZones` if second-by-second zone data is present (e.g. Wahoo .fit import).
+ * 3. Fallback: classifies `moving_time` by the measured `average_heartrate` into the 5-zone %HFmax model.
+ * 4. If no heart rate was measured, returns 0 across all zones (no synthetic HR estimation).
  */
 export function estimateHrZonesForActivity(
   activity: StravaActivity,
   settings: UserAthleteSettings = DEFAULT_SETTINGS
 ) {
+  const zones = getHrZones(settings.maxHeartRate);
+
+  if (activity.hrHistogram && Object.keys(activity.hrHistogram).length > 0) {
+    let z1 = 0,
+      z2 = 0,
+      z3 = 0,
+      z4 = 0,
+      z5 = 0;
+    for (const [bpmStr, sec] of Object.entries(activity.hrHistogram)) {
+      const bpm = Number(bpmStr);
+      const dur = Number(sec) || 0;
+      if (bpm <= 0 || dur <= 0) continue;
+      if (bpm < zones.z2.min) {
+        z1 += dur;
+      } else if (bpm < zones.z3.min) {
+        z2 += dur;
+      } else if (bpm < zones.z4.min) {
+        z3 += dur;
+      } else if (bpm < zones.z5.min) {
+        z4 += dur;
+      } else {
+        z5 += dur;
+      }
+    }
+    if (z1 + z2 + z3 + z4 + z5 > 0) {
+      return { z1, z2, z3, z4, z5 };
+    }
+  }
+
   if (activity.hrZones) {
     return activity.hrZones;
   }
@@ -417,7 +447,6 @@ export function estimateHrZonesForActivity(
 
   const duration = activity.moving_time || 0;
   const avgHr = activity.average_heartrate;
-  const zones = getHrZones(settings.maxHeartRate);
 
   if (avgHr < zones.z2.min) {
     return { z1: duration, z2: 0, z3: 0, z4: 0, z5: 0 };

@@ -61,6 +61,7 @@ export const HeartRateZonesChart: React.FC<HeartRateZonesChartProps> = ({
   const isZone3Elevated = distribution.z3 > 25;
   const hasHrData = (distribution.totalTimeSec || 0) > 0;
   const hrCount = distribution.activitiesWithHrCount ?? 0;
+  const streamCount = distribution.streamActivitiesCount ?? 0;
   const totalCount = distribution.totalActivitiesCount ?? 0;
 
   return (
@@ -76,7 +77,9 @@ export const HeartRateZonesChart: React.FC<HeartRateZonesChartProps> = ({
             <p className="text-xs text-slate-400">
               5-Zonen-Modell nach %HFmax ({maxHeartRate} bpm) •{' '}
               {hasHrData
-                ? `n = ${hrCount} von ${totalCount} Radeinheiten mit HF-Messung`
+                ? streamCount > 0
+                  ? `1-s-Stream [M] (${streamCount}/${hrCount} Fahrten)`
+                  : `n = ${hrCount} von ${totalCount} Radeinheiten mit HF-Messung`
                 : 'Keine Radeinheiten mit HF-Messung im Zeitraum'}
             </p>
           </div>
@@ -172,7 +175,10 @@ export const HeartRateZonesChart: React.FC<HeartRateZonesChartProps> = ({
                 Zonen-Befund ({daysRange} Tage):{' '}
               </span>
               <span className="text-slate-300">
-                [B] Zeitanteile im 5-Zonen-%HFmax-Modell: Z1–Z2: {polarizedScore}% (&lt;{hrLimits.z3.min} bpm) | Z3: {distribution.z3}% ({hrLimits.z3.min}–{hrLimits.z3.max} bpm) | Z4–Z5: {highIntensityScore}% (&ge;{hrLimits.z4.min} bpm). [L] Hinweis: Die Zuordnung basiert bei Strava-Übersichtsdaten auf der gemessenen Ø-Herzfrequenz je Radeinheit.
+                [B] Zeitanteile im 5-Zonen-%HFmax-Modell: Z1–Z2: {polarizedScore}% (&lt;{hrLimits.z3.min} bpm) | Z3: {distribution.z3}% ({hrLimits.z3.min}–{hrLimits.z3.max} bpm) | Z4–Z5: {highIntensityScore}% (&ge;{hrLimits.z4.min} bpm). [L] Basis:{' '}
+                {streamCount > 0
+                  ? `Sekundengenaue 1-s-Streamdaten [M] (${streamCount} von ${hrCount} Einheiten).`
+                  : 'Gemessene Ø-Herzfrequenz je Radeinheit.'}
               </span>
             </div>
           </div>

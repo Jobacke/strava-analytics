@@ -1,0 +1,72 @@
+<workout_file>
+    <author>Sportwissenschaftliches Coaching - Johannes Backhaus</author>
+    <name>JB_Test_HFmax_FTP_RampTest_40</name>
+    <description>Sportwissenschaftlicher HFmax- &amp; FTP-Stufentest (Ramp Test, 40 Min, kalibriert auf 236 W FTP). Nach 16 Min Warmup inkl. 3 kurzen Voraktivierungen folgen 1-Minuten-Stufen von 140 W bis 400 W (+20 W/Min im ERG-Modus). Fahre im Sitzen (85-95 rpm) bis zur maximalen Ausbelastung; die letzten 20-30 Sek darfst du alles im Wiegetritt geben. Sobald du abbrechen musst: Druecke die TAB-Taste (oder in der Companion-App auf Pfeil-Rechts), um direkt ins 10-Min-Cooldown zu springen. Dein hoechster Puls = reale Rad-HFmax | 75% deiner besten 1-Minuten-Leistung = aktuelle FTP.</description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="HFmax"/>
+        <tag name="FTP"/>
+        <tag name="RampTest"/>
+        <tag name="JohannesBackhaus"/>
+    </tags>
+    <workout>
+        <Warmup Duration="600" PowerLow="0.48" PowerHigh="0.70" Cadence="88">
+            <textevent timeoffset="10" message="Willkommen zum HFmax- &amp; FTP-Stufentest! 10 Min lockeres Einfahren von 113 W auf 165 W."/>
+            <textevent timeoffset="300" message="Pruefe jetzt: Brustgurt sitzt fest &amp; feucht? Ventilator laeuft auf voller Stufe?"/>
+            <textevent timeoffset="540" message="Gleich folgen 3 kurze 20-Sekunden-Antritte (240 W), um das Herz-Kreislauf-System zu oeffnen."/>
+        </Warmup>
+        <IntervalsT Repeat="3" OnDuration="20" OffDuration="40" OnPower="1.017" OffPower="0.551" Cadence="95" CadenceResting="85">
+            <textevent timeoffset="5" message="3x 20s Voraktivierung bei 240 W (95 rpm) - weckt das Schlagvolumen fuer den Stufentest!"/>
+        </IntervalsT>
+        <SteadyState Duration="180" Power="0.508" Cadence="85">
+            <textevent timeoffset="10" message="3 Min ruhige Erholung bei 120 W. Tief durchatmen, gleich startet Stufe 1 bei 140 W."/>
+            <textevent timeoffset="140" message="WICHTIG: Bleib im Sitzen (85-95 rpm). Wenn nichts mehr geht: TAB-Taste druecken fuer Cooldown!"/>
+        </SteadyState>
+        <SteadyState Duration="60" Power="0.593" Cadence="90">
+            <textevent timeoffset="5" message="Stufe 1: 140 Watt (1 Min) - Lockerer Einstieg, runder Tritt bei ~90 rpm."/>
+        </SteadyState>
+        <SteadyState Duration="60" Power="0.678" Cadence="90">
+            <textevent timeoffset="5" message="Stufe 2: 160 Watt (1 Min) - Ruhige Grundlagen-Leistung (GA1)."/>
+        </SteadyState>
+        <SteadyState Duration="60" Power="0.763" Cadence="90">
+            <textevent timeoffset="5" message="Stufe 3: 180 Watt (1 Min) - Oberes GA1, Atmung bleibt entspannt."/>
+        </SteadyState>
+        <SteadyState Duration="60" Power="0.847" Cadence="90">
+            <textevent timeoffset="5" message="Stufe 4: 200 Watt (1 Min) - Tempo-Bereich (Z3), Schultern locker lassen."/>
+        </SteadyState>
+        <SteadyState Duration="60" Power="0.932" Cadence="90">
+            <textevent timeoffset="5" message="Stufe 5: 220 Watt (1 Min) - Sweet-Spot-Bereich kurz unter deiner Schwelle."/>
+        </SteadyState>
+        <SteadyState Duration="60" Power="1.017" Cadence="92">
+            <textevent timeoffset="5" message="Stufe 6: 240 Watt (1 Min) - Deine aktuelle FTP-Schwelle (236 W). Ab jetzt beginnt die echte Arbeit!"/>
+        </SteadyState>
+        <SteadyState Duration="60" Power="1.102" Cadence="92">
+            <textevent timeoffset="5" message="Stufe 7: 260 Watt (1 Min) - VO2max-Bereich! Kadenz hochhalten (~90-95 rpm)."/>
+        </SteadyState>
+        <SteadyState Duration="60" Power="1.186" Cadence="92">
+            <textevent timeoffset="5" message="Stufe 8: 280 Watt (1 Min) - Stark! Durchfahren entspricht ~210 W FTP. Tief &amp; kraftvoll atmen!"/>
+        </SteadyState>
+        <SteadyState Duration="60" Power="1.271" Cadence="92">
+            <textevent timeoffset="5" message="Stufe 9: 300 Watt (1 Min) - Klasse! Durchfahren entspricht ~225 W FTP. Puls naehert sich HFmax!"/>
+        </SteadyState>
+        <SteadyState Duration="60" Power="1.356" Cadence="92">
+            <textevent timeoffset="5" message="Stufe 10: 320 Watt (1 Min) - Zielbereich! 45s hier = 236 W FTP, voll durchfahren = 240 W FTP!"/>
+        </SteadyState>
+        <SteadyState Duration="60" Power="1.441" Cadence="92">
+            <textevent timeoffset="5" message="Stufe 11: 340 Watt (1 Min) - Neue Bestmarke! Durchfahren = 255 W FTP! Gib alles fuer deine HFmax!"/>
+        </SteadyState>
+        <SteadyState Duration="60" Power="1.525" Cadence="92">
+            <textevent timeoffset="5" message="Stufe 12: 360 Watt (1 Min) - Überragend! Durchfahren = 270 W FTP! Kämpfen bis zum Anschlag!"/>
+        </SteadyState>
+        <SteadyState Duration="60" Power="1.610" Cadence="92">
+            <textevent timeoffset="5" message="Stufe 13: 380 Watt (1 Min) - Weltklasse! Durchfahren = 285 W FTP! Alles rausholen!"/>
+        </SteadyState>
+        <SteadyState Duration="60" Power="1.695" Cadence="92">
+            <textevent timeoffset="5" message="Stufe 14: 400 Watt (1 Min) - Finale Maximalstufe (300 W FTP)! Bis zur totalen Erschoepfung!"/>
+        </SteadyState>
+        <Cooldown Duration="600" PowerLow="0.50" PowerHigh="0.40" Cadence="80">
+            <textevent timeoffset="5" message="Geschafft! 10 Min lockeres Ausfahren (118 W -> 95 W). Nicht sofort aufhoeren zu treten!"/>
+            <textevent timeoffset="60" message="Dein hoechster Puls eben = deine neue HFmax! 0,75 x deine letzte volle/anteilige Minuten-Wattzahl = FTP."/>
+        </Cooldown>
+    </workout>
+</workout_file>
