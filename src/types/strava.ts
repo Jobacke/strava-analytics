@@ -64,8 +64,11 @@ export interface HeartRateZoneDistribution {
   z4: number;
   z5: number;
   totalTimeSec: number;
-  polarizedScore: number; // percentage of (Z1+Z2) vs (Z4+Z5)
+  polarizedScore: number; // percentage of (Z1+Z2)
   junkZonePercentage: number; // Z3 percentage (gray zone)
+  analysisDays?: number;
+  activitiesWithHrCount?: number;
+  totalActivitiesCount?: number;
 }
 
 export interface CoachInsight {

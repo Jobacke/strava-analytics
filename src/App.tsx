@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   StravaActivity,
   UserAthleteSettings,
@@ -25,6 +25,7 @@ import {
   getStoredStravaConfig,
   getStoredActivities,
   saveStoredActivities,
+  getLastSyncTimestamp,
   exchangeOAuthCode,
   fetchStravaActivities,
   startDirectStravaOAuth,
@@ -100,13 +101,16 @@ export function App() {
   );
 
   const [sportFilter, setSportFilter] = useState<string>('Ride');
+  const [analysisDays, setAnalysisDays] = useState<number>(30);
   const [selectedActivity, setSelectedActivity] = useState<StravaActivity | null>(null);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState<boolean>(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
   const [isClaudeModalOpen, setIsClaudeModalOpen] = useState<boolean>(false);
   const [claudeModalMode, setClaudeModalMode] = useState<ClaudeCoachMode>('analysis');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [lastSyncAt, setLastSyncAt] = useState<number | null>(() => getLastSyncTimestamp());
   const [oauthStatus, setOauthStatus] = useState<string | null>(null);
+  const syncInFlightRef = useRef<boolean>(false);
 
   const handleProfileChange = (nextProfile: AthleteProfileId) => {
     setActiveProfile(nextProfile);
@@ -124,7 +128,74 @@ export function App() {
     return baseActivities.filter(a => a.type === sportFilter);
   }, [baseActivities, sportFilter]);
 
-  // Handle OAuth code in URL on mount
+  const handleAddVeronikaActivities = useCallback((newItems: StravaActivity[]) => {
+    const currentVeronika = getVeronikaActivities();
+    const tagged = newItems.map((item) => ({
+      ...item,
+      id: String(item.id).startsWith('veronika_')
+        ? item.id
+        : `veronika_vault_${item.id}`,
+    }));
+    const merged = [...tagged, ...currentVeronika].sort(
+      (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+    );
+    saveVeronikaActivities(merged);
+    setVeronikaActivities(getVeronikaActivities());
+  }, []);
+
+  // Synchronize latest activities from Strava API (supports both manual and automatic startup/foreground sync)
+  const handleSyncStrava = useCallback(
+    async (isAutoSync: boolean = false) => {
+      const cfg = stravaConfig || getStoredStravaConfig();
+      if (!cfg || syncInFlightRef.current) return;
+      try {
+        syncInFlightRef.current = true;
+        setIsSyncing(true);
+        if (!isAutoSync) {
+          setOauthStatus('Synchronisiere neueste Aktivitäten von Strava...');
+        }
+        const activities = await fetchStravaActivities(1000);
+
+        // Automatische Erkennung: Falls eine Zwift-Fahrt mit "VB_Tag" oder "Veronika" im Namen dabei ist,
+        // wird sie dauerhaft in Veronikas eigenem Tresor gesichert
+        const autoVeronikaRides = activities.filter((a) => {
+          const n = (a.name || '').toLowerCase();
+          return n.includes('vb_tag') || n.includes('veronika');
+        });
+        if (autoVeronikaRides.length > 0) {
+          handleAddVeronikaActivities(autoVeronikaRides);
+        }
+
+        const consent = getGdprConsent();
+        const retained = enforceDataRetentionPolicy(activities, consent?.retentionDays ?? 365);
+        setUserActivities(retained);
+        if (retained) {
+          saveStoredActivities(retained);
+        }
+        setLastSyncAt(Date.now());
+
+        if (!isAutoSync) {
+          setOauthStatus(
+            autoVeronikaRides.length > 0
+              ? `Sync abgeschlossen: ${activities.length} Aktivitäten geladen (${autoVeronikaRides.length} Fahrt(en) von Veronika gesichert).`
+              : `Sync abgeschlossen: ${activities.length} Aktivitäten aktualisiert.`
+          );
+          setTimeout(() => setOauthStatus(null), 4000);
+        }
+      } catch (err: any) {
+        if (!isAutoSync) {
+          alert(`Synchronisationsfehler: ${err.message}`);
+        }
+        setOauthStatus(null);
+      } finally {
+        syncInFlightRef.current = false;
+        setIsSyncing(false);
+      }
+    },
+    [stravaConfig, handleAddVeronikaActivities]
+  );
+
+  // Handle OAuth code in URL on mount OR automatically sync when opening the app
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
@@ -140,7 +211,8 @@ export function App() {
           const activities = await fetchStravaActivities(1000);
           setUserActivities(activities);
           saveStoredActivities(activities);
-          setOauthStatus(`Erfolgreich! ${activities.length} Aktivitäten geladen.`);
+          setLastSyncAt(Date.now());
+          setOauthStatus(`${activities.length} Aktivitäten geladen.`);
           setTimeout(() => setOauthStatus(null), 4000);
           // Clean URL
           window.history.replaceState({}, document.title, window.location.pathname);
@@ -149,42 +221,34 @@ export function App() {
           setOauthStatus(`Fehler beim Verbinden: ${err.message}`);
           setTimeout(() => setOauthStatus(null), 5000);
         });
+    } else if (getStoredStravaConfig()) {
+      // Automatischer Sync beim Öffnen der App (Mac & iPhone)
+      handleSyncStrava(true);
     }
-  }, []);
+  }, [handleSyncStrava]);
 
-  // Synchronize latest activities from Strava API
-  const handleSyncStrava = async () => {
-    if (!stravaConfig) return;
-    try {
-      setIsSyncing(true);
-      setOauthStatus('Lade neueste Aktivitäten von Strava...');
-      const activities = await fetchStravaActivities(1000);
-
-      // Automatische Erkennung: Falls eine Zwift-Fahrt mit "VB_Tag" oder "Veronika" im Namen dabei ist,
-      // wird sie sofort dauerhaft in Veronikas eigenem Tresor gesichert!
-      const autoVeronikaRides = activities.filter((a) => {
-        const n = (a.name || '').toLowerCase();
-        return n.includes('vb_tag') || n.includes('veronika');
-      });
-      if (autoVeronikaRides.length > 0) {
-        handleAddVeronikaActivities(autoVeronikaRides);
+  // Automatischer Sync beim Zurückkehren in die App auf dem iPhone / Mac (visibilitychange / pageshow / focus)
+  useEffect(() => {
+    const checkAutoSyncOnResume = () => {
+      if (document.visibilityState && document.visibilityState !== 'visible') return;
+      if (!getStoredStravaConfig() || syncInFlightRef.current) return;
+      const last = getLastSyncTimestamp() || 0;
+      // Sync automatisch, wenn der letzte Sync länger als 2 Minuten zurückliegt
+      if (Date.now() - last > 2 * 60 * 1000) {
+        handleSyncStrava(true);
       }
+    };
 
-      setUserActivities(activities);
-      saveStoredActivities(activities);
-      setOauthStatus(
-        autoVeronikaRides.length > 0
-          ? `Sync abgeschlossen: ${autoVeronikaRides.length} Zwift-Fahrt(en) von Veronika automatisch in ihrem Tresor gesichert!`
-          : `Sync abgeschlossen: ${activities.length} Aktivitäten geladen!`
-      );
-      setTimeout(() => setOauthStatus(null), 4500);
-    } catch (err: any) {
-      alert(`Synchronisationsfehler: ${err.message}`);
-      setOauthStatus(null);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+    document.addEventListener('visibilitychange', checkAutoSyncOnResume);
+    window.addEventListener('focus', checkAutoSyncOnResume);
+    window.addEventListener('pageshow', checkAutoSyncOnResume);
+
+    return () => {
+      document.removeEventListener('visibilitychange', checkAutoSyncOnResume);
+      window.removeEventListener('focus', checkAutoSyncOnResume);
+      window.removeEventListener('pageshow', checkAutoSyncOnResume);
+    };
+  }, [handleSyncStrava]);
 
   // Save settings for the currently active profile
   const handleSaveSettings = (newSettings: UserAthleteSettings) => {
@@ -195,20 +259,6 @@ export function App() {
       setJohannesSettings(newSettings);
       localStorage.setItem('strava_pulse_settings', JSON.stringify(newSettings));
     }
-  };
-
-  const handleAddVeronikaActivities = (newItems: StravaActivity[]) => {
-    const tagged = newItems.map((item) => ({
-      ...item,
-      id: String(item.id).startsWith('veronika_')
-        ? item.id
-        : `veronika_vault_${item.id}`,
-    }));
-    const merged = [...tagged, ...veronikaActivities].sort(
-      (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
-    );
-    saveVeronikaActivities(merged);
-    setVeronikaActivities(getVeronikaActivities());
   };
 
   // Überträgt eine Fahrt (z.B. aus Zwift/Strava) dauerhaft in Veronikas Tresor und entfernt sie aus Johannes' Liste
@@ -224,7 +274,7 @@ export function App() {
       saveStoredActivities(remaining);
     }
     setOauthStatus(
-      `🌿 Einheit "${act.name}" wurde dauerhaft in Veronikas Profil gesichert! Du kannst sie jetzt bedenkenlos auf Strava löschen.`
+      `🌿 Einheit "${act.name}" wurde dauerhaft in Veronikas Profil gesichert.`
     );
     setTimeout(() => setOauthStatus(null), 6000);
   };
@@ -235,32 +285,33 @@ export function App() {
     saveVeronikaActivities(next);
   };
 
-  // Training load analytics calculations (90 days)
+  // Training load analytics calculations (120 days + 126d EWMA lead-in)
   const dailyLoads = useMemo(() => {
-    return calculateFitnessAndFatigue(filteredActivities, 90, settings);
-  }, [filteredActivities, settings]);
+    return calculateFitnessAndFatigue(filteredActivities, Math.max(120, analysisDays), settings);
+  }, [filteredActivities, settings, analysisDays]);
 
-  // Coach insights
+  // Sport-scientific findings & HR zone distribution for the selected `analysisDays` (30 / 60 / 90 / 120 days)
   const { insights, hrDistribution, stats } = useMemo(() => {
-    return analyzeTrainingCoach(filteredActivities, dailyLoads);
-  }, [filteredActivities, dailyLoads]);
+    return analyzeTrainingCoach(filteredActivities, dailyLoads, settings, analysisDays);
+  }, [filteredActivities, dailyLoads, settings, analysisDays]);
 
-  // 30 days summary
+  // Period summary for the selected `analysisDays` (30 / 60 / 90 / 120 days)
   const monthlyStats = useMemo(() => {
-    const thirtyDaysAgo = subDays(new Date(), 30);
-    const recent = filteredActivities.filter(a => isAfter(parseISO(a.start_date), thirtyDaysAgo));
+    const cutoffDate = subDays(new Date(), analysisDays);
+    const recent = filteredActivities.filter(a => isAfter(parseISO(a.start_date), cutoffDate));
 
-    const totalKm = recent.reduce((sum, a) => sum + a.distance / 1000, 0);
-    const totalHours = recent.reduce((sum, a) => sum + a.moving_time / 3600, 0);
-    const totalElevation = recent.reduce((sum, a) => sum + a.total_elevation_gain, 0);
+    const totalKm = recent.reduce((sum, a) => sum + (a.distance || 0) / 1000, 0);
+    const totalHours = recent.reduce((sum, a) => sum + (a.moving_time || 0) / 3600, 0);
+    const totalElevation = recent.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
 
     return {
       totalKm,
       totalHours,
       totalElevation,
       activitiesCount: recent.length,
+      daysRange: analysisDays,
     };
-  }, [filteredActivities]);
+  }, [filteredActivities, analysisDays]);
 
   const athleteName = privacyBlur
     ? 'Athlet'
@@ -284,8 +335,6 @@ export function App() {
       }, security2FA.autoLockMinutes * 60 * 1000);
     };
 
-    // Wenn "Jedes Mal beim Start fragen" (rememberDeviceDays === 0) aktiv ist:
-    // Sobald das Mac-Web-App-Fenster geschlossen oder ausgeblendet wird (Cmd+W / Cmd+H), Sitzung sperren!
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden' && (!security2FA.rememberDeviceDays || security2FA.rememberDeviceDays <= 0)) {
         hiddenTimeout = setTimeout(() => {
@@ -395,8 +444,9 @@ export function App() {
           setIs2FAUnlocked(false);
         }}
         stravaConfig={stravaConfig}
-        onSyncStrava={handleSyncStrava}
+        onSyncStrava={() => handleSyncStrava(false)}
         isSyncing={isSyncing}
+        lastSyncAt={lastSyncAt}
         sportFilter={sportFilter}
         onSportFilterChange={setSportFilter}
         activitiesCount={filteredActivities.length}
@@ -444,7 +494,7 @@ export function App() {
                 <>
                   <span>&bull;</span>
                   <span>
-                    Wohlfühl-Zone 2:{' '}
+                    Z2 (56–75% FTP):{' '}
                     <strong className="text-cyan-300">
                       {Math.round((settings.ftpWatts || 90) * 0.56)}–{Math.round((settings.ftpWatts || 90) * 0.75)} W
                     </strong>
@@ -531,7 +581,7 @@ export function App() {
           <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="text-emerald-200">
               🌿 <strong>Veronikas Wahoo KICKR CORE &amp; ELEMNT BOLT Cockpit (63 J. • 55 kg):</strong>{' '}
-              Lade Fahrten direkt vom Wahoo ELEMNT BOLT (.fit / .tcx oder Display-Werte) oder erstelle sofort eine Leistungsanalyse &amp; einen entspannten Wohlfühl-Trainingsplan inkl. <code>.zwo</code>-Workouts für Zwift.
+              Importiere Fahrten direkt vom Wahoo ELEMNT BOLT (.fit / .tcx oder Display-Messwerte) oder erstelle eine Leistungsanalyse sowie einen Grundlagen-Trainingsplan inkl. <code>.zwo</code>-Workouts für Zwift.
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -568,7 +618,7 @@ export function App() {
         <div className="bg-orange-500/10 border-b border-orange-500/20 px-4 py-2">
           <div className="max-w-7xl mx-auto flex items-center justify-between text-xs">
             <span className="text-orange-300">
-              🚴 <strong>Noch keine Trainingsdaten geladen:</strong> Verbinde dein Strava-Konto per 1-Klick, um deine echten Einheiten zu synchronisieren.
+              🚴 <strong>Noch keine Trainingsdaten geladen:</strong> Verbinde dein Strava-Konto per 1-Klick, um deine Einheiten automatisch zu synchronisieren.
             </span>
             <button
               onClick={() => startDirectStravaOAuth()}
@@ -589,9 +639,10 @@ export function App() {
           monthlyStats={monthlyStats}
         />
 
-        {/* Smart Training Coach Insights */}
+        {/* Sport-Scientific Findings Overview */}
         <CoachInsights
           insights={insights}
+          analysisDays={analysisDays}
           athleteSummary={defaultAnalysis.prompt}
           onOpenClaudeModal={(mode) => {
             setClaudeModalMode(mode);
@@ -599,17 +650,26 @@ export function App() {
           }}
         />
 
-        {/* Charts Grid: Fitness Curve & HR Polarized Distribution */}
+        {/* Charts Grid: EWMA Load Model & HR Zone Distribution (synchronized via analysisDays) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <FitnessFormChart dailyLoads={dailyLoads} />
+            <FitnessFormChart
+              dailyLoads={dailyLoads}
+              daysRange={analysisDays}
+              onDaysRangeChange={setAnalysisDays}
+            />
           </div>
           <div>
-            <HeartRateZonesChart distribution={hrDistribution} />
+            <HeartRateZonesChart
+              distribution={hrDistribution}
+              maxHeartRate={settings.maxHeartRate}
+              daysRange={analysisDays}
+              onDaysRangeChange={setAnalysisDays}
+            />
           </div>
         </div>
 
-        {/* Charts Grid: Volume Weekly Stack & Aerobic Efficiency Trend */}
+        {/* Charts Grid: Volume Weekly Stack & Power-to-HR Ratio */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <VolumeChart activities={filteredActivities} />
           <EfficiencyChart activities={filteredActivities} />
@@ -722,7 +782,7 @@ export function App() {
           <span className="text-amber-400 font-mono font-bold px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[11px]">
             {APP_VERSION}
           </span>
-          <span>&bull; Smarte Trainingsauswertung & Belastungssteuerung &bull; 100% Lokale Browser-Verarbeitung (DSGVO-konform)</span>
+          <span>&bull; Sportwissenschaftliche Radsport-Leistungsdiagnostik ([M]/[B]/[L]) &bull; 100% Lokale Browser-Verarbeitung (DSGVO-konform)</span>
           <span>&bull;</span>
           <button
             onClick={() => setIsPrivacyModalOpen(true)}

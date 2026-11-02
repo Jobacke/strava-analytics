@@ -1,10 +1,18 @@
-import { StravaActivity, DayTrainingLoad, CoachInsight, HeartRateZoneDistribution } from '../types/strava';
-import { estimateHrZonesForActivity } from './trainingMath';
+import {
+  StravaActivity,
+  DayTrainingLoad,
+  CoachInsight,
+  HeartRateZoneDistribution,
+  UserAthleteSettings,
+} from '../types/strava';
+import { estimateHrZonesForActivity, DEFAULT_SETTINGS, getHrZones } from './trainingMath';
 import { subDays, parseISO, isAfter } from 'date-fns';
 
 export function analyzeTrainingCoach(
   activities: StravaActivity[],
-  dailyLoads: DayTrainingLoad[]
+  dailyLoads: DayTrainingLoad[],
+  settings: UserAthleteSettings = DEFAULT_SETTINGS,
+  analysisDays: number = 30
 ): {
   insights: CoachInsight[];
   hrDistribution: HeartRateZoneDistribution;
@@ -23,11 +31,22 @@ export function analyzeTrainingCoach(
   const insights: CoachInsight[] = [];
   const now = new Date();
 
-  // If no data, return empty insights (no placeholder box)
   if (activities.length === 0 || dailyLoads.length === 0) {
     return {
       insights: [],
-      hrDistribution: { z1: 20, z2: 60, z3: 10, z4: 7, z5: 3, totalTimeSec: 0, polarizedScore: 80, junkZonePercentage: 10 },
+      hrDistribution: {
+        z1: 0,
+        z2: 0,
+        z3: 0,
+        z4: 0,
+        z5: 0,
+        totalTimeSec: 0,
+        polarizedScore: 0,
+        junkZonePercentage: 0,
+        analysisDays,
+        activitiesWithHrCount: 0,
+        totalActivitiesCount: 0,
+      },
       stats: {
         weeklyKm: 0,
         weeklyHours: 0,
@@ -37,19 +56,19 @@ export function analyzeTrainingCoach(
         currentFitnessCTL: 0,
         currentFatigueATL: 0,
         currentFormTSB: 0,
-        currentACWR: 1.0,
+        currentACWR: 0,
       },
     };
   }
 
-  // Current day load metrics
+  // Current day load metrics (Banister/Coggan impulse-response model)
   const latestLoad = dailyLoads[dailyLoads.length - 1];
-  const currentCTL = latestLoad ? latestLoad.ctl : 40;
-  const currentATL = latestLoad ? latestLoad.atl : 40;
+  const currentCTL = latestLoad ? latestLoad.ctl : 0;
+  const currentATL = latestLoad ? latestLoad.atl : 0;
   const currentTSB = latestLoad ? latestLoad.tsb : 0;
-  const currentACWR = latestLoad ? latestLoad.acwr : 1.0;
+  const currentACWR = latestLoad ? latestLoad.acwr : 0;
 
-  // 1. Calculate Weekly Volume & 10%-Rule Delta
+  // 1. Weekly Volume (7d vs. previous 7d) - strictly measured values, no speed estimation
   const last7DaysDate = subDays(now, 7);
   const prev7DaysDate = subDays(now, 14);
 
@@ -59,17 +78,13 @@ export function analyzeTrainingCoach(
     return isAfter(d, prev7DaysDate) && !isAfter(d, last7DaysDate);
   });
 
-  let weeklyKm = Math.round(last7DaysActivities.reduce((acc, a) => acc + a.distance / 1000, 0) * 10) / 10;
-  const weeklyHours = Math.round(last7DaysActivities.reduce((acc, a) => acc + a.moving_time / 3600, 0) * 10) / 10;
-  let prevWeeklyKm = Math.round(prev7DaysActivities.reduce((acc, a) => acc + a.distance / 1000, 0) * 10) / 10;
-
-  // If mostly indoor training without distance sensor, estimate km from hours (25 km/h)
-  if (weeklyKm <= 0 && weeklyHours > 0) {
-    weeklyKm = Math.round(weeklyHours * 25 * 10) / 10;
-  }
+  const weeklyKm = Math.round(last7DaysActivities.reduce((acc, a) => acc + (a.distance || 0) / 1000, 0) * 10) / 10;
+  const weeklyHours = Math.round(last7DaysActivities.reduce((acc, a) => acc + (a.moving_time || 0) / 3600, 0) * 10) / 10;
+  const prevWeeklyKm = Math.round(prev7DaysActivities.reduce((acc, a) => acc + (a.distance || 0) / 1000, 0) * 10) / 10;
+  const prevWeeklyHours = Math.round(prev7DaysActivities.reduce((acc, a) => acc + (a.moving_time || 0) / 3600, 0) * 10) / 10;
 
   let kmDeltaPercent = 0;
-  if (prevWeeklyKm > 5) {
+  if (prevWeeklyKm > 0) {
     kmDeltaPercent = Math.round(((weeklyKm - prevWeeklyKm) / prevWeeklyKm) * 100);
   }
 
@@ -77,46 +92,58 @@ export function analyzeTrainingCoach(
   const last14Loads = dailyLoads.slice(-14);
   const restDaysLast14 = last14Loads.filter(d => d.activitiesCount === 0).length;
 
-  // 3. Heart Rate Distribution across last 30 days
-  const last30DaysActivities = activities.filter(a => isAfter(parseISO(a.start_date), subDays(now, 30)));
+  // 3. Heart Rate Distribution across the selected `analysisDays` timeframe (30 / 60 / 90 / 120 days)
+  const periodCutoff = subDays(now, analysisDays);
+  const periodActivities = activities.filter(a => isAfter(parseISO(a.start_date), periodCutoff));
+  const activitiesWithHr = periodActivities.filter(
+    a => (a.average_heartrate && a.average_heartrate > 0) || Boolean(a.hrZones)
+  );
+
   let totalZ1 = 0, totalZ2 = 0, totalZ3 = 0, totalZ4 = 0, totalZ5 = 0;
   let totalTime = 0;
 
-  last30DaysActivities.forEach(a => {
-    const zones = estimateHrZonesForActivity(a);
+  activitiesWithHr.forEach(a => {
+    const zones = estimateHrZonesForActivity(a, settings);
+    const actZoneTime = zones.z1 + zones.z2 + zones.z3 + zones.z4 + zones.z5;
     totalZ1 += zones.z1;
     totalZ2 += zones.z2;
     totalZ3 += zones.z3;
     totalZ4 += zones.z4;
     totalZ5 += zones.z5;
-    totalTime += a.moving_time;
+    totalTime += actZoneTime;
   });
 
-  const safeTotal = totalTime > 0 ? totalTime : 1;
+  const hasHrData = totalTime > 0;
+  const safeTotal = hasHrData ? totalTime : 1;
   const hrDistribution: HeartRateZoneDistribution = {
-    z1: Math.round((totalZ1 / safeTotal) * 100),
-    z2: Math.round((totalZ2 / safeTotal) * 100),
-    z3: Math.round((totalZ3 / safeTotal) * 100),
-    z4: Math.round((totalZ4 / safeTotal) * 100),
-    z5: Math.round((totalZ5 / safeTotal) * 100),
+    z1: hasHrData ? Math.round((totalZ1 / safeTotal) * 100) : 0,
+    z2: hasHrData ? Math.round((totalZ2 / safeTotal) * 100) : 0,
+    z3: hasHrData ? Math.round((totalZ3 / safeTotal) * 100) : 0,
+    z4: hasHrData ? Math.round((totalZ4 / safeTotal) * 100) : 0,
+    z5: hasHrData ? Math.round((totalZ5 / safeTotal) * 100) : 0,
     totalTimeSec: totalTime,
-    polarizedScore: Math.round(((totalZ1 + totalZ2) / safeTotal) * 100),
-    junkZonePercentage: Math.round((totalZ3 / safeTotal) * 100),
+    polarizedScore: hasHrData ? Math.round(((totalZ1 + totalZ2) / safeTotal) * 100) : 0,
+    junkZonePercentage: hasHrData ? Math.round((totalZ3 / safeTotal) * 100) : 0,
+    analysisDays,
+    activitiesWithHrCount: activitiesWithHr.length,
+    totalActivitiesCount: periodActivities.length,
   };
 
-  // --- COACHING ALGORITHMS ---
+  const hrLimits = getHrZones(settings.maxHeartRate);
 
-  // A. ACWR / Injury Risk Engine
+  // --- SPORT-SCIENTIFIC DIAGNOSTIC FINDINGS ([M] / [B] / [L]) ---
+
+  // A. ACWR (ATL / CTL Quotient)
   if (currentACWR > 1.45) {
     insights.push({
       id: 'acwr-high',
       type: 'danger',
       category: 'recovery',
       priority: 1,
-      metricValue: `${currentACWR.toFixed(2)}`,
-      title: 'Achtung: Akute Überlastungsgefahr (ACWR > 1.45)',
-      description: `Deine akute Belastung (letzte 7 Tage) übersteigt deine 4-Wochen-Grundlage drastisch (ACWR: ${currentACWR.toFixed(2)}). Die sportmedizinische Evidenz zeigt hier ein signifikant erhöhtes Verletzungsrisiko für Sehnen und Muskulatur.`,
-      recommendation: 'Plane für die nächsten 2-3 Tage aktive Regeneration (z.B. lockeres Spazieren, Yoga, Dehnen) oder reine Ruhetage ein. Verzichte auf Tempoeinheiten.',
+      metricValue: `ACWR ${currentACWR.toFixed(2)}`,
+      title: 'Belastungsquotient ACWR > 1.45 (7d ATL / 42d CTL)',
+      description: `[B] Der Quotient aus akuter 7-Tage-Belastung (ATL: ${currentATL.toFixed(1)}) und chronischer 42-Tage-Belastung (CTL: ${currentCTL.toFixed(1)}) beträgt ${currentACWR.toFixed(2)}. [L] In Kohortenstudien (Gabbett, 2016) liegt dieser Wert oberhalb des Referenzkorridors (0.80–1.30).`,
+      recommendation: '[L] Methodischer Hinweis: Da ACWR hier als Quotient ATL/CTL berechnet wird, besteht eine mathematische Kopplung beider Größen (Lolli et al., 2019; Impellizzeri et al., 2020). Zur Belastungssteuerung wird eine Reduktion von Umfang oder Intensität der Radeinheiten diskutiert.',
     });
   } else if (currentACWR > 1.25) {
     insights.push({
@@ -124,21 +151,21 @@ export function analyzeTrainingCoach(
       type: 'warning',
       category: 'volume',
       priority: 2,
-      metricValue: `${currentACWR.toFixed(2)}`,
-      title: 'Erhöhte Trainingsintensivierung (ACWR 1.25 - 1.45)',
-      description: `Du befindest dich am oberen Rand des optimalen Belastungsbereichs (ACWR: ${currentACWR.toFixed(2)}). Ein guter Trainingsreiz, erfordert aber disziplinierte Regeneration.`,
-      recommendation: 'Achte auf ausreichend Schlaf (8h+), eiweißreiche Ernährung und halte lockere Einheiten wirklich langsam.',
+      metricValue: `ACWR ${currentACWR.toFixed(2)}`,
+      title: 'Erhöhter Belastungsquotient (ACWR 1.26–1.45)',
+      description: `[B] Die akute 7-Tage-Last (ATL: ${currentATL.toFixed(1)}) übersteigt die 42-Tage-Basis (CTL: ${currentCTL.toFixed(1)}) um den Faktor ${currentACWR.toFixed(2)} (Differenz TSB = ${currentTSB.toFixed(1)}).`,
+      recommendation: '[L] Einordnung (Banister et al., 1975; Gabbett, 2016): Der Quotient liegt im oberen Grenzbereich gängiger Trainingssteuerungsmodelle. Weitere Umfangs- oder Intensitätssteigerungen erhöhen die negative Bilanz (TSB).',
     });
   } else if (currentACWR >= 0.85 && currentACWR <= 1.25) {
     insights.push({
       id: 'acwr-sweetspot',
-      type: 'success',
+      type: 'info',
       category: 'form',
       priority: 3,
-      metricValue: `${currentACWR.toFixed(2)}`,
-      title: 'Optimaler Trainingsreiz ("Sweet Spot")',
-      description: `Dein Verhältnis von akuter Ermüdung zu chronischer Fitness liegt im Idealbereich (ACWR: ${currentACWR.toFixed(2)}). Du baust nachhaltig Form auf, ohne dich zu überlasten.`,
-      recommendation: 'Weiter so! Behalte diesen strukturierten Rhythmus aus Belastung und Erholung bei.',
+      metricValue: `ACWR ${currentACWR.toFixed(2)}`,
+      title: 'Belastungsquotient im mittleren Modellkorridor (ACWR 0.85–1.25)',
+      description: `[B] Das Verhältnis von akuter 7-Tage-Belastung (ATL: ${currentATL.toFixed(1)}) zu chronischer 42-Tage-Belastung (CTL: ${currentCTL.toFixed(1)}) liegt bei ${currentACWR.toFixed(2)}.`,
+      recommendation: '[L] Einordnung: Der Quotient entspricht dem in der Trainingsliteratur definierten mittleren Belastungskorridor (0.80–1.30; Gabbett, 2016), wobei ATL und CTL mathematisch gekoppelt sind (Impellizzeri et al., 2020).',
     });
   } else {
     insights.push({
@@ -146,92 +173,94 @@ export function analyzeTrainingCoach(
       type: 'info',
       category: 'form',
       priority: 4,
-      metricValue: `${currentACWR.toFixed(2)}`,
-      title: 'Regenerationsphase / Entlastungswoche',
-      description: `Deine akute Belastung liegt unter deinem Durchschnitt (ACWR: ${currentACWR.toFixed(2)}). Perfekt zum Superkompensieren vor einem Wettkampf oder nach harten Blöcken.`,
-      recommendation: 'Nutze die Frische für gezielte Schnelligkeitsreize oder starte ausgeruht in den nächsten Trainingsblock.',
+      metricValue: `ACWR ${currentACWR.toFixed(2)}`,
+      title: 'Reduzierte akute Trainingslast (ACWR < 0.85)',
+      description: `[B] Die akute 7-Tage-Belastung (ATL: ${currentATL.toFixed(1)}) liegt unterhalb von 85% der chronischen 42-Tage-Belastung (CTL: ${currentCTL.toFixed(1)}; Quotient: ${currentACWR.toFixed(2)}).`,
+      recommendation: '[L] Einordnung (Impulse-Response-Modell nach Banister et al., 1975): Bei geringerer akuter Trainingslast sinkt die Modellgröße ATL schneller als CTL, wodurch die Differenz TSB (= CTL − ATL) ansteigt.',
     });
   }
 
-  // B. 80/20 Polarized & "Grauzonen-Falle" (Zone 3 Analysis)
-  if (hrDistribution.junkZonePercentage > 25) {
-    insights.push({
-      id: 'hr-grayzone',
-      type: 'warning',
-      category: 'intensity',
-      priority: 1,
-      metricValue: `${hrDistribution.junkZonePercentage}% Z3`,
-      title: 'Grauzonen-Falle erkannt (Zu viel Zone 3)',
-      description: `${hrDistribution.junkZonePercentage}% deiner Trainingszeit lag in Zone 3. Zu intensiv für optimale Grundlagen-Regeneration, aber zu unterschwellig für maximale VO2max-Reize.`,
-      recommendation: 'Fahre Grundlagenfahrten konsequent in Zone 1–2 und spare deine Körner für gezielte Intervalle (Zone 4–5) auf Zwift oder der Straße.',
-    });
-  } else if (hrDistribution.polarizedScore >= 75) {
-    insights.push({
-      id: 'hr-polarized-good',
-      type: 'success',
-      category: 'intensity',
-      priority: 3,
-      metricValue: `${hrDistribution.polarizedScore}% Z1/Z2`,
-      title: 'Starkes polarisiertes Grundlagentraining',
-      description: `${hrDistribution.polarizedScore}% deiner Radzeit liegt sauber in der aeroben Basis (Z1/Z2). Das ökonomisiert den Fettstoffwechsel und schont das zentrale Nervensystem.`,
-      recommendation: 'Perfekte Basis für gezielte Schwellen- oder VO2max-Workouts auf dem Wahoo Kickr Core.',
-    });
+  // B. Intensity Distribution & Zone 3 Share (for selected `analysisDays`)
+  if (hasHrData) {
+    const highIntensityPct = hrDistribution.z4 + hrDistribution.z5;
+    if (hrDistribution.junkZonePercentage > 25) {
+      insights.push({
+        id: 'hr-grayzone',
+        type: 'warning',
+        category: 'intensity',
+        priority: 1,
+        metricValue: `${hrDistribution.junkZonePercentage}% Z3 (${analysisDays}d)`,
+        title: `Hoher Zeitanteil in Zone 3 (${hrDistribution.junkZonePercentage}% im ${analysisDays}-Tage-Zeitraum)`,
+        description: `[B] Im gewählten Analysezeitraum (${analysisDays} Tage, n = ${activitiesWithHr.length} Radeinheiten mit HF-Messung) entfallen ${hrDistribution.junkZonePercentage}% der Bewegungszeit auf Zone 3 (${hrLimits.z3.min}–${hrLimits.z3.max} bpm; 70–80% HFmax), ${hrDistribution.polarizedScore}% auf Zone 1–2 (<${hrLimits.z3.min} bpm) und ${highIntensityPct}% auf Zone 4–5 (≥${hrLimits.z4.min} bpm).`,
+        recommendation: `[L] Einordnung (Seiler & Kjerland, 2006; Stöggl & Sperlich, 2014): In polarisierten Ausdauermodellen wird ein geringer Anteil im mittleren Intensitätsbereich angestrebt. Methodischer Hinweis: Die Berechnung erfolgt im 5-Zonen-%HFmax-Modell anhand der Ø-Herzfrequenz je Radeinheit (sofern keine 1-s-Streamdaten vorliegen), nicht anhand spiroergometrischer Schwellen (VT1/VT2).`,
+      });
+    } else {
+      insights.push({
+        id: 'hr-distribution-finding',
+        type: 'info',
+        category: 'intensity',
+        priority: 3,
+        metricValue: `${hrDistribution.polarizedScore}% Z1/Z2 (${analysisDays}d)`,
+        title: `Herzfrequenz-Zonenverteilung (${analysisDays} Tage): ${hrDistribution.polarizedScore}% Z1–Z2 / ${hrDistribution.junkZonePercentage}% Z3`,
+        description: `[B] Im Analysezeitraum (${analysisDays} Tage, n = ${activitiesWithHr.length} Radeinheiten mit HF-Messung) liegen ${hrDistribution.polarizedScore}% der Trainingszeit in Zone 1–2 (<${hrLimits.z3.min} bpm), ${hrDistribution.junkZonePercentage}% in Zone 3 (${hrLimits.z3.min}–${hrLimits.z3.max} bpm) und ${highIntensityPct}% in Zone 4–5 (≥${hrLimits.z4.min} bpm).`,
+        recommendation: `[L] Methodischer Hinweis: Das 80/20-Referenzmodell nach Seiler & Kjerland (2006) basiert auf einem 3-Zonen-Modell an ventilatorischen Schwellen (VT1/VT2). Die hier ausgewiesene Verteilung bildet ein rechnerisches 5-Zonen-Modell nach %HFmax (Basis: ${settings.maxHeartRate} bpm) ab.`,
+      });
+    }
   }
 
-  // C. Form (TSB - Training Stress Balance)
+  // C. Training Stress Balance (TSB = CTL - ATL)
   if (currentTSB < -25) {
     insights.push({
       id: 'tsb-fatigue',
       type: 'danger',
       category: 'recovery',
       priority: 2,
-      metricValue: `TSB ${currentTSB}`,
-      title: 'Hohe kumulierte Ermüdung (TSB < -25)',
-      description: `Deine Form-Balance liegt bei ${currentTSB}. Dein Körper ist stark erschöpft. Wettkämpfe oder harte Maximalbelastungen sind derzeit nicht ratsam.`,
-      recommendation: 'Reduziere das Volumen in den nächsten 3-5 Tagen um 40%, um die Superkompensation greifen zu lassen.',
+      metricValue: `TSB ${currentTSB.toFixed(1)}`,
+      title: 'Stark negative Trainingsbilanz (TSB < −25)',
+      description: `[B] Die Differenz aus chronischer (CTL: ${currentCTL.toFixed(1)}) und akuter Belastung (ATL: ${currentATL.toFixed(1)}) beträgt ${currentTSB.toFixed(1)}.`,
+      recommendation: '[L] Einordnung (Performance Management Chart nach Coggan): Ein TSB-Wert unter −25 kennzeichnet in dieser Praxisheuristik eine stark überproportionale Kurzzeitbelastung relativ zum 42-Tage-Mittel.',
     });
-  } else if (currentTSB >= 8 && currentTSB <= 25 && currentCTL > 30) {
+  } else if (currentTSB >= 5 && currentTSB <= 25 && currentCTL > 20) {
     insights.push({
-      id: 'tsb-peak',
-      type: 'success',
+      id: 'tsb-positive',
+      type: 'info',
       category: 'form',
-      priority: 1,
-      metricValue: `TSB +${currentTSB}`,
-      title: 'Peak-Form! Optimales Wettkampffenster',
-      description: `Deine Frische ist hervorragend (TSB +${currentTSB}) bei hoher Grundfitness (CTL ${currentCTL.toFixed(0)}). Dies ist das ideale physiologische Fenster für Bestzeiten (5k, 10k, HM, Radrennen).`,
-      recommendation: 'Perfekter Zeitpunkt für einen Testlauf, Wettkampf oder einen persönlichen Streckenrekord!',
+      priority: 2,
+      metricValue: `TSB +${currentTSB.toFixed(1)}`,
+      title: 'Positive Trainingsbilanz (TSB +5 bis +25)',
+      description: `[B] Die Modellbilanz TSB (= CTL − ATL) liegt bei +${currentTSB.toFixed(1)} (CTL: ${currentCTL.toFixed(1)}, ATL: ${currentATL.toFixed(1)}).`,
+      recommendation: '[L] Einordnung (Coggan PMC-Heuristik): Ein positiver TSB-Wert entsteht rechnerisch, wenn die 7-Tage-Belastung (ATL) unter der 42-Tage-Belastung (CTL) liegt.',
     });
   }
 
-  // D. 10% Volume Progression Rule
+  // D. Weekly Volume Delta (7d vs. previous 7d)
   if (kmDeltaPercent > 25 && weeklyKm > 20) {
     insights.push({
       id: 'vol-progression',
       type: 'warning',
       category: 'volume',
       priority: 2,
-      metricValue: `+${kmDeltaPercent}%`,
-      title: 'Steiler Kilometersprung (+10%-Regel beachten)',
-      description: `Du hast dein Wochenvolumen im Vergleich zur Vorwoche um ${kmDeltaPercent}% gesteigert (${weeklyKm} km vs. ${prevWeeklyKm} km).`,
-      recommendation: 'Ausdauermuskeln adaptieren schnell, Sehnen und Bänder jedoch langsam. Steigere dein Volumen künftig um maximal 10-15% pro Woche.',
+      metricValue: `+${kmDeltaPercent}% (7d)`,
+      title: 'Wochenumfang-Differenz > +25% (7 Tage vs. Vorwoche)',
+      description: `[M/B] Das erfasste Radvolumen der letzten 7 Tage beträgt ${weeklyKm} km (${weeklyHours} h) gegenüber ${prevWeeklyKm} km (${prevWeeklyHours} h) in den vorangegangenen 7 Tagen (Relativdifferenz: +${kmDeltaPercent}%).`,
+      recommendation: '[L] Methodischer Hinweis: Bei Indoor-Einheiten auf dem Smart-Trainer hängt die aufgezeichnete Distanz von der virtuellen Streckensimulation ab; als primäre Umfangskennzahl im Radsport ist daher die Bewegungsdauer (Stunden) heranzuziehen.',
     });
   }
 
-  // E. Rest Day Frequency
+  // E. Rest Day Count in last 14 days
   if (restDaysLast14 < 2) {
     insights.push({
       id: 'rest-few',
       type: 'warning',
       category: 'recovery',
       priority: 2,
-      metricValue: `${restDaysLast14} Ruhetage`,
-      title: 'Zu wenige Ruhetage in den letzten 2 Wochen',
-      description: `Nur ${restDaysLast14} trainingsfreie Tage in den letzten 14 Tagen. Der Muskelaufbau und die Glykogenspeicher-Regeneration finden in der Ruhephase statt.`,
-      recommendation: 'Baue mindestens 1-2 feste Ruhetage pro Woche in deinen Trainingskalender ein.',
+      metricValue: `${restDaysLast14} Ruhetage (14d)`,
+      title: `Geringe Anzahl trainingsfreier Tage (${restDaysLast14} in 14 Tagen)`,
+      description: `[M/B] Im 14-Tage-Zeitraum wurden an ${14 - restDaysLast14} von 14 Tagen Einheiten protokolliert (${restDaysLast14} Tage ohne dokumentierte Einheit).`,
+      recommendation: '[L] Einordnung: Die tatsächliche Gesamtbelastung hängt von Dauer und Intensität (TSS/TRIMP) der einzelnen Radeinheiten ab.',
     });
   }
 
-  // Sort insights by priority (1 is highest)
   insights.sort((a, b) => a.priority - b.priority);
 
   return {

@@ -3,6 +3,7 @@ import { Activity, Sliders, Upload, RefreshCw, ShieldCheck, Shield, EyeOff, Eye,
 import { StravaConfig } from '../services/stravaApi';
 import { AthleteProfileId } from '../utils/trainingMath';
 import { APP_VERSION } from '../version';
+import { format } from 'date-fns';
 
 interface NavbarProps {
   activeProfile: AthleteProfileId;
@@ -15,6 +16,7 @@ interface NavbarProps {
   stravaConfig: StravaConfig | null;
   onSyncStrava?: () => void;
   isSyncing?: boolean;
+  lastSyncAt?: number | null;
   sportFilter: string;
   onSportFilterChange: (sport: string) => void;
   activitiesCount: number;
@@ -34,12 +36,17 @@ export const Navbar: React.FC<NavbarProps> = ({
   stravaConfig,
   onSyncStrava,
   isSyncing,
+  lastSyncAt,
   sportFilter,
   onSportFilterChange,
   privacyBlur,
   onTogglePrivacyBlur,
   is2FAEnabled,
 }) => {
+  const formattedLastSync = lastSyncAt
+    ? format(new Date(lastSyncAt), 'dd.MM. HH:mm')
+    : null;
+
   return (
     <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -54,12 +61,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-orange-400 via-amber-300 to-white bg-clip-text text-transparent">
                   ANALYTICS
                 </span>
-                <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded-md bg-slate-800 text-amber-400 border border-amber-500/30 shadow-sm" title="App Version">
+                <span
+                  className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded-md bg-slate-800 text-amber-400 border border-amber-500/30 shadow-sm"
+                  title="App Version"
+                >
                   {APP_VERSION}
                 </span>
               </div>
               <p className="text-xs text-slate-400 hidden sm:block">
-                Smarte Trainingssteuerung & Leistungsdiagnostik
+                Sportwissenschaftliche Radsport-Leistungsdiagnostik
               </p>
             </div>
 
@@ -95,32 +105,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Center Filters */}
           {activeProfile === 'veronika' ? (
             <div className="hidden md:flex items-center gap-2 bg-slate-950 px-3.5 py-1.5 rounded-xl border border-emerald-500/30 text-xs font-semibold text-emerald-300">
-              <span>🚴‍♀️ 100 % Radtraining</span>
+              <span>🚴‍♀️ 100 % Radsport</span>
               <span className="text-slate-600">&bull;</span>
               <span className="text-cyan-300">Wahoo KICKR CORE &amp; ELEMNT BOLT + Zwift (.zwo)</span>
             </div>
           ) : (
             <div className="hidden md:flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800/80">
-              <button
-                onClick={() => onSportFilterChange('ALL')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  sportFilter === 'ALL'
-                    ? 'bg-orange-500 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Alle Sportarten
-              </button>
-              <button
-                onClick={() => onSportFilterChange('Run')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  sportFilter === 'Run'
-                    ? 'bg-orange-500 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                🏃 Laufen
-              </button>
               <button
                 onClick={() => onSportFilterChange('Ride')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
@@ -129,7 +119,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                🚴 Radfahren
+                🚴 Radsport (Rennrad &amp; Smart-Trainer)
+              </button>
+              <button
+                onClick={() => onSportFilterChange('ALL')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  sportFilter === 'ALL'
+                    ? 'bg-orange-500 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Alle Einheiten
               </button>
             </div>
           )}
@@ -153,10 +153,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onClick={onSyncStrava}
                     disabled={isSyncing}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition"
-                    title="Neueste Aktivitäten von Strava synchronisieren"
+                    title={
+                      formattedLastSync
+                        ? `Automatischer Sync beim Öffnen aktiv • Letzter Sync: ${formattedLastSync} Uhr`
+                        : 'Neueste Aktivitäten von Strava synchronisieren'
+                    }
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-orange-400' : ''}`} />
-                    <span className="hidden sm:inline">{isSyncing ? 'Synchronisiere...' : 'Sync'}</span>
+                    <RefreshCw
+                      className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-orange-400' : ''}`}
+                    />
+                    <span className="hidden sm:inline">
+                      {isSyncing
+                        ? 'Synchronisiere...'
+                        : formattedLastSync
+                        ? `Sync (${formattedLastSync})`
+                        : 'Sync'}
+                    </span>
                   </button>
                 )}
 

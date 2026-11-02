@@ -1,9 +1,9 @@
 import React from 'react';
 import { StravaActivity, UserAthleteSettings } from '../types/strava';
-import { formatPace, formatDuration, estimateHrZonesForActivity, getHrZones } from '../utils/trainingMath';
+import { formatPace, formatDuration, getHrZones, isCyclingActivity } from '../utils/trainingMath';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { X, Heart, Mountain, Zap, Flame, Compass, Activity as ActivityIcon, CheckCircle2 } from 'lucide-react';
+import { X, Heart, Mountain, Zap, Flame, Compass, Info } from 'lucide-react';
 
 interface ActivityDetailModalProps {
   activity: StravaActivity | null;
@@ -23,57 +23,47 @@ export const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
   if (!activity) return null;
 
   const dateStr = format(parseISO(activity.start_date), 'EEEE, d. MMMM yyyy, HH:mm', { locale: de });
-  const pace = formatPace(activity.average_speed, activity.type);
+  const pace = formatPace(activity.average_speed, activity.type, activity.average_watts);
   const duration = formatDuration(activity.moving_time);
   const distKm = (activity.distance / 1000).toFixed(2);
+  const isCycle = isCyclingActivity(activity);
 
-  const zones = estimateHrZonesForActivity(activity, settings);
-  const hrLimits = getHrZones(settings.maxHeartRate);
+  const ftp = settings.ftpWatts || 236;
+  const maxHr = settings.maxHeartRate || 176;
+  const restHr = settings.restingHeartRate || 55;
+  const weightKg = settings.weightKg || 95;
+  const hrLimits = getHrZones(maxHr);
 
-  // Generate specific activity coaching feedback
-  const getCoachFeedback = () => {
-    const avgHr = activity.average_heartrate || 0;
-    if (avgHr > hrLimits.z4.min) {
-      return {
-        title: 'Hohe Schwellen- & Intervallbelastung',
-        desc: 'Diese Einheit forderte deine anaerobe Kapazität und Laktatverträglichkeit stark heraus.',
-        tip: 'Empfohlene Regeneration: Mindestens 36–48 Stunden bis zum nächsten intensiven Qualitätstraining. Morgen lockerer Z1-Lauf oder Ruhetag.',
-        badgeColor: 'text-red-400 bg-red-500/10 border-red-500/20',
-      };
-    } else if (avgHr <= hrLimits.z2.max && avgHr > 110) {
-      return {
-        title: 'Optimaler aerober Fettstoffwechselreiz (Zone 2)',
-        desc: 'Hervorragende Tempodisziplin! Dein Körper hat primär freie Fettsäuren verbrannt und die Dichte der Mitochondrien gesteigert.',
-        tip: 'Geringe neuromuskuläre Ermüdung. Du kannst morgen problemlos eine weitere Grundlageneinheit anschließen.',
-        badgeColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-      };
-    } else if (avgHr > hrLimits.z2.max && avgHr <= hrLimits.z3.max) {
-      return {
-        title: 'Mittlerer Tempobereich (Zone 3)',
-        desc: 'Diese Einheit lag in der aeroben Übergangszone. Verbraucht vermehrt Kohlenhydrate ohne den maximalen VO2max-Reiz zu setzen.',
-        tip: 'Falls dies als lockerer Dauerlauf geplant war, solltest du das Tempo nächstes Mal um 20-30s/km drosseln.',
-        badgeColor: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
-      };
-    }
-    return {
-      title: 'Ausgeglichenes Training',
-      desc: 'Solides Workout mit gutem Reiz für das Herz-Kreislauf-System.',
-      tip: 'Trinke ausreichend Wasser und achte auf Kohlenhydrat- und Proteinzufuhr im Nachgang.',
-      badgeColor: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
-    };
+  const avgWatts = activity.average_watts ? Math.round(activity.average_watts) : null;
+  const npWatts = activity.weighted_average_watts ? Math.round(activity.weighted_average_watts) : null;
+  const avgHr = activity.average_heartrate ? Math.round(activity.average_heartrate) : null;
+  const maxHrAct = activity.max_heartrate ? Math.round(activity.max_heartrate) : null;
+
+  // Calculated sport-scientific metrics [B]
+  const pctFtp = avgWatts ? ((avgWatts / ftp) * 100).toFixed(1) : null;
+  const wattsPerKg = avgWatts ? (avgWatts / weightKg).toFixed(2) : null;
+  const pctHrMax = avgHr ? ((avgHr / maxHr) * 100).toFixed(1) : null;
+  const pctHrReserve =
+    avgHr && maxHr > restHr ? (((avgHr - restHr) / (maxHr - restHr)) * 100).toFixed(1) : null;
+  const pctMaxHrPeak = maxHrAct ? ((maxHrAct / maxHr) * 100).toFixed(1) : null;
+  const powerHrQuotient =
+    avgWatts && avgHr && avgHr > 0 ? (avgWatts / avgHr).toFixed(2) : null;
+  const workKj =
+    activity.kilojoules
+      ? Math.round(activity.kilojoules)
+      : avgWatts
+      ? Math.round((avgWatts * activity.moving_time) / 1000)
+      : null;
+
+  // Determine zone of measured average HR (without fabricating intra-workout distribution)
+  const getAvgHrZoneLabel = (hr: number | null) => {
+    if (!hr) return 'Keine Herzfrequenzmessung [M]';
+    if (hr < hrLimits.z2.min) return `Zone 1 (<${hrLimits.z2.min} bpm / <60% HFmax)`;
+    if (hr < hrLimits.z3.min) return `Zone 2 (${hrLimits.z2.min}–${hrLimits.z2.max} bpm / 60–70% HFmax)`;
+    if (hr < hrLimits.z4.min) return `Zone 3 (${hrLimits.z3.min}–${hrLimits.z3.max} bpm / 70–80% HFmax)`;
+    if (hr < hrLimits.z5.min) return `Zone 4 (${hrLimits.z4.min}–${hrLimits.z4.max} bpm / 80–90% HFmax)`;
+    return `Zone 5 (≥${hrLimits.z5.min} bpm / >90% HFmax)`;
   };
-
-  const coach = getCoachFeedback();
-  const totalZoneSec = zones.z1 + zones.z2 + zones.z3 + zones.z4 + zones.z5;
-  const safeTotal = totalZoneSec > 0 ? totalZoneSec : 1;
-
-  const zonePercentages = [
-    { label: 'Z1 Regeneration', sec: zones.z1, pct: Math.round((zones.z1 / safeTotal) * 100), color: 'bg-slate-500' },
-    { label: 'Z2 Grundlagen (GA1)', sec: zones.z2, pct: Math.round((zones.z2 / safeTotal) * 100), color: 'bg-blue-500' },
-    { label: 'Z3 Tempo (Grauzone)', sec: zones.z3, pct: Math.round((zones.z3 / safeTotal) * 100), color: 'bg-amber-500' },
-    { label: 'Z4 Schwelle (GA2)', sec: zones.z4, pct: Math.round((zones.z4 / safeTotal) * 100), color: 'bg-orange-500' },
-    { label: 'Z5 Maximal (VO2max)', sec: zones.z5, pct: Math.round((zones.z5 / safeTotal) * 100), color: 'bg-red-500' },
-  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
@@ -99,47 +89,56 @@ export const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
 
         {/* Modal Body */}
         <div className="p-6 space-y-6">
-          {/* Main KPI Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-              <span className="text-xs text-slate-400 block mb-1">Distanz</span>
-              <span className="text-xl font-bold text-white">
-                {activity.distance > 0 ? `${distKm} km` : '-'}
-              </span>
-            </div>
-            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-              <span className="text-xs text-slate-400 block mb-1">Bewegungszeit</span>
-              <span className="text-xl font-bold text-white">{duration}</span>
-            </div>
-            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-              <span className="text-xs text-slate-400 block mb-1">Pace / Speed</span>
-              <span className="text-xl font-bold text-white">{pace}</span>
-            </div>
-            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-              <span className="text-xs text-slate-400 block mb-1">Durchschnitts-Puls</span>
-              <span className="text-xl font-bold text-rose-400">
-                {activity.average_heartrate ? `${Math.round(activity.average_heartrate)} bpm` : '-'}
-              </span>
+          {/* Measured KPI Grid [M] */}
+          <div>
+            <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
+              Gemessene Basisdaten [M]
+            </h4>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                <span className="text-xs text-slate-400 block mb-1">Distanz [M]</span>
+                <span className="text-xl font-bold text-white font-mono">
+                  {activity.distance > 0 ? `${distKm} km` : '0.0 km'}
+                </span>
+              </div>
+              <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                <span className="text-xs text-slate-400 block mb-1">Bewegungszeit [M]</span>
+                <span className="text-xl font-bold text-white font-mono">{duration}</span>
+              </div>
+              <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                <span className="text-xs text-slate-400 block mb-1">
+                  {avgWatts ? 'Ø Leistung [M]' : 'Ø Geschwindigkeit [M]'}
+                </span>
+                <span className="text-xl font-bold text-cyan-300 font-mono">
+                  {avgWatts ? `${avgWatts} W` : pace}
+                </span>
+              </div>
+              <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                <span className="text-xs text-slate-400 block mb-1">Ø Herzfrequenz [M]</span>
+                <span className="text-xl font-bold text-rose-400 font-mono">
+                  {avgHr ? `${avgHr} bpm` : '-'}
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Secondary Stats */}
+          {/* Secondary Measured Stats [M] */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            {activity.max_heartrate && (
+            {maxHrAct && (
               <div className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/60">
                 <Heart className="w-4 h-4 text-red-400 shrink-0" />
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Maximaler Puls</span>
-                  <span className="font-semibold text-white">{activity.max_heartrate} bpm</span>
+                  <span className="text-slate-400 block text-[10px]">Max. Herzfrequenz [M]</span>
+                  <span className="font-semibold text-white font-mono">{maxHrAct} bpm</span>
                 </div>
               </div>
             )}
-            {activity.total_elevation_gain > 0 && (
+            {npWatts && (
               <div className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/60">
-                <Mountain className="w-4 h-4 text-purple-400 shrink-0" />
+                <Zap className="w-4 h-4 text-amber-400 shrink-0" />
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Höhenmeter</span>
-                  <span className="font-semibold text-white">{Math.round(activity.total_elevation_gain)} hm</span>
+                  <span className="text-slate-400 block text-[10px]">Gewichtete Leistung [M]</span>
+                  <span className="font-semibold text-amber-300 font-mono">{npWatts} W</span>
                 </div>
               </div>
             )}
@@ -147,61 +146,99 @@ export const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
               <div className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/60">
                 <Compass className="w-4 h-4 text-cyan-400 shrink-0" />
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Schrittfrequenz</span>
-                  <span className="font-semibold text-white">{Math.round(activity.average_cadence * (activity.type === 'Run' ? 2 : 1))} {activity.type === 'Run' ? 'spm' : 'rpm'}</span>
+                  <span className="text-slate-400 block text-[10px]">
+                    {isCycle ? 'Ø Trittfrequenz [M]' : 'Ø Kadenz [M]'}
+                  </span>
+                  <span className="font-semibold text-white font-mono">
+                    {Math.round(activity.average_cadence * (activity.type === 'Run' ? 2 : 1))}{' '}
+                    {activity.type === 'Run' ? 'spm' : 'rpm'}
+                  </span>
                 </div>
               </div>
             )}
-            {activity.suffer_score && (
+            {activity.total_elevation_gain > 0 && (
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/60">
+                <Mountain className="w-4 h-4 text-purple-400 shrink-0" />
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Höhenmeter [M]</span>
+                  <span className="font-semibold text-white font-mono">
+                    {Math.round(activity.total_elevation_gain)} Hm
+                  </span>
+                </div>
+              </div>
+            )}
+            {workKj !== null && (
               <div className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/60">
                 <Flame className="w-4 h-4 text-orange-400 shrink-0" />
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Relativer Aufwand</span>
-                  <span className="font-semibold text-orange-400">{activity.suffer_score} Suffer Score</span>
+                  <span className="text-slate-400 block text-[10px]">Mechanische Arbeit [B]</span>
+                  <span className="font-semibold text-orange-300 font-mono">{workKj} kJ</span>
                 </div>
               </div>
             )}
           </div>
 
-          {/* HR Zones Breakdown */}
-          <div className="bg-slate-950 p-4.5 rounded-xl border border-slate-800">
-            <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">
-              Herzfrequenz-Zonen dieses Trainings
-            </h4>
-            <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden flex mb-3">
-              {zonePercentages.map((z, idx) => (
-                <div
-                  key={idx}
-                  className={z.color}
-                  style={{ width: `${z.pct}%` }}
-                  title={`${z.label}: ${z.pct}%`}
-                />
-              ))}
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px]">
-              {zonePercentages.map((z, idx) => (
-                <div key={idx} className="flex flex-col">
-                  <span className="text-slate-400 truncate">{z.label.split(' ')[0]}</span>
-                  <span className="font-bold text-white">{z.pct}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Coach Feedback Box */}
-          <div className="p-4 rounded-xl bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 space-y-2">
+          {/* Sport-Scientific Calculated Ratios [B] */}
+          <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
             <div className="flex items-center justify-between">
-              <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-md border ${coach.badgeColor}`}>
-                {coach.title}
+              <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                Berechnete Leistungs- &amp; Herzfrequenz-Kennzahlen [B]
+              </h4>
+              <span className="text-[11px] text-slate-400 font-mono">
+                Referenz: FTP {ftp} W • {weightKg} kg • HFmax {maxHr} bpm • Ruhepuls {restHr} bpm
               </span>
-              <span className="text-xs text-orange-400 font-medium">Coach-Analyse</span>
             </div>
-            <p className="text-xs text-slate-300 leading-relaxed">{coach.desc}</p>
-            <div className="pt-2 border-t border-slate-800/80 flex items-start gap-2 text-xs">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <span className="text-slate-200">
-                <strong>Empfehlung: </strong>{coach.tip}
-              </span>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+              <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800/80">
+                <span className="text-slate-400 block text-[10px]">Relativleistung (% FTP) [B]</span>
+                <span className="font-bold text-amber-300 font-mono">
+                  {pctFtp ? `${pctFtp}% (${avgWatts} W / ${ftp} W)` : 'Nicht bestimmbar'}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800/80">
+                <span className="text-slate-400 block text-[10px]">Leistungsgewicht (Ø) [B]</span>
+                <span className="font-bold text-emerald-300 font-mono">
+                  {wattsPerKg ? `${wattsPerKg} W/kg` : 'Nicht bestimmbar'}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800/80">
+                <span className="text-slate-400 block text-[10px]">Ø-Leistungs-Puls-Quotient [B]</span>
+                <span className="font-bold text-cyan-300 font-mono">
+                  {powerHrQuotient ? `${powerHrQuotient} W/bpm` : 'Nicht bestimmbar'}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800/80">
+                <span className="text-slate-400 block text-[10px]">Ø Puls in % HFmax [B]</span>
+                <span className="font-bold text-rose-300 font-mono">
+                  {pctHrMax ? `${pctHrMax}% (${avgHr} / ${maxHr} bpm)` : 'Nicht bestimmbar'}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800/80">
+                <span className="text-slate-400 block text-[10px]">Ø Puls in % HFR (Karvonen) [B]</span>
+                <span className="font-bold text-rose-300 font-mono">
+                  {pctHrReserve ? `${pctHrReserve}% HFR` : 'Nicht bestimmbar'}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800/80">
+                <span className="text-slate-400 block text-[10px]">Max. Puls in % HFmax [B]</span>
+                <span className="font-bold text-slate-200 font-mono">
+                  {pctMaxHrPeak ? `${pctMaxHrPeak}% (${maxHrAct} / ${maxHr} bpm)` : 'Nicht bestimmbar'}
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-800/80 flex items-start gap-2 text-xs text-slate-400">
+              <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+              <div>
+                <span className="text-slate-200 font-semibold">
+                  Zonenzuordnung nach Ø-Herzfrequenz:{' '}
+                </span>
+                <span className="text-cyan-300 font-mono">{getAvgHrZoneLabel(avgHr)}</span>.{' '}
+                <span>
+                  Ohne 1-Sekunden-Streamdaten (.fit) wird keine geschätzte Zeit-in-Zone-Verteilung innerhalb der Einzelaktivität ausgewiesen. Für eine sekundenbasierte Segment- und Decoupling-Analyse nutze den „Tages-Check (Soll vs. Ist)“.
+                </span>
+              </div>
             </div>
           </div>
         </div>

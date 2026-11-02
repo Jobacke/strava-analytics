@@ -230,18 +230,10 @@ export async function parseWahooFitFile(file: File): Promise<StravaActivity> {
       ? sessionMaxHr
       : hrSamples.length > 0
       ? Math.max(...hrSamples)
-      : avgHr > 0
-      ? avgHr + 12
       : undefined;
   const avgCadence = sessionAvgCadence > 0 ? sessionAvgCadence : avgArr(cadenceSamples);
 
-  // If indoor Kickr Core ride had 0 GPS distance, estimate realistic virtual indoor distance from Watts (~24 km/h @ 90W)
-  const effectiveDistanceMeters =
-    distanceMeters > 100
-      ? distanceMeters
-      : avgWatts > 0
-      ? Math.round((movingTimeSec / 3600) * (16 + avgWatts * 0.09) * 1000)
-      : Math.round((movingTimeSec / 3600) * 21.0 * 1000);
+  const effectiveDistanceMeters = distanceMeters > 0 ? distanceMeters : 0;
 
   const avgSpeedMs = movingTimeSec > 0 ? effectiveDistanceMeters / movingTimeSec : 0;
   const kilojoules = avgWatts > 0 ? Math.round((avgWatts * movingTimeSec) / 1000) : undefined;
@@ -321,10 +313,7 @@ export async function parseWahooTcxFile(file: File): Promise<StravaActivity> {
   const maxHr = hrArr.length > 0 ? Math.max(...hrArr) : undefined;
   const avgCadence = avg(cadArr);
 
-  const effectiveDistanceMeters =
-    totalDistMeters > 100
-      ? Math.round(totalDistMeters)
-      : Math.round((movingTimeSec / 3600) * (16 + avgWatts * 0.09) * 1000);
+  const effectiveDistanceMeters = totalDistMeters > 0 ? Math.round(totalDistMeters) : 0;
 
   return {
     id: `wahoo_tcx_${Date.now()}_${Math.round(Math.random() * 1000)}`,

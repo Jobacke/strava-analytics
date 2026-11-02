@@ -1,5 +1,5 @@
 import { StravaActivity, TrainingStats, HRDistribution, UserAthleteSettings } from '../types/strava';
-import { isCyclingActivity, JOHANNES_BASELINE_SETTINGS } from '../utils/trainingMath';
+import { isCyclingActivity, JOHANNES_BASELINE_SETTINGS, estimateHrZonesForActivity } from '../utils/trainingMath';
 import { subDays, parseISO, isAfter, addDays, format } from 'date-fns';
 
 export interface PromptBuilderOptions {
@@ -15,9 +15,13 @@ export interface PromptBuilderOptions {
 }
 
 /**
- * Filtert und berechnet Trainingsumfänge ausschließlich für Radsport (Indoor Kickr Core + Outdoor)
+ * Filtert und berechnet Trainingsumfänge und HF-Zonenverteilung ausschließlich für Radsport (Indoor Kickr Core + Outdoor)
  */
-export function getLookbackStats(activities: StravaActivity[], days: number) {
+export function getLookbackStats(
+  activities: StravaActivity[],
+  days: number,
+  settings: UserAthleteSettings = JOHANNES_BASELINE_SETTINGS
+) {
   const cutoff = subDays(new Date(), days);
   
   // Ausschließliche Berücksichtigung von Radaktivitäten
@@ -30,17 +34,34 @@ export function getLookbackStats(activities: StravaActivity[], days: number) {
   const activeDays = new Set(cyclingRecent.map(a => a.start_date.split('T')[0])).size;
   const restDays = Math.max(0, days - activeDays);
 
-  // Ergänzende Info zu Laufeinheiten (als Hintergrund für aktive Erholung)
-  const runningCount = activities.filter(a => !isCyclingActivity(a) && isAfter(parseISO(a.start_date), cutoff)).length;
+  // Zeitraum-spezifische HF-Zonenverteilung für den gewählten Analysezeitraum (`days`)
+  const cyclingWithHr = cyclingRecent.filter(a => (a.average_heartrate && a.average_heartrate > 0) || Boolean(a.hrZones));
+  let z1Sec = 0, z2Sec = 0, z3Sec = 0, z4Sec = 0, z5Sec = 0, totalHrSec = 0;
+  cyclingWithHr.forEach(a => {
+    const z = estimateHrZonesForActivity(a, settings);
+    z1Sec += z.z1;
+    z2Sec += z.z2;
+    z3Sec += z.z3;
+    z4Sec += z.z4;
+    z5Sec += z.z5;
+    totalHrSec += z.z1 + z.z2 + z.z3 + z.z4 + z.z5;
+  });
+  const safeHrSec = totalHrSec > 0 ? totalHrSec : 1;
+  const periodZ12Pct = totalHrSec > 0 ? Math.round(((z1Sec + z2Sec) / safeHrSec) * 100) : 0;
+  const periodZ3Pct = totalHrSec > 0 ? Math.round((z3Sec / safeHrSec) * 100) : 0;
+  const periodZ45Pct = totalHrSec > 0 ? Math.round(((z4Sec + z5Sec) / safeHrSec) * 100) : 0;
 
   return {
-    km: Math.round(km),
+    km: Math.round(km * 10) / 10,
     hours: parseFloat(hours.toFixed(1)),
     elevation: Math.round(elevation),
     count: cyclingRecent.length,
+    hrCount: cyclingWithHr.length,
     restDays,
     activities: cyclingRecent,
-    runningCount,
+    periodZ12Pct,
+    periodZ3Pct,
+    periodZ45Pct,
   };
 }
 
@@ -65,7 +86,7 @@ export function formatActivitiesSample(activities: StravaActivity[], maxItems = 
  */
 export function buildAnalysisPrompt(options: PromptBuilderOptions): { prompt: string; title: string; filename: string } {
   const { lookbackDays, athleteName, stats, hrDistribution, settings, filteredActivities } = options;
-  const lookback = getLookbackStats(filteredActivities, lookbackDays);
+  const lookback = getLookbackStats(filteredActivities, lookbackDays, settings);
   const sample = formatActivitiesSample(lookback.activities, Math.max(15, lookback.count));
   const today = new Date();
   const startDay = format(subDays(today, lookbackDays - 1), 'dd.MM.yyyy');
@@ -89,15 +110,15 @@ LEISTUNGSPROFIL & BELASTUNGSDATEN (Coggan & Banister Modell - Zeitraum: ${startD
 - Sportarten-Fokus: 100 % RADSPORT (Wahoo Kickr Core Indoor Smart-Trainer & Rennrad Outdoor)
 - Rad-Trainingsvolumen (letzte ${lookbackDays} Tage): ${lookback.hours} Stunden (${lookback.km} km in ${lookback.count} Radeinheiten, ${lookback.elevation} Höhenmeter)
 - Wochenvolumen (letzte 7 Tage Referenz): ${stats.weeklyHours} Stunden (${stats.weeklyKm} km, ${stats.kmDeltaPercent >= 0 ? '+' : ''}${stats.kmDeltaPercent}% vs. Vorwoche)
-- Verletzungs- & Überlastungsradar (ACWR): ${stats.currentACWR.toFixed(2)} (Optimalbereich: 0.85 - 1.25)
-- Chronische Fitness (CTL, 42-Tage-Basis): ${stats.currentFitnessCTL}
-- Akute Ermüdung (ATL, 7 Tage): ${stats.currentFatigueATL}
-- Form & Frische (TSB = CTL - ATL): ${stats.currentFormTSB > 0 ? '+' : ''}${stats.currentFormTSB}
+- Belastungsquotient (ACWR = ATL / CTL): ${stats.currentACWR.toFixed(2)} (Software-Referenzbereich: 0.85 - 1.25)
+- Chronische Trainingslast (CTL, 42-Tage-EWMA): ${stats.currentFitnessCTL}
+- Akute Trainingslast (ATL, 7-Tage-EWMA): ${stats.currentFatigueATL}
+- Trainingsbilanz (TSB = CTL - ATL): ${stats.currentFormTSB > 0 ? '+' : ''}${stats.currentFormTSB}
 - Radfreie Ruhetage in den letzten ${lookbackDays} Tagen: ${lookback.restDays} (Referenz letzte 14 Tage: ${stats.restDaysLast14})
-- Radspezifische Herzfrequenz-Zonen-Verteilung (letzte 30 Tage):
-  • Zone 1-2 (Grundlagenbasis GA1): ${hrDistribution.polarizedScore}%
-  • Zone 3 (Tempo / Grauzone): ${hrDistribution.junkZonePercentage}%
-  • Zone 4-5 (Schwelle & VO2max): ${hrDistribution.z4 + hrDistribution.z5}%
+- Radspezifische Herzfrequenz-Zonen-Verteilung im Analysezeitraum (${lookbackDays} Tage, n = ${lookback.hrCount} Radeinheiten mit HF-Messung):
+  • Zone 1-2 (<70% HFmax): ${lookback.periodZ12Pct}% (Dashboard-Zeitraum ${hrDistribution.analysisDays || 30} Tage: ${hrDistribution.polarizedScore}%)
+  • Zone 3 (70-80% HFmax): ${lookback.periodZ3Pct}% (Dashboard-Zeitraum ${hrDistribution.analysisDays || 30} Tage: ${hrDistribution.junkZonePercentage}%)
+  • Zone 4-5 (>80% HFmax): ${lookback.periodZ45Pct}% (Dashboard-Zeitraum ${hrDistribution.analysisDays || 30} Tage: ${hrDistribution.z4 + hrDistribution.z5}%)
 - Physiologische Parameter:
   • Maximale Herzfrequenz (HFmax): ${settings.maxHeartRate || JOHANNES_BASELINE_SETTINGS.maxHeartRate} bpm
   • Ruhepuls: ${settings.restingHeartRate || JOHANNES_BASELINE_SETTINGS.restingHeartRate} bpm
@@ -216,7 +237,7 @@ Die Kategorienkennzeichnung [M]/[B]/[L] bleibt im fertigen Bericht sichtbar.`;
  */
 export function buildPlanPrompt(options: PromptBuilderOptions): { prompt: string; title: string; filename: string; day1: string; dayEnd: string } {
   const { lookbackDays, planDays = 7, athleteName, stats, hrDistribution, settings, filteredActivities } = options;
-  const lookback = getLookbackStats(filteredActivities, lookbackDays);
+  const lookback = getLookbackStats(filteredActivities, lookbackDays, settings);
   const sample = formatActivitiesSample(lookback.activities, 7);
 
   const today = new Date();
@@ -234,27 +255,27 @@ export function buildPlanPrompt(options: PromptBuilderOptions): { prompt: string
   • Alter: 63 Jahre | Körpergewicht: ${settings.weightKg || 55} kg
   • Trainingsgerät: Wahoo KICKR CORE Smart-Trainer (mit speziell auf Veronika eingestelltem Rahmen) + am Trainer verbauter Wahoo ELEMNT BOLT Radcomputer.
   • WICHTIG FÜR DEN TRAININGSPLAN VON VERONIKA:
-    Gestalte diesen Trainingsplan als GANZ ENTSPANNTEN, GELENKSCHONENDEN WOHLFÜHL- & GESUNDHEITS-RADTRAININGSPLAN (3 bis 4 lockere Einheiten pro Woche à 25–45 Minuten, dazwischen erholsame Ruhetage).
-    Verzichte auf harte VO2max-Ausbelastung! Setze stattdessen auf sanftes Rollen in Zone 1 & Zone 2 (ca. 45–68 Watt, Wohlfühl-Puls 105–128 bpm), flüssige Trittfrequenz-Spiele (75–85 RPM) und Freude auf dem Rad.
-    Gib bei JEDER Trainingseinheit zusätzlich die direkte Einstellung für den Wahoo ELEMNT BOLT am Kickr Core an (z.B. "Am Wahoo ELEMNT BOLT im ERG-Modus: 5 Min. 45 W Warmup -> 20 Min. 60 W Wohlfühl-Rollen -> 5 Min. 45 W Ausrollen"), sodass Veronika die Einheit wahlweise komplett ohne Zwift direkt über den Wahoo ELEMNT BOLT ODER in Zwift fahren kann!`
+    Gestalte diesen Trainingsplan als gelenkschonenden Grundlagen-Radtrainingsplan (3 bis 4 Radeinheiten pro Woche à 25–45 Minuten, dazwischen Ruhetage).
+    Verzichte auf VO2max-Ausbelastung. Setze auf Grundlagenfahrten in Zone 1 & Zone 2 (45–68 Watt, Ziel-Puls 105–128 bpm) und Trittfrequenz-Arbeit (75–85 RPM).
+    Gib bei JEDER Trainingseinheit zusätzlich die direkte Einstellung für den Wahoo ELEMNT BOLT am Kickr Core an (z.B. "Am Wahoo ELEMNT BOLT im ERG-Modus: 5 Min. 45 W Warmup -> 20 Min. 60 W GA1 -> 5 Min. 45 W Cooldown"), sodass Veronika die Einheit wahlweise direkt über den Wahoo ELEMNT BOLT ODER in Zwift fahren kann.`
     : '';
 
-  const prompt = `Du bist mein persönlicher Sportwissenschaftler und Ausdauertrainer für den Radsport.
+  const prompt = `Du bist mein persönlicher Sportwissenschaftler und Radsport-Trainer.
 Hier sind meine aktuellen, echten Leistungs- und Belastungsdaten aus meiner Trainingsanalyse für Athlet "${athleteName}":
 
 LEISTUNGSPROFIL & VORBELASTUNG (Coggan & Banister Modell - Basis: Letzte ${lookbackDays} Tage Radsport):${veronikaPlanNote}
 - Sportarten-Fokus: 100 % RADSPORT (Wahoo Kickr Core Indoor Smart-Trainer & Rennrad Outdoor)
 - Rad-Trainingsvolumen der letzten ${lookbackDays} Tage: ${lookback.hours} Stunden (${lookback.km} km in ${lookback.count} Radeinheiten, ${lookback.elevation} Höhenmeter)
 - Letzte 7 Tage Referenz: ${stats.weeklyHours} Stunden (${stats.weeklyKm} km, ${stats.kmDeltaPercent >= 0 ? '+' : ''}${stats.kmDeltaPercent}% vs. Vorwoche)
-- Verletzungs- & Überlastungsradar (ACWR): ${stats.currentACWR.toFixed(2)} (Optimalbereich: 0.85 - 1.25)
-- Chronische Fitness (CTL, 42-Tage-Basis): ${stats.currentFitnessCTL}
-- Akute Ermüdung (ATL, 7 Tage): ${stats.currentFatigueATL}
-- Form & Frische (TSB = CTL - ATL): ${stats.currentFormTSB > 0 ? '+' : ''}${stats.currentFormTSB}
+- Belastungsquotient (ACWR = ATL / CTL): ${stats.currentACWR.toFixed(2)} (Referenzbereich: 0.85 - 1.25)
+- Chronische Trainingslast (CTL, 42-Tage-EWMA): ${stats.currentFitnessCTL}
+- Akute Trainingslast (ATL, 7-Tage-EWMA): ${stats.currentFatigueATL}
+- Trainingsbilanz (TSB = CTL - ATL): ${stats.currentFormTSB > 0 ? '+' : ''}${stats.currentFormTSB}
 - Radfreie Ruhetage in den letzten ${lookbackDays} Tagen: ${lookback.restDays}
-- Herzfrequenz-Zonen-Verteilung (letzte 30 Tage):
-  • Zone 1-2 (Grundlagenbasis GA1): ${hrDistribution.polarizedScore}%
-  • Zone 3 (Tempo / Grauzone): ${hrDistribution.junkZonePercentage}%
-  • Zone 4-5 (Schwelle & VO2max): ${hrDistribution.z4 + hrDistribution.z5}%
+- Herzfrequenz-Zonen-Verteilung (${lookbackDays} Tage, n = ${lookback.hrCount} Radeinheiten):
+  • Zone 1-2 (<70% HFmax): ${lookback.periodZ12Pct}% (Zeitraum ${hrDistribution.analysisDays || 30}d: ${hrDistribution.polarizedScore}%)
+  • Zone 3 (70-80% HFmax): ${lookback.periodZ3Pct}% (Zeitraum ${hrDistribution.analysisDays || 30}d: ${hrDistribution.junkZonePercentage}%)
+  • Zone 4-5 (>80% HFmax): ${lookback.periodZ45Pct}% (Zeitraum ${hrDistribution.analysisDays || 30}d: ${hrDistribution.z4 + hrDistribution.z5}%)
 - Physiologische Parameter:
   • Maximale Herzfrequenz (HFmax): ${settings.maxHeartRate || JOHANNES_BASELINE_SETTINGS.maxHeartRate} bpm
   • Ruhepuls: ${settings.restingHeartRate || JOHANNES_BASELINE_SETTINGS.restingHeartRate} bpm
@@ -264,36 +285,34 @@ LEISTUNGSPROFIL & VORBELASTUNG (Coggan & Banister Modell - Basis: Letzte ${lookb
 DOKUMENTIERTE RADEINHEITEN DER LETZTEN ${lookbackDays} TAGE:
 ${sample}
 
-STRIKTE SPORTART-VORGABE (AUSSCHLIESSLICH RADTRAINING):
-- Der Trainingsplan und ALLE benutzerdefinierten Workouts (.zwo-Dateien) dürfen AUSSCHLIESSLICH Radtrainings umfassen!
-- Laufeinheiten dürfen NIEMALS als reguläre Trainingstage oder feste Workouts in den Trainingsplan eingebaut werden.
-- Du darfst lediglich in den Regenerations-Tipps oder als optionale Randnotiz (z.B. "Optionaler 20-minütiger Rekom-Lauf am Ruhetag") Laufen zur Abwechslung erwähnen. Der eigentliche Plan besteht zu 100 % aus Radeinheiten!
+STRIKTE SPORTART- & STIL-VORGABE (AUSSCHLIESSLICH RADTRAINING & SPORTWISSENSCHAFTLICHER ANSATZ):
+- Der Trainingsplan und ALLE benutzerdefinierten Workouts (.zwo-Dateien) umfassen AUSSCHLIESSLICH Radsport (Rennrad / Smart-Trainer). Laufeinheiten werden NICHT erwähnt.
+- Verwende durchgehend einen sachlichen, sportwissenschaftlichen Stil ohne motivierende Floskeln (wie "ausgezeichnet", "hervorragend", "perfekt") und ohne unbelegte Vermutungen oder geschätzte Leistungsentwicklungen.
 
-DEINE AUFGABE ALS MEIN RADTRAINER:
-1. STATUS-DIAGNOSE: Beurteile kurz meinen aktuellen Erholungs- und Formzustand basierend auf der Rad-Vorbelastung der letzten ${lookbackDays} Tage (Überlastungsrisiko, Polarisation 80/20, Regeneration).
-2. KONKRETER ${planDays}-TAGE-RADTRAININGSPLAN (${isTwoWeeks ? '2-Wochen-Mesozyklus mit Progression/Belastung in Woche 1 und gezielter Kompensation/Regeneration in Woche 2' : 'Kommende 7 Tage'}, Tag für Tag von Tag 1 bis Tag ${planDays}):
-   Erstelle einen strukturierten, abwechslungsreichen Plan ausschließlich fürs Radfahren. Mein primäres Rad-Trainingsgerät ist der Wahoo Kickr Core Smart-Trainer.
-   Bitte gib für JEDEN Tag (von Tag 1 bis Tag ${planDays}) an:
-   - Wochentag & Datum & Trainingsziel
-   - Typ der Radeinheit (z.B. Z2 Grundlagenausdauer auf der Rolle, Sweet-Spot-Intervalle, VO2max-Reize, Erholungsfahrt oder Ruhetag)
+DEINE AUFGABE ALS SPORTWISSENSCHAFTLICHER RADTRAINER:
+1. STATUS-BEFUND: Sachliche Einordnung der aktuellen Belastungs- und Zonenwerte der letzten ${lookbackDays} Tage (CTL, ATL, TSB, ACWR, HF-Zonenverteilung).
+2. KONKRETER ${planDays}-TAGE-RADTRAININGSPLAN (${isTwoWeeks ? '2-Wochen-Mesozyklus' : 'Kommende 7 Tage'}, Tag für Tag von Tag 1 bis Tag ${planDays}):
+   Erstelle einen strukturierten Plan ausschließlich für den Radsport (Wahoo Kickr Core Smart-Trainer / Rennrad).
+   Gib für JEDEN Tag (von Tag 1 bis Tag ${planDays}) an:
+   - Wochentag & Datum & sportwissenschaftliches Trainingsziel
+   - Typ der Radeinheit (z.B. Z2 Grundlagenausdauer, Sweet-Spot-Intervalle, VO2max-Intervalle, aktive Regeneration Z1 oder Ruhetag)
    - Dauer (in Minuten)
-   - Konkrete Intensitätsvorgaben (Ziel-Herzfrequenzzone und Wattbereiche basierend auf meiner FTP von ${settings.ftpWatts || JOHANNES_BASELINE_SETTINGS.ftpWatts} W und HFmax)
-   - Konkreter Ablauf (z.B. Warmup, Hauptteil mit Intervallen und Pausen, Cooldown)
+   - Exakte Intensitätsvorgaben (Ziel-Herzfrequenzbereich in bpm/%HFmax und Wattbereiche in W/%FTP basierend auf FTP ${settings.ftpWatts || JOHANNES_BASELINE_SETTINGS.ftpWatts} W und HFmax ${settings.maxHeartRate || JOHANNES_BASELINE_SETTINGS.maxHeartRate} bpm)
+   - Exakter Ablauf (Warmup, Hauptteil mit Intervalldauern/Wattwerten und Pausen, Cooldown)
 3. KONKRETE ZWIFT-EVENTS & WORKOUT-EMPFEHLUNGEN FÜR JEDEN TRAININGSTAG:
-   Schlage mir für jeden Rad-Trainingstag der kommenden ${planDays} Tage konkrete Zwift-Events oder Workouts vor, die ich direkt in Zwift bzw. der Zwift Companion App auswählen und fahren kann:
-   - Für Grundlagentage (Z2): Konkrete Zwift RoboPacer-Gruppen (z.B. "Bernie" ~1.5 W/kg, "Miguel" ~1.8 W/kg, "Maria" ~2.2 W/kg) oder bewährte Social Group Rides (z.B. BMTR, Pack, 3R Endurance Rides).
-   - Für Intervall- & Schwellentage: Exakter Name des Workouts aus der Zwift-Bibliothek (z.B. unter "60-90 Minutes to Burn", "FTP Builder" oder "Zwift Academy") oder passende Zwift-Rennen/Time Trials.
-   - Nenne jeweils die empfohlene Leistungskategorie (A, B, C oder D basierend auf meinem W/kg-Verhältnis) und die empfohlene Zwift-Welt/Strecke (z.B. Tempus Fugit in Watopia für gleichmäßiges Pacing ohne störende Steigungen).
+   Schlage für jeden Rad-Trainingstag der kommenden ${planDays} Tage passende Zwift-Workouts oder RoboPacer vor:
+   - Für Grundlagentage (Z1/Z2): Passende Zwift RoboPacer-Gruppen anhand der exakten W/kg-Vorgabe oder flache Strecken (z.B. Tempus Fugit in Watopia).
+   - Für Intervall- & Schwellentage: Passendes Workout aus der Zwift-Bibliothek bzw. die erstellte .zwo-Datei im ERG-Modus.
 4. BENUTZERDEFINIERTE ZWIFT-WORKOUTS ALS DATEI (.ZWO) – CHRONOLOGISCHE ZWIFT-SORTIERUNG:
    • WICHTIG FÜR CHRONOLOGISCHE REIHENFOLGE IN ZWIFT (IMMER ZWEISTELLIGE TAG-NUMMER MIT FÜHRENDER NULL!):
      Da Zwift benutzerdefinierte Workouts alphabetisch nach dem <name>-Tag sortiert, MÜSSEN die Tag-Nummern zwingend zweistellig mit führender Null geschrieben werden (Tag01, Tag02, Tag03 ... Tag09, Tag10, Tag11 ... Tag14), damit Tag01 vor Tag10 erscheint!
    • ANWEISUNG FÜR ANTIGRAVITY (Mac - Direkte Auto-Ablage):
      Da du direkten Dateisystemzugriff auf meinem Mac hast, erstelle für JEDEN Rad-Trainingstag die vollständige .zwo XML-Datei${isVeronika ? ' (inkl. <category>Veronika Backhaus</category> für die saubere Gruppierung in Zwift; WICHTIG: Da Veronika in Zwift über den Account von Johannes fährt, in dem die Zwift-FTP fest auf 236 Watt eingestellt ist, MÜSSEN alle relativen Power-, PowerLow-, PowerHigh-, OnPower- und OffPower-Werte in Veronikas .zwo-Dateien auf 236 Watt umgerechnet werden: Power = ZielWatt_Veronika / 236, also z.B. 40 W = 0.17, 45 W = 0.19, 55 W = 0.23, 60 W = 0.25, 65 W = 0.28, 75 W = 0.32 – damit in Zwift niemals die FTP umgestellt werden muss!)' : ''} und speichere sie DIREKT mit deinen Datei-Werkzeugen in folgendem Ordner ab:
      /Users/johannes/Documents/Zwift/Workouts/1304674/
-     (Verwende sowohl für den Dateinamen als auch für das <name>-Tag innerhalb der .zwo-Datei IMMER zweistellige Tag-Nummern mit führender Null und dem Kürzel ${initials}_, z.B. ${initials}_Tag01_${isVeronika ? 'Wohlfuehl_Check_25' : 'Di_GA1_Basis_40'}.zwo, ${initials}_Tag03_${isVeronika ? 'Grundlagen_Zone2_35' : 'Do_Erholung_35'}.zwo).
+     (Verwende sowohl für den Dateinamen als auch für das <name>-Tag innerhalb der .zwo-Datei IMMER zweistellige Tag-Nummern mit führender Null und dem Kürzel ${initials}_, z.B. ${initials}_Tag01_${isVeronika ? 'GA1_Basis_25' : 'Di_GA1_Basis_40'}.zwo, ${initials}_Tag03_${isVeronika ? 'Grundlagen_Zone2_35' : 'Do_Erholung_35'}.zwo).
    • ANWEISUNG FÜR CLAUDE (iPhone / Web):
      Gib für jede Radeinheit den vollständigen Code im offiziellen Zwift-Workout-Format (.zwo XML-Codeblock) aus, sodass ich die Datei bei Bedarf manuell kopieren kann.
-5. REGENERATION & ERNÄHRUNG: 3 wichtige Praxistipps für diesen ${planDays}-Tage-Trainingsblock auf dem Kickr Core (inkl. optionaler kurzer Laufeinheiten als Rekom).
+5. BELASTUNGSSTEUERUNG & ERNÄHRUNG: 3 sachliche, sportwissenschaftlich fundierte Hinweise zur Kohlenhydrat-/Flüssigkeitszufuhr und Regenerationssteuerung für diesen ${planDays}-Tage-Radsportblock.
 6. DOKUMENT & DIREKTE PDF-ABLAGE ZUM NACHLESEN:
    • TITEL & FORMAT DER TRAININGSPLANÜBERSICHT:
      Die Trainingsplanübersicht MUSS exakt folgendes Format als Hauptüberschrift und Dateiname haben:

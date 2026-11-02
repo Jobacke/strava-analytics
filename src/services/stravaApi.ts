@@ -12,9 +12,27 @@ export interface StravaConfig {
 
 const STORAGE_KEY = 'strava_pulse_auth';
 const ACTIVITIES_STORAGE_KEY = 'strava_pulse_activities';
+const LAST_SYNC_STORAGE_KEY = 'strava_pulse_last_sync_at';
 
 export const DEFAULT_STRAVA_CLIENT_ID = '290793';
 export const DEFAULT_STRAVA_CLIENT_SECRET = 'd94a4e20e69185e2f839f6ab5d9779226ae55eff';
+
+export function getLastSyncTimestamp(): number | null {
+  try {
+    const raw = localStorage.getItem(LAST_SYNC_STORAGE_KEY);
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setLastSyncTimestamp(ts: number = Date.now()): void {
+  try {
+    localStorage.setItem(LAST_SYNC_STORAGE_KEY, String(ts));
+  } catch {}
+}
 
 export function getStoredStravaConfig(): StravaConfig | null {
   try {
@@ -47,6 +65,7 @@ export function getStoredActivities(): StravaActivity[] | null {
 
 export function saveStoredActivities(activities: StravaActivity[]) {
   localStorage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(activities));
+  setLastSyncTimestamp(Date.now());
 }
 
 /**

@@ -94,15 +94,9 @@ export const WahooBoltModal: React.FC<WahooBoltModalProps> = ({
 
     if (imported.length > 0) {
       onAddActivities(imported);
-      const all = [...imported, ...activities];
-      const est = estimateFtpFromWahooRides(all, settings);
       setStatusMsg({
         type: 'success',
-        text: `${imported.length} Wahoo BOLT / KICKR Einheit(en) erfolgreich importiert! ${
-          est.sampleCount > 0
-            ? `(Geschätzte Wohlfühl-Schwelle aus Watt/Puls: ~${est.estimatedFtpWatts} W • Zone 2: ${est.zone2MinWatts}–${est.zone2MaxWatts} W)`
-            : ''
-        }`,
+        text: `${imported.length} Wahoo BOLT / KICKR Einheit(en) importiert.`,
       });
     } else if (errors.length > 0) {
       setStatusMsg({
@@ -116,15 +110,12 @@ export const WahooBoltModal: React.FC<WahooBoltModalProps> = ({
 
   const handleManualAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    const mins = Math.max(5, Number(durationMin) || 30);
+    const mins = Math.max(1, Number(durationMin) || 0);
     const watts = Number(avgWatts) || 0;
     const hr = Number(avgHr) || 0;
-    const mHr = Number(maxHr) || (hr > 0 ? hr + 10 : 0);
+    const mHr = Number(maxHr) || 0;
     const cad = Number(avgCadence) || 0;
-    const distM = Math.max(
-      500,
-      Math.round((Number(distanceKm) || (mins / 60) * 21) * 1000)
-    );
+    const distM = Math.max(0, Math.round((Number(distanceKm) || 0) * 1000));
     const movSec = mins * 60;
 
     const newAct: StravaActivity = {
@@ -136,8 +127,8 @@ export const WahooBoltModal: React.FC<WahooBoltModalProps> = ({
       distance: distM,
       moving_time: movSec,
       elapsed_time: movSec,
-      total_elevation_gain: isIndoorKickr ? 0 : 120,
-      average_speed: distM / movSec,
+      total_elevation_gain: 0,
+      average_speed: movSec > 0 ? distM / movSec : 0,
       average_watts: watts > 0 ? watts : undefined,
       weighted_average_watts: watts > 0 ? watts : undefined,
       average_heartrate: hr > 0 ? hr : undefined,
@@ -150,7 +141,7 @@ export const WahooBoltModal: React.FC<WahooBoltModalProps> = ({
     onAddActivities([newAct]);
     setStatusMsg({
       type: 'success',
-      text: `Einheit "${newAct.name}" (${mins} Min • ${watts} W • ${hr} bpm) wurde für ${athleteName} gespeichert!`,
+      text: `Einheit "${newAct.name}" (${mins} Min • ${watts} W • ${hr} bpm) wurde für ${athleteName} gespeichert.`,
     });
   };
 

@@ -313,9 +313,8 @@ export function getHrZones(maxHr: number) {
 }
 
 /**
- * Calculate Banister TRIMP (Training Impulse)
- * If HR is present, use heart rate reserve ratio:
- * TRIMP = duration (min) * DeltaHR * 0.64 * exp(1.92 * DeltaHR)
+ * Calculate Banister TRIMP (Training Impulse) or mechanical TSS if power is available.
+ * Returns 0 if no physiological (HR) or mechanical (Watts) load metric is recorded (no speed-based estimation).
  */
 export function calculateActivityTrimp(
   activity: StravaActivity,
@@ -331,34 +330,27 @@ export function calculateActivityTrimp(
   if (activity.average_heartrate && activity.average_heartrate > settings.restingHeartRate) {
     const hrRest = settings.restingHeartRate;
     const hrMax = settings.maxHeartRate;
-    const deltaHr = Math.min(1, Math.max(0, (activity.average_heartrate - hrRest) / (hrMax - hrRest)));
-    // Banister formula for males (factor 1.92, gender constant ~ 0.64)
+    const deltaHr = Math.min(1, Math.max(0, (activity.average_heartrate - hrRest) / Math.max(1, hrMax - hrRest)));
+    // Banister et al. (1975) impulse-response formula
     const trimp = durationMin * deltaHr * 0.64 * Math.exp(1.92 * deltaHr);
     return Math.round(trimp);
   }
 
-  // Fallback if no HR: estimate based on sport, speed, duration
-  let intensityFactor = 0.5;
-  if (activity.type === 'Run') {
-    const paceMinPerKm = (1000 / (activity.average_speed || 2.7)) / 60;
-    if (paceMinPerKm < 4.0) intensityFactor = 0.9;
-    else if (paceMinPerKm < 4.75) intensityFactor = 0.75;
-    else if (paceMinPerKm < 5.5) intensityFactor = 0.6;
-    else intensityFactor = 0.5;
-  } else if (activity.type === 'Ride') {
-    const speedKmh = (activity.average_speed || 5.5) * 3.6;
-    if (speedKmh > 32) intensityFactor = 0.85;
-    else if (speedKmh > 27) intensityFactor = 0.7;
-    else if (speedKmh > 22) intensityFactor = 0.55;
-    else intensityFactor = 0.45;
+  if (activity.average_watts && activity.average_watts > 0 && settings.ftpWatts && settings.ftpWatts > 0) {
+    const np = activity.weighted_average_watts || activity.average_watts;
+    const ifFactor = np / settings.ftpWatts;
+    const tss = ((activity.moving_time * np * ifFactor) / (settings.ftpWatts * 3600)) * 100;
+    return Math.round(tss);
   }
 
-  // Base load = duration * factor * 1.2
-  return Math.round(durationMin * intensityFactor * 1.1);
+  return 0;
 }
 
 /**
- * Computes estimated time in each HR zone for an activity
+ * Maps an activity's duration to HR zones based strictly on measured data:
+ * - Uses `activity.hrZones` if second-by-second zone data is present.
+ * - Otherwise classifies `moving_time` by the measured `average_heartrate` into the 5-zone %HFmax model.
+ * - If no heart rate was measured, returns 0 across all zones (no synthetic HR estimation).
  */
 export function estimateHrZonesForActivity(
   activity: StravaActivity,
@@ -368,70 +360,35 @@ export function estimateHrZonesForActivity(
     return activity.hrZones;
   }
 
-  const duration = activity.moving_time;
-  const avgHr = activity.average_heartrate || (settings.maxHeartRate * 0.72);
-  const zones = getHrZones(settings.maxHeartRate);
-
-  // Distribution model based on avg heart rate relative to zones
-  let z1 = 0.05;
-  let z2 = 0.15;
-  let z3 = 0.20;
-  let z4 = 0.40;
-  let z5 = 0.20;
-
-  if (avgHr < zones.z2.min) {
-    // Mostly Z1 & Z2
-    z1 = 0.65;
-    z2 = 0.30;
-    z3 = 0.05;
-    z4 = 0;
-    z5 = 0;
-  } else if (avgHr <= zones.z2.max) {
-    // Pure base Zone 2 run/ride
-    z1 = 0.20;
-    z2 = 0.70;
-    z3 = 0.10;
-    z4 = 0;
-    z5 = 0;
-  } else if (avgHr <= zones.z3.max) {
-    // Tempo / Moderate
-    z1 = 0.10;
-    z2 = 0.25;
-    z3 = 0.55;
-    z4 = 0.10;
-    z5 = 0;
-  } else if (avgHr <= zones.z4.max) {
-    // Threshold / Hard
-    z1 = 0.05;
-    z2 = 0.15;
-    z3 = 0.25;
-    z4 = 0.45;
-    z5 = 0.10;
-  } else {
-    // Intervals / Maximum effort
-    z1 = 0.10;
-    z2 = 0.15;
-    z3 = 0.20;
-    z4 = 0.30;
-    z5 = 0.25;
+  if (!activity.average_heartrate || activity.average_heartrate <= 0) {
+    return { z1: 0, z2: 0, z3: 0, z4: 0, z5: 0 };
   }
 
-  return {
-    z1: Math.round(duration * z1),
-    z2: Math.round(duration * z2),
-    z3: Math.round(duration * z3),
-    z4: Math.round(duration * z4),
-    z5: Math.round(duration * z5),
-  };
+  const duration = activity.moving_time || 0;
+  const avgHr = activity.average_heartrate;
+  const zones = getHrZones(settings.maxHeartRate);
+
+  if (avgHr < zones.z2.min) {
+    return { z1: duration, z2: 0, z3: 0, z4: 0, z5: 0 };
+  } else if (avgHr < zones.z3.min) {
+    return { z1: 0, z2: duration, z3: 0, z4: 0, z5: 0 };
+  } else if (avgHr < zones.z4.min) {
+    return { z1: 0, z2: 0, z3: duration, z4: 0, z5: 0 };
+  } else if (avgHr < zones.z5.min) {
+    return { z1: 0, z2: 0, z3: 0, z4: duration, z5: 0 };
+  } else {
+    return { z1: 0, z2: 0, z3: 0, z4: 0, z5: duration };
+  }
 }
 
 /**
  * Calculates continuous daily Fitness (CTL), Fatigue (ATL) and Form (TSB)
- * over the specified time range.
+ * over the specified time range using the Banister/Coggan EWMA model.
+ * Uses a historical lead-in window from recorded activities (seed = 0, no arbitrary baseline seed).
  */
 export function calculateFitnessAndFatigue(
   activities: StravaActivity[],
-  daysBack: number = 90,
+  daysBack: number = 120,
   settings: UserAthleteSettings = DEFAULT_SETTINGS
 ): DayTrainingLoad[] {
   if (activities.length === 0) return [];
@@ -446,20 +403,21 @@ export function calculateFitnessAndFatigue(
   });
 
   const today = new Date();
-  const startDate = subDays(today, daysBack);
+  // Use 126 days (3 * 42d CTL time constants) lead-in prior to daysBack so EWMA reflects real training history
+  const totalSimulationDays = daysBack + 126;
   const result: DayTrainingLoad[] = [];
 
   // Constants for exponential moving average
-  // CTL time constant = 42 days -> lambda = 1 - exp(-1/42) ~= 0.0235
-  // ATL time constant = 7 days -> lambda = 1 - exp(-1/7) ~= 0.1331
+  // CTL time constant = 42 days -> lambda = 1 - exp(-1/42)
+  // ATL time constant = 7 days -> lambda = 1 - exp(-1/7)
   const kCTL = 1 - Math.exp(-1 / 42);
   const kATL = 1 - Math.exp(-1 / 7);
 
-  let currentCTL = 35; // seed baseline
-  let currentATL = 35;
+  let currentCTL = 0;
+  let currentATL = 0;
 
-  // Simulate day by day from startDate to today
-  for (let i = daysBack; i >= 0; i--) {
+  // Simulate day by day from totalSimulationDays to today
+  for (let i = totalSimulationDays; i >= 0; i--) {
     const d = subDays(today, i);
     const dateStr = format(d, 'yyyy-MM-dd');
     const dayActivities = activityMap.get(dateStr) || [];
@@ -480,66 +438,61 @@ export function calculateFitnessAndFatigue(
     currentCTL = currentCTL + (dayTrimp - currentCTL) * kCTL;
     currentATL = currentATL + (dayTrimp - currentATL) * kATL;
     const tsb = currentCTL - currentATL;
-    const acwr = currentCTL > 5 ? currentATL / currentCTL : 1.0;
+    const acwr = currentCTL > 0.1 ? currentATL / currentCTL : 0;
 
-    result.push({
-      dateStr,
-      date: d,
-      trimp: dayTrimp,
-      activitiesCount: dayActivities.length,
-      distanceKm: Math.round(dayDistance * 10) / 10,
-      movingTimeHours: Math.round((dayTimeSec / 3600) * 10) / 10,
-      elevationM: Math.round(dayElevation),
-      ctl: Math.round(currentCTL * 10) / 10,
-      atl: Math.round(currentATL * 10) / 10,
-      tsb: Math.round(tsb * 10) / 10,
-      acwr: Math.round(acwr * 100) / 100,
-    });
+    if (i <= daysBack) {
+      result.push({
+        dateStr,
+        date: d,
+        trimp: dayTrimp,
+        activitiesCount: dayActivities.length,
+        distanceKm: Math.round(dayDistance * 10) / 10,
+        movingTimeHours: Math.round((dayTimeSec / 3600) * 10) / 10,
+        elevationM: Math.round(dayElevation),
+        ctl: Math.round(currentCTL * 10) / 10,
+        atl: Math.round(currentATL * 10) / 10,
+        tsb: Math.round(tsb * 10) / 10,
+        acwr: Math.round(acwr * 100) / 100,
+      });
+    }
   }
 
   return result;
 }
 
 /**
- * Calculate Aerobic Efficiency (Speed or Watts / HR) for Runs & Rides over time
+ * Calculates the Power-to-Heart-Rate Ratio (Ø Watt / Ø HF in W/bpm) for cycling units
+ * that have both measured power and measured heart rate. No speed fallback or estimation.
  */
 export function calculateAerobicEfficiency(activities: StravaActivity[]) {
   const eligible = activities
     .filter(a => {
-      const isSport = isCyclingActivity(a) || isRunningActivity(a);
-      const hasHr = a.average_heartrate && a.average_heartrate > 90;
-      const hasLength = a.distance > 2000 || a.moving_time > 600; // at least 10 min or 2km
-      return isSport && hasHr && hasLength;
+      const isCycle = isCyclingActivity(a);
+      const hasHr = a.average_heartrate && a.average_heartrate > 0;
+      const hasWatts = a.average_watts && a.average_watts > 0;
+      const hasLength = a.moving_time >= 300; // at least 5 min
+      return isCycle && hasHr && hasWatts && hasLength;
     })
     .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
 
   return eligible.map(a => {
-    let speedKmh = a.average_speed * 3.6;
-    let efficiency = 0;
-
-    if (a.average_watts && a.average_watts > 50 && a.average_heartrate) {
-      // For cycling with power meter/Kickr: Watts per bpm * 10
-      efficiency = (a.average_watts / a.average_heartrate) * 10;
-    } else if (speedKmh > 0 && a.average_heartrate) {
-      // Speed per bpm
-      efficiency = (speedKmh / a.average_heartrate) * 100;
-    } else if (a.moving_time > 0 && a.average_heartrate) {
-      // Fallback: estimate 25 km/h for indoor
-      efficiency = (25 / a.average_heartrate) * 100;
-      speedKmh = 25;
-    }
+    const speedKmh = (a.average_speed || 0) * 3.6;
+    const watts = a.average_watts!;
+    const hr = a.average_heartrate!;
+    const ratioWattsPerBpm = watts / hr;
 
     return {
       date: format(parseISO(a.start_date), 'dd.MM'),
       fullDate: format(parseISO(a.start_date), 'yyyy-MM-dd'),
       name: a.name,
-      sport: isCyclingActivity(a) ? 'Ride' : 'Run',
-      efficiency: Math.round(efficiency * 10) / 10,
-      avgHr: Math.round(a.average_heartrate || 0),
+      sport: 'Ride',
+      efficiency: Math.round(ratioWattsPerBpm * 100) / 100,
+      avgHr: Math.round(hr),
       avgSpeed: Math.round(speedKmh * 10) / 10,
-      avgWatts: a.average_watts ? Math.round(a.average_watts) : undefined,
-      paceStr: formatPace(a.average_speed, a.type, a.average_watts),
+      avgWatts: Math.round(watts),
+      paceStr: `${Math.round(watts)} W`,
       distanceKm: a.distance > 0 ? (a.distance / 1000).toFixed(1) : 'Indoor',
+      durationMin: Math.round(a.moving_time / 60),
     };
   });
 }

@@ -8,7 +8,6 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-  Legend,
   ReferenceLine,
 } from 'recharts';
 import { DayTrainingLoad } from '../types/strava';
@@ -17,10 +16,24 @@ import { de } from 'date-fns/locale';
 
 interface FitnessFormChartProps {
   dailyLoads: DayTrainingLoad[];
+  daysRange?: number;
+  onDaysRangeChange?: (days: number) => void;
 }
 
-export const FitnessFormChart: React.FC<FitnessFormChartProps> = ({ dailyLoads }) => {
-  const [daysRange, setDaysRange] = useState<number>(60);
+export const FitnessFormChart: React.FC<FitnessFormChartProps> = ({
+  dailyLoads,
+  daysRange: controlledDaysRange,
+  onDaysRangeChange,
+}) => {
+  const [internalDaysRange, setInternalDaysRange] = useState<number>(30);
+  const daysRange = controlledDaysRange ?? internalDaysRange;
+
+  const handleRangeChange = (days: number) => {
+    setInternalDaysRange(days);
+    if (onDaysRangeChange) {
+      onDaysRangeChange(days);
+    }
+  };
 
   const filteredData = dailyLoads.slice(-daysRange);
 
@@ -33,32 +46,37 @@ export const FitnessFormChart: React.FC<FitnessFormChartProps> = ({ dailyLoads }
     acwr: d.acwr,
     trimp: d.trimp,
     distanceKm: d.distanceKm,
+    movingTimeHours: d.movingTimeHours,
   }));
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-slate-900 border border-slate-700 p-3 rounded-xl shadow-2xl text-xs space-y-1.5 min-w-[200px]">
+        <div className="bg-slate-900 border border-slate-700 p-3 rounded-xl shadow-2xl text-xs space-y-1.5 min-w-[210px]">
           <div className="font-bold text-white border-b border-slate-800 pb-1 flex justify-between">
             <span>{data.displayDate}</span>
-            <span className="text-slate-400 font-normal">{data.distanceKm > 0 ? `${data.distanceKm} km` : 'Ruhetag'}</span>
+            <span className="text-slate-400 font-normal">
+              {data.movingTimeHours > 0
+                ? `${data.movingTimeHours} h (${data.distanceKm} km)`
+                : '0 Einheiten'}
+            </span>
           </div>
           <div className="flex justify-between items-center text-emerald-400">
-            <span>Fitness (CTL):</span>
-            <span className="font-bold">{data.ctl}</span>
+            <span>CTL (42d EWMA) [B]:</span>
+            <span className="font-bold font-mono">{data.ctl}</span>
           </div>
           <div className="flex justify-between items-center text-amber-400">
-            <span>Ermüdung (ATL):</span>
-            <span className="font-bold">{data.atl}</span>
+            <span>ATL (7d EWMA) [B]:</span>
+            <span className="font-bold font-mono">{data.atl}</span>
           </div>
           <div className="flex justify-between items-center text-cyan-400 border-t border-slate-800 pt-1">
-            <span>Form / Frische (TSB):</span>
-            <span className="font-bold">{data.tsb > 0 ? `+${data.tsb}` : data.tsb}</span>
+            <span>TSB (= CTL − ATL) [B]:</span>
+            <span className="font-bold font-mono">{data.tsb > 0 ? `+${data.tsb}` : data.tsb}</span>
           </div>
           <div className="flex justify-between items-center text-orange-400">
-            <span>ACWR (Workload Ratio):</span>
-            <span className="font-bold">{data.acwr.toFixed(2)}</span>
+            <span>ACWR (= ATL / CTL) [B]:</span>
+            <span className="font-bold font-mono">{data.acwr.toFixed(2)}</span>
           </div>
         </div>
       );
@@ -72,20 +90,21 @@ export const FitnessFormChart: React.FC<FitnessFormChartProps> = ({ dailyLoads }
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            Fitness & Ermüdung (CTL / ATL / TSB)
+            Belastungsmodell (CTL / ATL / TSB) – {daysRange} Tage
           </h2>
           <p className="text-xs text-slate-400">
-            Coggan & Banister Modell: Formverlauf über Zeit für optimale Wettkampfsteuerung
+            Impulse-Response-Modell nach Banister et al. (1975) / Coggan PMC (EWMA-Modellgrößen [B])
           </p>
         </div>
 
-        {/* Range Buttons */}
+        {/* Range Buttons (controls global analysisDays) */}
         <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800/80 self-start sm:self-auto">
           {[30, 60, 90, 120].map((days) => (
             <button
               key={days}
-              onClick={() => setDaysRange(days)}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+              type="button"
+              onClick={() => handleRangeChange(days)}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
                 daysRange === days
                   ? 'bg-orange-500 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
@@ -112,13 +131,25 @@ export const FitnessFormChart: React.FC<FitnessFormChartProps> = ({ dailyLoads }
             <YAxis stroke="#64748b" tick={{ fontSize: 11 }} />
             <Tooltip content={<CustomTooltip />} />
             <ReferenceLine y={0} stroke="#475569" strokeDasharray="3 3" />
-            <ReferenceLine y={15} stroke="#10b981" strokeDasharray="2 2" strokeOpacity={0.5} label={{ value: 'Peak', fill: '#10b981', fontSize: 10, position: 'right' }} />
-            <ReferenceLine y={-25} stroke="#ef4444" strokeDasharray="2 2" strokeOpacity={0.5} label={{ value: 'Überlastung', fill: '#ef4444', fontSize: 10, position: 'right' }} />
+            <ReferenceLine
+              y={15}
+              stroke="#10b981"
+              strokeDasharray="2 2"
+              strokeOpacity={0.5}
+              label={{ value: '+15', fill: '#10b981', fontSize: 10, position: 'right' }}
+            />
+            <ReferenceLine
+              y={-25}
+              stroke="#ef4444"
+              strokeDasharray="2 2"
+              strokeOpacity={0.5}
+              label={{ value: '−25', fill: '#ef4444', fontSize: 10, position: 'right' }}
+            />
 
             <Area
               type="monotone"
               dataKey="tsb"
-              name="Form (TSB)"
+              name="Bilanz (TSB = CTL − ATL)"
               fill="url(#tsbGradient)"
               stroke="#38bdf8"
               strokeWidth={1.5}
@@ -126,7 +157,7 @@ export const FitnessFormChart: React.FC<FitnessFormChartProps> = ({ dailyLoads }
             <Line
               type="monotone"
               dataKey="ctl"
-              name="Fitness (CTL, 42d)"
+              name="Chronische Last (CTL, 42d)"
               stroke="#10b981"
               strokeWidth={2.5}
               dot={false}
@@ -134,7 +165,7 @@ export const FitnessFormChart: React.FC<FitnessFormChartProps> = ({ dailyLoads }
             <Line
               type="monotone"
               dataKey="atl"
-              name="Ermüdung (ATL, 7d)"
+              name="Akute Last (ATL, 7d)"
               stroke="#f59e0b"
               strokeWidth={2}
               strokeDasharray="4 4"
@@ -144,27 +175,33 @@ export const FitnessFormChart: React.FC<FitnessFormChartProps> = ({ dailyLoads }
         </ResponsiveContainer>
       </div>
 
-      {/* Scientific Legend & Tips */}
+      {/* Scientific Legend */}
       <div className="mt-4 pt-4 border-t border-slate-800 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
         <div className="flex items-start gap-2">
           <div className="w-3 h-3 rounded-full bg-emerald-500 mt-0.5 shrink-0" />
           <div>
-            <span className="font-semibold text-slate-200">Fitness (CTL): </span>
-            <span className="text-slate-400">Langzeit-Trainingsbasis über 42 Tage. Höher bedeutet größeres Ausdauer-Fundament.</span>
+            <span className="font-semibold text-slate-200">CTL (42d EWMA): </span>
+            <span className="text-slate-400">
+              Exponentiell gewichteter gleitender Durchschnitt der täglichen Trainingslast (TRIMP/TSS) mit Zeitkonstante τ = 42 Tage.
+            </span>
           </div>
         </div>
         <div className="flex items-start gap-2">
           <div className="w-3 h-3 rounded-full bg-amber-500 mt-0.5 shrink-0" />
           <div>
-            <span className="font-semibold text-slate-200">Ermüdung (ATL): </span>
-            <span className="text-slate-400">Akuter Trainingsstress der letzten 7 Tage. Reagiert schnell auf harte Einheiten.</span>
+            <span className="font-semibold text-slate-200">ATL (7d EWMA): </span>
+            <span className="text-slate-400">
+              Exponentiell gewichteter gleitender Durchschnitt der täglichen Trainingslast mit Zeitkonstante τ = 7 Tage.
+            </span>
           </div>
         </div>
         <div className="flex items-start gap-2">
           <div className="w-3 h-3 rounded-full bg-sky-400 mt-0.5 shrink-0" />
           <div>
-            <span className="font-semibold text-slate-200">Form / Frische (TSB): </span>
-            <span className="text-slate-400">Differenz (CTL - ATL). Werte zwischen +5 und +20 markieren das optimale Wettkampffenster.</span>
+            <span className="font-semibold text-slate-200">TSB (= CTL − ATL): </span>
+            <span className="text-slate-400">
+              Rechnerische Differenz zwischen 42-Tage- und 7-Tage-EWMA (Modellgröße, keine direkte physiologische Messung).
+            </span>
           </div>
         </div>
       </div>

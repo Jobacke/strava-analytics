@@ -5,11 +5,13 @@ import { AlertTriangle, CheckCircle2, Info, Flame, Sparkles, ArrowRight } from '
 interface CoachInsightsProps {
   insights: CoachInsight[];
   athleteSummary?: string;
+  analysisDays?: number;
   onOpenClaudeModal?: (mode: 'analysis' | 'plan' | 'daily') => void;
 }
 
 export const CoachInsights: React.FC<CoachInsightsProps> = ({
   insights,
+  analysisDays = 30,
   onOpenClaudeModal,
 }) => {
   const getIcon = (type: CoachInsight['type']) => {
@@ -68,14 +70,14 @@ export const CoachInsights: React.FC<CoachInsightsProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold text-white tracking-tight">
-                Smart Training Coach
+                Sportwissenschaftliche Befundübersicht ({analysisDays} Tage)
               </h2>
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/25">
-                Evidenzbasiert
+                [M] / [B] / [L] Evidenzmodell
               </span>
             </div>
             <p className="text-xs text-slate-400">
-              Sportwissenschaftliche Belastungs-, Zonen- und Regenerationsdiagnostik
+              Radspezifische Belastungs-, Herzfrequenzzonen- und Umfangsdiagnostik ohne Schätzwerte
             </p>
           </div>
         </div>
@@ -141,7 +143,7 @@ export const CoachInsights: React.FC<CoachInsightsProps> = ({
               <div className="pt-2.5 border-t border-slate-800/80 flex items-start gap-2 text-xs">
                 <ArrowRight className="w-3.5 h-3.5 text-orange-400 shrink-0 mt-0.5" />
                 <p className="text-slate-200 leading-snug">
-                  <span className="font-semibold text-orange-300">Coaching-Tipp: </span>
+                  <span className="font-semibold text-orange-300">Methodische Einordnung: </span>
                   {insight.recommendation}
                 </p>
               </div>
