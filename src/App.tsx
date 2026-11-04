@@ -58,6 +58,7 @@ import { PrivacyGdprModal } from './components/PrivacyGdprModal';
 import { TwoFactorLockScreen } from './components/TwoFactorLockScreen';
 import { GdprConsentBanner } from './components/GdprConsentBanner';
 import { WahooBoltModal } from './components/WahooBoltModal';
+import { KickrHeadwindModal } from './components/KickrHeadwindModal';
 import {
   getGdprConsent,
   getSecurity2FAConfig,
@@ -82,6 +83,11 @@ export function App() {
   const [privacyBlur, setPrivacyBlur] = useState<boolean>(() => getPrivacyBlurMode());
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState<boolean>(false);
   const [isWahooModalOpen, setIsWahooModalOpen] = useState<boolean>(false);
+  const [isHeadwindModalOpen, setIsHeadwindModalOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    return params.get('headwind') === '1' || window.location.hash === '#headwind';
+  });
 
   const [userActivities, setUserActivities] = useState<StravaActivity[] | null>(() => {
     const raw = getStoredActivities();
@@ -541,6 +547,7 @@ export function App() {
         activeProfile={activeProfile}
         onProfileChange={handleProfileChange}
         onOpenWahooModal={() => setIsWahooModalOpen(true)}
+        onOpenHeadwindModal={() => setIsHeadwindModalOpen(true)}
         onOpenConnectModal={() => {
           if (!stravaConfig) {
             startDirectStravaOAuth();
@@ -838,6 +845,12 @@ export function App() {
           onUpdateSettings={handleSaveSettings}
         />
       )}
+
+      {/* Wahoo KICKR Headwind Manual BLE Cockpit Modal */}
+      <KickrHeadwindModal
+        isOpen={isHeadwindModalOpen}
+        onClose={() => setIsHeadwindModalOpen(false)}
+      />
 
       {/* User Settings Modal */}
       <UserSettingsModal

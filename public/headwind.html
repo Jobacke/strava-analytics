@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>KICKR Headwind – iPhone Cockpit</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #020617;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 36px;
+      width: 36px;
+      border-radius: 50%;
+      background: #22d3ee;
+      box-shadow: 0 0 15px rgba(34, 211, 238, 0.7);
+      cursor: pointer;
+      border: 3px solid #ffffff;
+    }
+    @keyframes spinFan {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .fan-spin {
+      animation: spinFan var(--spin-duration, 2s) linear infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between pb-8">
+  <div class="max-w-lg w-full mx-auto px-4 pt-4 space-y-4">
+    <!-- Top Header -->
+    <div class="flex items-center justify-between bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 shadow-lg">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-md shadow-cyan-500/20">
+          <svg id="fanIcon" class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 12c0-3 2.5-5.5 5.5-5.5S23 9 23 12H12z"/>
+            <path d="M12 12c3 0 5.5 2.5 5.5 5.5S15 23 12 23V12z"/>
+            <path d="M12 12c0 3-2.5 5.5-5.5 5.5S1 15 1 12h11z"/>
+            <path d="M12 12c-3 0-5.5-2.5-5.5-5.5S9 1 12 1v11z"/>
+            <circle cx="12" cy="12" r="2"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base font-black tracking-tight text-white">KICKR HEADWIND</h1>
+            <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">iPhone BLE</span>
+          </div>
+          <p id="connStatusText" class="text-xs text-slate-400">Bereit für manuelle Steuerung (0x0404)</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button id="btnConnect" onclick="connectHeadwind()" class="px-3.5 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-md shadow-cyan-500/20 active:scale-95 transition">
+          Koppeln
+        </button>
+        <button id="btnDemo" onclick="toggleDemo()" class="px-2.5 py-2.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 active:scale-95 transition">
+          Demo
+        </button>
+      </div>
+    </div>
+
+    <!-- Info Box if Web Bluetooth is missing (e.g. Safari instead of Bluefy) -->
+    <div id="bleNotice" class="hidden bg-cyan-950/50 border border-cyan-500/40 rounded-2xl p-3.5 text-xs text-slate-200 space-y-1.5">
+      <div class="font-bold text-cyan-300">📱 iPhone Bluetooth-Tipp:</div>
+      <p class="text-slate-300 leading-relaxed">
+        Apples Safari blockiert Bluetooth. Öffne diese Seite auf dem iPhone im kostenlosen App-Store-Browser <strong>„Bluefy“</strong>, um den KICKR Headwind direkt per Bluetooth zu steuern – oder klicke oben auf <strong>„Demo“</strong> zum Trockentest!
+      </p>
+    </div>
+
+    <!-- Hero Speed Display + Giant Slider + Fine Buttons -->
+    <div class="bg-slate-900/95 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Lüfterleistung</span>
+          <div class="flex items-baseline gap-2.5 mt-0.5">
+            <span id="speedValue" class="text-6xl font-black tracking-tight text-white tabular-nums">0</span>
+            <span class="text-3xl font-bold text-cyan-400">%</span>
+            <span id="windKmh" class="text-xs font-bold text-cyan-300 ml-1">≈ 0 km/h</span>
+          </div>
+          <div id="subModeStatus" class="text-[11px] text-emerald-400 font-semibold mt-0.5 hidden"></div>
+        </div>
+
+        <button onclick="setManualSpeed(0, true)" class="w-20 h-20 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 flex flex-col items-center justify-center font-extrabold active:scale-95 transition">
+          <span class="text-lg">⏹</span>
+          <span class="text-xs mt-0.5">STOP 0%</span>
+        </button>
+      </div>
+
+      <!-- Active Timer Banner -->
+      <div id="timerBanner" class="hidden items-center justify-between px-3.5 py-2.5 rounded-2xl bg-cyan-500/15 border border-cyan-500/40 text-xs">
+        <span id="timerLabel" class="font-bold text-cyan-300">Warmup aktiv</span>
+        <div class="flex items-center gap-2">
+          <span id="timerClock" class="font-mono font-black text-sm text-white bg-slate-950 px-2.5 py-1 rounded-lg border border-cyan-500/30">08:00</span>
+          <button onclick="stopAutomation()" class="px-2 py-1 rounded-lg bg-rose-500/25 text-rose-200 font-bold">Stopp</button>
+        </div>
+      </div>
+
+      <!-- Giant Touch Slider -->
+      <div class="space-y-1.5">
+        <div class="relative h-14 bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden flex items-center px-3">
+          <div id="sliderFill" class="absolute inset-y-0 left-0 bg-gradient-to-r from-cyan-600/50 to-blue-500/70 pointer-events-none transition-all duration-100" style="width: 0%;"></div>
+          <input id="speedSlider" type="range" min="0" max="100" step="1" value="0" oninput="setManualSpeed(Number(this.value), true)" class="relative z-10 w-full h-12" />
+        </div>
+        <div class="flex justify-between text-[10px] font-mono text-slate-500 px-1">
+          <span>0% Aus</span>
+          <span>25%</span>
+          <span>50%</span>
+          <span>75%</span>
+          <span>100% (48 km/h)</span>
+        </div>
+      </div>
+
+      <!-- Sweat-proof Fine Tuning Buttons -->
+      <div class="grid grid-cols-6 gap-2">
+        <button onclick="adjustSpeed(-10)" class="py-3.5 rounded-2xl font-extrabold text-sm bg-slate-800 text-slate-200 border border-slate-700 active:scale-95">-10%</button>
+        <button onclick="adjustSpeed(-5)" class="py-3.5 rounded-2xl font-extrabold text-sm bg-slate-800 text-slate-200 border border-slate-700 active:scale-95">-5%</button>
+        <button onclick="adjustSpeed(-1)" class="py-3.5 rounded-2xl font-extrabold text-sm bg-slate-800 text-slate-200 border border-slate-700 active:scale-95">-1%</button>
+        <button onclick="adjustSpeed(1)" class="py-3.5 rounded-2xl font-extrabold text-sm bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 active:scale-95">+1%</button>
+        <button onclick="adjustSpeed(5)" class="py-3.5 rounded-2xl font-extrabold text-sm bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 active:scale-95">+5%</button>
+        <button onclick="adjustSpeed(10)" class="py-3.5 rounded-2xl font-extrabold text-sm bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 active:scale-95">+10%</button>
+      </div>
+    </div>
+
+    <!-- 6 Customizable Preset Tiles -->
+    <div class="bg-slate-900/95 border border-slate-800 rounded-3xl p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-extrabold uppercase tracking-wider text-slate-300">Direktwahl-Kacheln</span>
+        <button id="btnEditPresets" onclick="toggleEditPresets()" class="px-3 py-1 rounded-xl text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">
+          Stufen anpassen
+        </button>
+      </div>
+      <div id="presetsGrid" class="grid grid-cols-3 gap-2.5"></div>
+    </div>
+
+    <!-- Smart Comfort Automations: Warmup, Boost, Cooldown & Wave Mode -->
+    <div class="grid grid-cols-2 gap-3">
+      <!-- Warmup Card -->
+      <div class="bg-slate-900/95 border border-slate-800 rounded-3xl p-4 flex flex-col justify-between space-y-3">
+        <div>
+          <div class="text-xs font-extrabold text-amber-400 uppercase">🔥 Warmup-Start</div>
+          <p class="text-[11px] text-slate-400 mt-1">Startet sanft und fährt zum Ende automatisch hoch.</p>
+          <div class="grid grid-cols-2 gap-1.5 mt-2.5">
+            <select id="warmupMin" class="px-2 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-white">
+              <option value="5">5 Min</option>
+              <option value="8" selected>8 Min</option>
+              <option value="10">10 Min</option>
+              <option value="12">12 Min</option>
+            </select>
+            <select id="warmupTarget" class="px-2 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-cyan-300">
+              <option value="40">Ziel 40%</option>
+              <option value="50" selected>Ziel 50%</option>
+              <option value="65">Ziel 65%</option>
+            </select>
+          </div>
+        </div>
+        <button onclick="startWarmup()" class="w-full py-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-extrabold active:scale-95">
+          Warmup starten (15% &rarr; Ziel)
+        </button>
+      </div>
+
+      <!-- Interval Boost & Cooldown -->
+      <div class="bg-slate-900/95 border border-slate-800 rounded-3xl p-4 flex flex-col justify-between space-y-2.5">
+        <div>
+          <div class="text-xs font-extrabold text-cyan-400 uppercase">⚡ Boost &amp; Cooldown</div>
+          <p class="text-[11px] text-slate-400 mt-1">1-Tap Vollgas für Intervalle oder Nachkühl-Abschaltung.</p>
+        </div>
+        <button onclick="startBoost(3, 95)" class="w-full py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-xs font-extrabold active:scale-95">
+          ⚡ 3 Min Boost (95%)
+        </button>
+        <button onclick="startCooldown(5)" class="w-full py-2.5 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-xs font-extrabold active:scale-95">
+          ❄️ 5 Min Cooldown &rarr; Aus
+        </button>
+      </div>
+    </div>
+
+    <!-- Natural Road-Wind Wave Mode -->
+    <div class="bg-slate-900/95 border border-slate-800 rounded-3xl p-4 flex items-center justify-between gap-3">
+      <div>
+        <div class="text-xs font-extrabold text-emerald-400 uppercase">🌊 Wellen- / Böen-Modus (Fahrtwind)</div>
+        <p class="text-[11px] text-slate-400 mt-0.5">Pulsiert sanft um ±10 % wie echter Gegenwind auf der Straße.</p>
+      </div>
+      <button id="btnWave" onclick="toggleWaveMode()" class="px-4 py-2.5 rounded-xl text-xs font-extrabold bg-slate-800 text-slate-300 border border-slate-700 shrink-0 active:scale-95">
+        Aktivieren
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const SERVICE_UUID = 'a026ee0c-0a7d-4ab3-97fa-f1500f9feb8b';
+    const CHAR_UUID = 'a026e038-0a7d-4ab3-97fa-f1500f9feb8b';
+    const STORAGE_KEY = 'strava_pulse_headwind_presets_v1';
+
+    let baseSpeed = 0;
+    let effectiveSpeed = 0;
+    let isConnected = false;
+    let isDemo = false;
+    let isEditingPresets = false;
+    let waveMode = false;
+    let waveTimer = null;
+    let waveStart = 0;
+
+    let bleDevice = null;
+    let controlChar = null;
+    let manualInitialized = false;
+    let isWriting = false;
+    let pendingSpeed = null;
+
+    let activeTimer = null;
+    let automationState = null;
+
+    const defaultPresets = [
+      { id: 'p0', label: 'Aus', percent: 0, sublabel: 'Standby' },
+      { id: 'p1', label: 'Warmup', percent: 20, sublabel: 'Brise' },
+      { id: 'p2', label: 'GA1 Basis', percent: 40, sublabel: 'Grundlage' },
+      { id: 'p3', label: 'Tempo', percent: 60, sublabel: 'Moderat' },
+      { id: 'p4', label: 'Schwelle', percent: 80, sublabel: 'FTP' },
+      { id: 'p5', label: 'Vollgas', percent: 100, sublabel: '48 km/h' }
+    ];
+
+    let presets = (() => {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (Array.isArray(saved) && saved.length === 6) return saved;
+      } catch (e) {}
+      return defaultPresets;
+    })();
+
+    function renderPresets() {
+      const grid = document.getElementById('presetsGrid');
+      grid.innerHTML = '';
+      presets.forEach((p, idx) => {
+        if (isEditingPresets) {
+          const card = document.createElement('div');
+          card.className = 'p-2.5 rounded-2xl bg-slate-950 border border-cyan-500/40 space-y-1.5';
+          card.innerHTML = `
+            <input type="text" value="${p.label}" onchange="updatePresetLabel(${idx}, this.value)" class="w-full px-2 py-1 rounded bg-slate-900 border border-slate-700 text-xs font-bold text-white" />
+            <div class="flex items-center gap-1">
+              <input type="number" min="0" max="100" value="${p.percent}" onchange="updatePresetPercent(${idx}, this.value)" class="w-full px-2 py-1 rounded bg-slate-900 border border-slate-700 text-sm font-black text-cyan-300" />
+              <span class="text-xs text-slate-400">%</span>
+            </div>
+          `;
+          grid.appendChild(card);
+        } else {
+          const active = baseSpeed === p.percent;
+          const btn = document.createElement('button');
+          btn.className = `p-3.5 rounded-2xl border text-left transition active:scale-95 flex flex-col justify-between ${
+            active
+              ? 'bg-cyan-500/20 border-cyan-400 text-white shadow-md shadow-cyan-500/10'
+              : 'bg-slate-950/90 border-slate-800 text-slate-200'
+          }`;
+          btn.onclick = () => setManualSpeed(p.percent, true);
+          btn.innerHTML = `
+            <div class="text-xl font-black tabular-nums ${active ? 'text-cyan-300' : 'text-white'}">${p.percent}%</div>
+            <div class="text-xs font-bold mt-1">${p.label}</div>
+          `;
+          grid.appendChild(btn);
+        }
+      });
+    }
+
+    function updatePresetLabel(idx, val) {
+      presets[idx].label = val;
+    }
+    function updatePresetPercent(idx, val) {
+      presets[idx].percent = Math.max(0, Math.min(100, Math.round(Number(val) || 0)));
+    }
+    function toggleEditPresets() {
+      isEditingPresets = !isEditingPresets;
+      const btn = document.getElementById('btnEditPresets');
+      if (!isEditingPresets) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+        btn.textContent = 'Stufen anpassen';
+        btn.className = 'px-3 py-1 rounded-xl text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700';
+      } else {
+        btn.textContent = '✓ Speichern';
+        btn.className = 'px-3 py-1 rounded-xl text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+      }
+      renderPresets();
+    }
+
+    function updateUI() {
+      document.getElementById('speedValue').textContent = effectiveSpeed;
+      document.getElementById('windKmh').textContent = `≈ ${Math.round((effectiveSpeed / 100) * 48)} km/h`;
+      document.getElementById('speedSlider').value = baseSpeed;
+      document.getElementById('sliderFill').style.width = `${baseSpeed}%`;
+
+      const fan = document.getElementById('fanIcon');
+      if (effectiveSpeed > 0) {
+        const dur = Math.max(0.25, 2.2 - (effectiveSpeed / 100) * 1.9);
+        fan.style.setProperty('--spin-duration', `${dur}s`);
+        fan.classList.add('fan-spin');
+      } else {
+        fan.classList.remove('fan-spin');
+      }
+
+      const sub = document.getElementById('subModeStatus');
+      if (waveMode && baseSpeed > 0) {
+        sub.textContent = `🌊 Wellen-Basis: ${baseSpeed}% (±10%)`;
+        sub.classList.remove('hidden');
+      } else {
+        sub.classList.add('hidden');
+      }
+      renderPresets();
+    }
+
+    async function flushBleQueue() {
+      if (isWriting || !controlChar || pendingSpeed === null) return;
+      isWriting = true;
+      try {
+        while (pendingSpeed !== null) {
+          const target = pendingSpeed;
+          pendingSpeed = null;
+          if (target === 0) {
+            const cmd = new Uint8Array([0x02, 0x00]);
+            await (controlChar.writeValueWithResponse ? controlChar.writeValueWithResponse(cmd) : controlChar.writeValue(cmd));
+          } else {
+            if (!manualInitialized) {
+              const modeCmd = new Uint8Array([0x04, 0x04]);
+              await (controlChar.writeValueWithResponse ? controlChar.writeValueWithResponse(modeCmd) : controlChar.writeValue(modeCmd));
+              manualInitialized = true;
+            }
+            const speedCmd = new Uint8Array([0x02, target]);
+            await (controlChar.writeValueWithResponse ? controlChar.writeValueWithResponse(speedCmd) : controlChar.writeValue(speedCmd));
+          }
+        }
+      } catch (e) {
+        console.warn('BLE write warn:', e);
+      } finally {
+        isWriting = false;
+      }
+    }
+
+    function pushSpeedToHardware(val) {
+      effectiveSpeed = Math.max(0, Math.min(100, Math.round(val)));
+      if (isConnected && controlChar) {
+        pendingSpeed = effectiveSpeed;
+        flushBleQueue();
+      }
+      updateUI();
+    }
+
+    function setManualSpeed(val, cancelAuto) {
+      baseSpeed = Math.max(0, Math.min(100, Math.round(val)));
+      if (cancelAuto && automationState) {
+        stopAutomation();
+      }
+      if (!waveMode || baseSpeed === 0) {
+        pushSpeedToHardware(baseSpeed);
+      } else {
+        updateUI();
+      }
+    }
+
+    function adjustSpeed(delta) {
+      setManualSpeed(baseSpeed + delta, false);
+    }
+
+    async function connectHeadwind() {
+      if (isConnected && bleDevice?.gatt?.connected) {
+        bleDevice.gatt.disconnect();
+        return;
+      }
+      if (!navigator.bluetooth) {
+        document.getElementById('bleNotice').classList.remove('hidden');
+        return;
+      }
+      try {
+        document.getElementById('connStatusText').textContent = 'Suche KICKR Headwind...';
+        bleDevice = await navigator.bluetooth.requestDevice({
+          filters: [
+            { services: [SERVICE_UUID] },
+            { namePrefix: 'KICKR HEADWIND' },
+            { namePrefix: 'HEADWIND' },
+            { namePrefix: 'Wahoo' }
+          ],
+          optionalServices: [SERVICE_UUID, 0x180a, 0x180f]
+        });
+
+        bleDevice.addEventListener('gattserverdisconnected', () => {
+          isConnected = false;
+          controlChar = null;
+          manualInitialized = false;
+          document.getElementById('connStatusText').textContent = 'Verbindung getrennt';
+          document.getElementById('btnConnect').textContent = 'Koppeln';
+        });
+
+        const server = await bleDevice.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        controlChar = await service.getCharacteristic(CHAR_UUID);
+        try { await controlChar.startNotifications(); } catch (e) {}
+
+        const modeCmd = new Uint8Array([0x04, 0x04]);
+        await (controlChar.writeValueWithResponse ? controlChar.writeValueWithResponse(modeCmd) : controlChar.writeValue(modeCmd));
+        manualInitialized = true;
+        isConnected = true;
+
+        document.getElementById('connStatusText').textContent = `Verbunden: ${bleDevice.name || 'KICKR Headwind'}`;
+        document.getElementById('btnConnect').textContent = 'Trennen';
+        pushSpeedToHardware(baseSpeed);
+      } catch (e) {
+        document.getElementById('connStatusText').textContent = 'Nicht gekoppelt';
+      }
+    }
+
+    function toggleDemo() {
+      isDemo = !isDemo;
+      const btn = document.getElementById('btnDemo');
+      if (isDemo) {
+        btn.textContent = 'Demo AKTIV';
+        btn.className = 'px-2.5 py-2.5 rounded-xl text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40';
+        document.getElementById('connStatusText').textContent = 'Trockentest-Simulation aktiv';
+      } else {
+        btn.textContent = 'Demo';
+        btn.className = 'px-2.5 py-2.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700';
+        document.getElementById('connStatusText').textContent = 'Bereit für manuelle Steuerung';
+      }
+    }
+
+    function toggleWaveMode() {
+      waveMode = !waveMode;
+      const btn = document.getElementById('btnWave');
+      if (waveTimer) clearInterval(waveTimer);
+      if (waveMode) {
+        btn.textContent = 'Böen AKTIV';
+        btn.className = 'px-4 py-2.5 rounded-xl text-xs font-extrabold bg-emerald-500 text-slate-950 border border-emerald-400 shrink-0';
+        waveStart = Date.now();
+        waveTimer = setInterval(() => {
+          if (baseSpeed === 0) {
+            pushSpeedToHardware(0);
+            return;
+          }
+          const elapsed = (Date.now() - waveStart) / 1000;
+          const offset = Math.round(Math.sin((2 * Math.PI * elapsed) / 12) * 10);
+          pushSpeedToHardware(Math.max(5, Math.min(100, baseSpeed + offset)));
+        }, 1500);
+      } else {
+        btn.textContent = 'Aktivieren';
+        btn.className = 'px-4 py-2.5 rounded-xl text-xs font-extrabold bg-slate-800 text-slate-300 border border-slate-700 shrink-0';
+        pushSpeedToHardware(baseSpeed);
+      }
+      updateUI();
+    }
+
+    function formatClock(sec) {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    function stopAutomation() {
+      if (activeTimer) clearInterval(activeTimer);
+      activeTimer = null;
+      automationState = null;
+      document.getElementById('timerBanner').classList.add('hidden');
+      document.getElementById('timerBanner').classList.remove('flex');
+    }
+
+    function runAutomationLoop() {
+      if (activeTimer) clearInterval(activeTimer);
+      const banner = document.getElementById('timerBanner');
+      banner.classList.remove('hidden');
+      banner.classList.add('flex');
+
+      activeTimer = setInterval(() => {
+        if (!automationState) return;
+        automationState.remaining--;
+        document.getElementById('timerClock').textContent = formatClock(automationState.remaining);
+
+        if (automationState.remaining <= 0) {
+          const finalSpeed = automationState.finalSpeed;
+          stopAutomation();
+          setManualSpeed(finalSpeed, false);
+          return;
+        }
+
+        if (automationState.type === 'warmup') {
+          const ramp = Math.min(90, Math.floor(automationState.total * 0.35));
+          if (automationState.remaining <= ramp && ramp > 0) {
+            const prog = 1 - automationState.remaining / ramp;
+            const cur = Math.round(automationState.start + (automationState.finalSpeed - automationState.start) * prog);
+            setManualSpeed(cur, false);
+          }
+        } else if (automationState.type === 'cooldown') {
+          const half = Math.floor(automationState.total / 2);
+          setManualSpeed(automationState.remaining > half ? automationState.high : 30, false);
+        }
+      }, 1000);
+    }
+
+    function startWarmup() {
+      const mins = Number(document.getElementById('warmupMin').value) || 8;
+      const target = Number(document.getElementById('warmupTarget').value) || 50;
+      const total = mins * 60;
+      automationState = { type: 'warmup', start: 15, finalSpeed: target, total, remaining: total };
+      document.getElementById('timerLabel').textContent = `🔥 Warmup: 15% → ${target}%`;
+      document.getElementById('timerClock').textContent = formatClock(total);
+      setManualSpeed(15, false);
+      runAutomationLoop();
+    }
+
+    function startBoost(mins, boostVal) {
+      const ret = baseSpeed > 0 ? baseSpeed : 45;
+      const total = mins * 60;
+      automationState = { type: 'boost', finalSpeed: ret, total, remaining: total };
+      document.getElementById('timerLabel').textContent = `⚡ Boost (${boostVal}%) → zurück auf ${ret}%`;
+      document.getElementById('timerClock').textContent = formatClock(total);
+      setManualSpeed(boostVal, false);
+      runAutomationLoop();
+    }
+
+    function startCooldown(mins) {
+      const high = Math.max(baseSpeed, 65);
+      const total = mins * 60;
+      automationState = { type: 'cooldown', high, finalSpeed: 0, total, remaining: total };
+      document.getElementById('timerLabel').textContent = `❄️ Cooldown (${high}% → 30% → Aus)`;
+      document.getElementById('timerClock').textContent = formatClock(total);
+      setManualSpeed(high, false);
+      runAutomationLoop();
+    }
+
+    // Request Screen Wake Lock automatically on first tap
+    document.addEventListener('click', async () => {
+      if ('wakeLock' in navigator && !window._wakeLock) {
+        try { window._wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+      }
+    }, { once: true });
+
+    updateUI();
+  </script>
+</body>
+</html>

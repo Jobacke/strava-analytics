@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Sliders, Upload, RefreshCw, ShieldCheck, Shield, EyeOff, Eye, Lock, Gauge } from 'lucide-react';
+import { Activity, Sliders, Upload, RefreshCw, ShieldCheck, Shield, EyeOff, Eye, Lock, Gauge, Wind } from 'lucide-react';
 import { StravaConfig } from '../services/stravaApi';
 import { AthleteProfileId } from '../utils/trainingMath';
 import { APP_VERSION } from '../version';
@@ -9,6 +9,7 @@ interface NavbarProps {
   activeProfile: AthleteProfileId;
   onProfileChange: (profile: AthleteProfileId) => void;
   onOpenWahooModal: () => void;
+  onOpenHeadwindModal: () => void;
   onOpenConnectModal: () => void;
   onOpenSettingsModal: () => void;
   onOpenPrivacyModal: () => void;
@@ -29,6 +30,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeProfile,
   onProfileChange,
   onOpenWahooModal,
+  onOpenHeadwindModal,
   onOpenConnectModal,
   onOpenSettingsModal,
   onOpenPrivacyModal,
@@ -136,6 +138,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Buttons */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Wahoo KICKR Headwind BLE Manual Cockpit Button */}
+            <button
+              type="button"
+              onClick={onOpenHeadwindModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 shadow-sm transition cursor-pointer"
+              title="Wahoo KICKR Headwind manuell per Bluetooth (BLE) steuern (0–100 %, Warmup, Boost & Wellen-Modus)"
+            >
+              <Wind className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Headwind</span>
+            </button>
+
             {activeProfile === 'veronika' ? (
               <button
                 onClick={onOpenWahooModal}

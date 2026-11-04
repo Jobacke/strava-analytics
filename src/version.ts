@@ -1,3 +1,3 @@
-export const APP_VERSION = 'v2.4.7';
-export const APP_RELEASE_NAME = 'Second-by-Second 1s Strava HR Stream Zonal Analysis, Cloud Settings Sync (94 kg) & 7/14/30/60/90/120d Filters';
-export const APP_BUILD_DATE = '2026-11-02';
+export const APP_VERSION = 'v2.4.8';
+export const APP_RELEASE_NAME = 'Wahoo KICKR Headwind iPhone BLE Cockpit (0–100% Manual Control, Warmup, Interval Boost, Cooldown & Wave Mode)';
+export const APP_BUILD_DATE = '2026-11-04';
