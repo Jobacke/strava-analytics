@@ -21,13 +21,12 @@
       margin: 0;
       padding: 0;
       width: 100%;
-      height: 100dvh;
-      overflow: hidden;
+      height: 100%;
       background: radial-gradient(circle at 50% 0%, #0f172a 0%, #020617 75%);
       color: #f8fafc;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      overscroll-behavior: none;
     }
-    /* Giant touch-friendly custom range slider */
     .slider-track {
       touch-action: none;
     }
@@ -42,11 +41,11 @@
     }
     input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      height: 44px;
-      width: 44px;
-      border-radius: 14px;
+      height: 38px;
+      width: 38px;
+      border-radius: 12px;
       background: #ffffff;
-      box-shadow: 0 4px 20px rgba(34, 211, 238, 0.85), 0 0 0 3px #06b6d4;
+      box-shadow: 0 3px 16px rgba(34, 211, 238, 0.85), 0 0 0 3px #06b6d4;
       cursor: pointer;
     }
     @keyframes spinFan {
@@ -57,7 +56,7 @@
       animation: spinFan var(--spin-duration, 2s) linear infinite;
     }
     .glass-card {
-      background: rgba(15, 23, 42, 0.78);
+      background: rgba(15, 23, 42, 0.82);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid rgba(51, 65, 85, 0.65);
@@ -70,12 +69,12 @@
     }
   </style>
 </head>
-<body class="flex flex-col justify-between px-3.5 pt-2.5 pb-3 max-w-md mx-auto select-none">
+<body class="h-full flex flex-col justify-between px-3 pt-1.5 pb-2.5 max-w-md mx-auto gap-2 overflow-y-auto">
 
   <!-- 1. COMPACT TOP STATUS & CONNECT BAR -->
-  <header class="glass-card rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-2 shadow-lg shrink-0">
-    <div class="flex items-center gap-2.5 min-w-0">
-      <div id="fanBadge" class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-md shadow-cyan-500/25 shrink-0">
+  <header class="glass-card rounded-2xl px-3 py-2 flex items-center justify-between gap-2 shadow-md shrink-0">
+    <div class="flex items-center gap-2 min-w-0">
+      <div id="fanBadge" class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-sm shadow-cyan-500/25 shrink-0">
         <svg id="fanIcon" class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 12c0-3 2.5-5.5 5.5-5.5S23 9 23 12H12z"/>
           <path d="M12 12c3 0 5.5 2.5 5.5 5.5S15 23 12 23V12z"/>
@@ -89,17 +88,17 @@
           <span id="connDot" class="w-2 h-2 rounded-full bg-slate-500 shrink-0"></span>
           <h1 id="connStatusText" class="text-xs font-extrabold text-white truncate">Nicht gekoppelt</h1>
         </div>
-        <div id="autoReconnectBadge" class="text-[10px] font-semibold text-emerald-400 truncate mt-0.5">
+        <div id="autoReconnectBadge" class="text-[10px] font-semibold text-emerald-400 truncate">
           🛡️ Auto-Reconnect &amp; Echtzeit-Timer aktiv
         </div>
       </div>
     </div>
 
     <div class="flex items-center gap-1.5 shrink-0">
-      <button id="btnConnect" onclick="connectHeadwind(false)" class="btn-press px-4 py-2.5 rounded-xl text-xs font-black tracking-wide bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-md shadow-cyan-500/20">
+      <button id="btnConnect" onclick="connectHeadwind(false)" class="btn-press px-3.5 py-2 rounded-xl text-xs font-black tracking-wide bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-sm">
         Koppeln
       </button>
-      <button onclick="openSetupModal()" aria-label="Einstellungen" class="btn-press p-2.5 rounded-xl bg-slate-800/90 text-slate-300 border border-slate-700/80">
+      <button onclick="openSetupModal()" aria-label="Einstellungen" class="btn-press p-2 rounded-xl bg-slate-800/90 text-slate-300 border border-slate-700/80">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"></circle>
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -108,100 +107,100 @@
     </div>
   </header>
 
-  <!-- 2. HERO SPEED GAUGE + GIANT SLIDER + 4 BIG FINE BUTTONS -->
-  <section class="glass-card rounded-3xl p-4 shadow-xl flex flex-col justify-between space-y-3 shrink-0">
+  <!-- 2. HERO SPEED GAUGE + TOUCH SLIDER + 4 BIG FINE BUTTONS -->
+  <section class="glass-card rounded-3xl p-3 shadow-lg flex flex-col justify-between gap-2 shrink-0">
     <div class="flex items-center justify-between">
       <div>
         <div class="flex items-center gap-2">
           <span class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Fahrtwind</span>
-          <span id="windKmh" class="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-[11px] font-extrabold text-cyan-300">0 km/h</span>
+          <span id="windKmh" class="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-[11px] font-extrabold text-cyan-300">≈ 0 km/h</span>
+          <span id="subModeStatus" class="text-[10px] text-emerald-400 font-bold hidden"></span>
         </div>
         <div class="flex items-baseline gap-1 mt-0.5">
-          <span id="speedValue" class="text-6xl font-black tracking-tighter text-white tabular-nums leading-none">0</span>
-          <span class="text-3xl font-black text-cyan-400">%</span>
+          <span id="speedValue" class="text-5xl font-black tracking-tighter text-white tabular-nums leading-none">0</span>
+          <span class="text-2xl font-black text-cyan-400">%</span>
         </div>
-        <div id="subModeStatus" class="text-[11px] text-emerald-400 font-bold mt-1 hidden"></div>
       </div>
 
       <!-- Giant Unmissable STOP 0% Button -->
-      <button onclick="setManualSpeed(0, true)" class="btn-press w-24 h-20 rounded-2xl bg-rose-500/20 border-2 border-rose-500/50 text-rose-300 flex flex-col items-center justify-center shadow-lg shadow-rose-950/50">
-        <svg class="w-6 h-6 mb-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+      <button onclick="setManualSpeed(0, true)" class="btn-press w-24 h-16 rounded-2xl bg-rose-500/20 border-2 border-rose-500/50 text-rose-300 flex flex-col items-center justify-center shadow-md">
+        <svg class="w-5 h-5 mb-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
           <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
           <line x1="12" y1="2" x2="12" y2="12"></line>
         </svg>
-        <span class="text-xs font-black tracking-wide">STOP 0%</span>
+        <span class="text-[11px] font-black tracking-wide">STOP 0%</span>
       </button>
     </div>
 
-    <!-- Active Automation Countdown Banner (shown only when timer runs) -->
-    <div id="timerBanner" class="hidden items-center justify-between px-3.5 py-2 rounded-2xl bg-cyan-500/20 border border-cyan-400/50 text-xs">
+    <!-- Active Automation Countdown Banner -->
+    <div id="timerBanner" class="hidden items-center justify-between px-3 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-400/50 text-xs">
       <span id="timerLabel" class="font-extrabold text-cyan-200 truncate pr-2">Warmup aktiv</span>
-      <div class="flex items-center gap-2 shrink-0">
-        <span id="timerClock" class="font-mono font-black text-sm text-white bg-slate-950 px-2.5 py-1 rounded-xl border border-cyan-500/40">08:00</span>
-        <button onclick="stopAutomation()" class="btn-press px-2.5 py-1 rounded-xl bg-rose-500/30 border border-rose-400/40 text-rose-100 font-extrabold">Aus</button>
+      <div class="flex items-center gap-1.5 shrink-0">
+        <span id="timerClock" class="font-mono font-black text-xs text-white bg-slate-950 px-2 py-0.5 rounded-lg border border-cyan-500/40">08:00</span>
+        <button onclick="stopAutomation()" class="btn-press px-2 py-0.5 rounded-lg bg-rose-500/30 border border-rose-400/40 text-rose-100 font-extrabold text-[11px]">Stopp</button>
       </div>
     </div>
 
     <!-- Thick Sweat-Proof Touch Slider -->
-    <div class="slider-track relative h-14 bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden flex items-center px-2">
+    <div class="slider-track relative h-11 bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden flex items-center px-1.5">
       <div id="sliderFill" class="absolute inset-y-0 left-0 bg-gradient-to-r from-cyan-600/60 via-cyan-500/70 to-blue-500/80 pointer-events-none transition-all duration-75" style="width: 0%;"></div>
       <input id="speedSlider" type="range" min="0" max="100" step="1" value="0" oninput="setManualSpeed(Number(this.value), true)" aria-label="Lüfterstärke" class="relative z-10" />
     </div>
 
     <!-- 4 Extra-Wide Fine Tuning Buttons (-5%, -1%, +1%, +5%) -->
-    <div class="grid grid-cols-4 gap-2">
-      <button onclick="adjustSpeed(-5)" class="btn-press py-3.5 rounded-2xl font-black text-base bg-slate-800/95 text-slate-100 border border-slate-700 shadow-sm">-5 %</button>
-      <button onclick="adjustSpeed(-1)" class="btn-press py-3.5 rounded-2xl font-black text-base bg-slate-800/95 text-slate-200 border border-slate-700 shadow-sm">-1 %</button>
-      <button onclick="adjustSpeed(1)" class="btn-press py-3.5 rounded-2xl font-black text-base bg-cyan-500/15 text-cyan-300 border border-cyan-500/35 shadow-sm">+1 %</button>
-      <button onclick="adjustSpeed(5)" class="btn-press py-3.5 rounded-2xl font-black text-base bg-cyan-500/20 text-cyan-200 border border-cyan-500/45 shadow-sm">+5 %</button>
+    <div class="grid grid-cols-4 gap-1.5">
+      <button onclick="adjustSpeed(-5)" class="btn-press py-2.5 rounded-xl font-black text-sm bg-slate-800/95 text-slate-100 border border-slate-700">-5 %</button>
+      <button onclick="adjustSpeed(-1)" class="btn-press py-2.5 rounded-xl font-black text-sm bg-slate-800/95 text-slate-200 border border-slate-700">-1 %</button>
+      <button onclick="adjustSpeed(1)" class="btn-press py-2.5 rounded-xl font-black text-sm bg-cyan-500/15 text-cyan-300 border border-cyan-500/35">+1 %</button>
+      <button onclick="adjustSpeed(5)" class="btn-press py-2.5 rounded-xl font-black text-sm bg-cyan-500/20 text-cyan-200 border border-cyan-500/45">+5 %</button>
     </div>
   </section>
 
-  <!-- 3. 6 LARGE DIRECT-SELECT PRESET TILES (2x3 Grid) -->
-  <section class="glass-card rounded-3xl p-3.5 shadow-xl shrink-0">
-    <div id="presetsGrid" class="grid grid-cols-3 gap-2"></div>
+  <!-- 3. 6 LARGE DIRECT-SELECT PRESET TILES (Flexible 2x3 Grid) -->
+  <section class="glass-card rounded-3xl p-2.5 shadow-lg flex-1 min-h-0 flex flex-col justify-center">
+    <div id="presetsGrid" class="grid grid-cols-3 grid-rows-2 gap-1.5 h-full"></div>
   </section>
 
-  <!-- 4. 4 ONE-TAP SMART AUTOMATION BUTTONS (2x2 Grid, No Tiny Dropdowns!) -->
-  <section class="grid grid-cols-2 gap-2.5 shrink-0">
+  <!-- 4. 4 ONE-TAP SMART AUTOMATION BUTTONS (Compact 2x2 Grid, Always Fully Visible) -->
+  <section class="grid grid-cols-2 gap-1.5 shrink-0 pb-1">
     <!-- 1-Tap Warmup -->
-    <button id="btnWarmupTile" onclick="toggleWarmup()" class="btn-press glass-card rounded-2xl p-3 text-left flex items-center justify-between border border-amber-500/30">
-      <div>
-        <div class="text-xs font-black text-amber-300 flex items-center gap-1">🔥 Warmup</div>
-        <div id="warmupSubtext" class="text-[11px] font-semibold text-slate-400 mt-0.5">8 Min: 15% &rarr; 50%</div>
+    <button id="btnWarmupTile" onclick="toggleWarmup()" class="btn-press glass-card rounded-2xl px-3 py-2 text-left flex items-center justify-between border border-amber-500/35">
+      <div class="min-w-0">
+        <div class="text-xs font-black text-amber-300 truncate">🔥 Warmup</div>
+        <div id="warmupSubtext" class="text-[10px] font-semibold text-slate-400 truncate">8 Min: 15% &rarr; 50%</div>
       </div>
-      <span class="text-xs font-black px-2 py-1 rounded-lg bg-amber-500/20 text-amber-300">Start</span>
+      <span id="warmupBadge" class="text-[10px] font-black px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 shrink-0 ml-1">Start</span>
     </button>
 
     <!-- 1-Tap Interval Boost -->
-    <button id="btnBoostTile" onclick="toggleBoost()" class="btn-press glass-card rounded-2xl p-3 text-left flex items-center justify-between border border-cyan-500/30">
-      <div>
-        <div class="text-xs font-black text-cyan-300 flex items-center gap-1">⚡ Intervall-Boost</div>
-        <div id="boostSubtext" class="text-[11px] font-semibold text-slate-400 mt-0.5">3 Min Vollgas (95%)</div>
+    <button id="btnBoostTile" onclick="toggleBoost()" class="btn-press glass-card rounded-2xl px-3 py-2 text-left flex items-center justify-between border border-cyan-500/35">
+      <div class="min-w-0">
+        <div class="text-xs font-black text-cyan-300 truncate">⚡ Boost</div>
+        <div id="boostSubtext" class="text-[10px] font-semibold text-slate-400 truncate">3 Min Vollgas (95%)</div>
       </div>
-      <span class="text-xs font-black px-2 py-1 rounded-lg bg-cyan-500/20 text-cyan-300">Boost</span>
+      <span id="boostBadge" class="text-[10px] font-black px-2 py-0.5 rounded-lg bg-cyan-500/20 text-cyan-300 shrink-0 ml-1">95%</span>
     </button>
 
     <!-- 1-Tap Cooldown -->
-    <button id="btnCooldownTile" onclick="toggleCooldown()" class="btn-press glass-card rounded-2xl p-3 text-left flex items-center justify-between border border-indigo-500/30">
-      <div>
-        <div class="text-xs font-black text-indigo-300 flex items-center gap-1">❄️ Cooldown</div>
-        <div id="cooldownSubtext" class="text-[11px] font-semibold text-slate-400 mt-0.5">5 Min &rarr; Auto-Aus</div>
+    <button id="btnCooldownTile" onclick="toggleCooldown()" class="btn-press glass-card rounded-2xl px-3 py-2 text-left flex items-center justify-between border border-indigo-500/35">
+      <div class="min-w-0">
+        <div class="text-xs font-black text-indigo-300 truncate">❄️ Cooldown</div>
+        <div id="cooldownSubtext" class="text-[10px] font-semibold text-slate-400 truncate">5 Min &rarr; Auto-Aus</div>
       </div>
-      <span class="text-xs font-black px-2 py-1 rounded-lg bg-indigo-500/20 text-indigo-300">Start</span>
+      <span id="cooldownBadge" class="text-[10px] font-black px-2 py-0.5 rounded-lg bg-indigo-500/20 text-indigo-300 shrink-0 ml-1">Start</span>
     </button>
 
     <!-- 1-Tap Natural Road-Wind Wave Mode -->
-    <button id="btnWaveTile" onclick="toggleWaveMode()" class="btn-press glass-card rounded-2xl p-3 text-left flex items-center justify-between border border-emerald-500/30">
-      <div>
-        <div class="text-xs font-black text-emerald-300 flex items-center gap-1">🌊 Fahrtwind</div>
-        <div id="waveSubtext" class="text-[11px] font-semibold text-slate-400 mt-0.5">Böen ±10 % (12s)</div>
+    <button id="btnWaveTile" onclick="toggleWaveMode()" class="btn-press glass-card rounded-2xl px-3 py-2 text-left flex items-center justify-between border border-emerald-500/35">
+      <div class="min-w-0">
+        <div class="text-xs font-black text-emerald-300 truncate">🌊 Fahrtwind</div>
+        <div id="waveSubtext" class="text-[10px] font-semibold text-slate-400 truncate">Böen ±10 % (12s)</div>
       </div>
-      <span id="waveBadge" class="text-xs font-black px-2 py-1 rounded-lg bg-slate-800 text-slate-300">Aus</span>
+      <span id="waveBadge" class="text-[10px] font-black px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 shrink-0 ml-1">Aus</span>
     </button>
   </section>
 
-  <!-- SETUP / CUSTOMIZATION MODAL (Hidden during ride, opened via Gear icon) -->
+  <!-- SETUP / CUSTOMIZATION MODAL -->
   <div id="setupModal" class="fixed inset-0 z-50 hidden bg-slate-950/90 backdrop-blur-md p-4 overflow-y-auto">
     <div class="max-w-md mx-auto bg-slate-900 border border-slate-700 rounded-3xl p-5 space-y-5 shadow-2xl">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -353,15 +352,15 @@
       presets.forEach((p) => {
         const active = baseSpeed === p.percent;
         const btn = document.createElement('button');
-        btn.className = `btn-press py-3 px-3 rounded-2xl border text-left flex flex-col justify-between ${
+        btn.className = `btn-press px-2.5 py-1.5 rounded-2xl border text-left flex flex-col justify-center ${
           active
             ? 'bg-gradient-to-br from-cyan-500/30 to-blue-600/30 border-cyan-400 text-white shadow-md shadow-cyan-500/15'
             : 'bg-slate-900/90 border-slate-800 text-slate-200'
         }`;
         btn.onclick = () => setManualSpeed(p.percent, true);
         btn.innerHTML = `
-          <div class="text-2xl font-black tabular-nums leading-none ${active ? 'text-cyan-300' : 'text-white'}">${p.percent}<span class="text-xs font-bold ml-0.5">%</span></div>
-          <div class="text-[11px] font-bold text-slate-300 truncate mt-1">${p.label}</div>
+          <div class="text-xl font-black tabular-nums leading-none ${active ? 'text-cyan-300' : 'text-white'}">${p.percent}<span class="text-xs font-bold ml-0.5">%</span></div>
+          <div class="text-[11px] font-bold text-slate-300 truncate mt-0.5">${p.label}</div>
         `;
         grid.appendChild(btn);
       });
@@ -414,7 +413,7 @@
 
       const sub = document.getElementById('subModeStatus');
       if (waveMode && baseSpeed > 0) {
-        sub.textContent = `🌊 Böen-Basis: ${baseSpeed}% (±10%)`;
+        sub.textContent = `• Basis ${baseSpeed}%`;
         sub.classList.remove('hidden');
       } else {
         sub.classList.add('hidden');
@@ -482,11 +481,11 @@
       if (connected) {
         dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0';
         btn.textContent = 'Trennen';
-        btn.className = 'btn-press px-3.5 py-2.5 rounded-xl text-xs font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/40';
+        btn.className = 'btn-press px-3 py-2 rounded-xl text-xs font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/40';
       } else {
         dot.className = 'w-2 h-2 rounded-full bg-slate-500 shrink-0';
         btn.textContent = 'Koppeln';
-        btn.className = 'btn-press px-4 py-2.5 rounded-xl text-xs font-black tracking-wide bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-md shadow-cyan-500/20';
+        btn.className = 'btn-press px-3.5 py-2 rounded-xl text-xs font-black tracking-wide bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-sm';
       }
     }
 
@@ -568,8 +567,8 @@
       if (waveTimer) clearInterval(waveTimer);
       if (waveMode) {
         badge.textContent = 'AKTIV';
-        badge.className = 'text-xs font-black px-2 py-1 rounded-lg bg-emerald-500 text-slate-950';
-        tile.className = 'btn-press glass-card rounded-2xl p-3 text-left flex items-center justify-between border-2 border-emerald-400';
+        badge.className = 'text-[10px] font-black px-2 py-0.5 rounded-lg bg-emerald-500 text-slate-950 shrink-0 ml-1';
+        tile.className = 'btn-press glass-card rounded-2xl px-3 py-2 text-left flex items-center justify-between border-2 border-emerald-400';
         waveStart = Date.now();
         waveTimer = setInterval(() => {
           if (baseSpeed === 0) {
@@ -582,8 +581,8 @@
         }, 1500);
       } else {
         badge.textContent = 'Aus';
-        badge.className = 'text-xs font-black px-2 py-1 rounded-lg bg-slate-800 text-slate-300';
-        tile.className = 'btn-press glass-card rounded-2xl p-3 text-left flex items-center justify-between border border-emerald-500/30';
+        badge.className = 'text-[10px] font-black px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 shrink-0 ml-1';
+        tile.className = 'btn-press glass-card rounded-2xl px-3 py-2 text-left flex items-center justify-between border border-emerald-500/35';
         pushSpeedToHardware(baseSpeed);
       }
       updateUI();
@@ -687,10 +686,10 @@
         const badge = document.getElementById('autoReconnectBadge');
         if (badge) {
           badge.innerHTML = '🔄 Zurück aus Hintergrund • Sync aktiv';
-          badge.className = 'text-[10px] font-bold text-cyan-300 truncate mt-0.5';
+          badge.className = 'text-[10px] font-bold text-cyan-300 truncate';
           setTimeout(() => {
             badge.innerHTML = '🛡️ Auto-Reconnect &amp; Echtzeit-Timer aktiv';
-            badge.className = 'text-[10px] font-semibold text-emerald-400 truncate mt-0.5';
+            badge.className = 'text-[10px] font-semibold text-emerald-400 truncate';
           }, 3500);
         }
         if ('wakeLock' in navigator && !window._wakeLock) {
