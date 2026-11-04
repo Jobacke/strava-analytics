@@ -246,16 +246,40 @@ export const KickrHeadwindModal: React.FC<KickrHeadwindModalProps> = ({ isOpen, 
     try {
       setConnectionState('connecting');
       const navBle = (navigator as any).bluetooth;
+      const optionalUuids = [
+        WAHOO_HEADWIND_SERVICE_UUID,
+        'a026ee0b-0a7d-4ab3-97fa-f1500f9feb8b',
+        '00001818-0000-1000-8000-00805f9b34fb',
+        '00001826-0000-1000-8000-00805f9b34fb',
+        '0000180a-0000-1000-8000-00805f9b34fb',
+        '0000180f-0000-1000-8000-00805f9b34fb',
+      ];
 
-      const device = await navBle.requestDevice({
-        filters: [
-          { services: [WAHOO_HEADWIND_SERVICE_UUID] },
-          { namePrefix: 'KICKR HEADWIND' },
-          { namePrefix: 'HEADWIND' },
-          { namePrefix: 'Wahoo' },
-        ],
-        optionalServices: [WAHOO_HEADWIND_SERVICE_UUID, 0x180a, 0x180f],
-      });
+      let device: any;
+      try {
+        device = await navBle.requestDevice({
+          filters: [
+            { services: [WAHOO_HEADWIND_SERVICE_UUID] },
+            { namePrefix: 'KICKR' },
+            { namePrefix: 'HEADWIND' },
+            { namePrefix: 'Wahoo' },
+            { namePrefix: 'WAHOO' },
+            { namePrefix: 'ELEMNT' },
+          ],
+          optionalServices: optionalUuids,
+        });
+      } catch (filterErr: any) {
+        if (
+          filterErr?.name === 'NotFoundError' ||
+          String(filterErr?.message || '').toLowerCase().includes('cancel')
+        ) {
+          throw filterErr;
+        }
+        device = await navBle.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: optionalUuids,
+        });
+      }
 
       bleDeviceRef.current = device;
       setDeviceName(device.name || 'KICKR HEADWIND');
@@ -267,42 +291,49 @@ export const KickrHeadwindModal: React.FC<KickrHeadwindModalProps> = ({ isOpen, 
       });
 
       const server = await device.gatt.connect();
-      const service = await server.getPrimaryService(WAHOO_HEADWIND_SERVICE_UUID);
-      const characteristic = await service.getCharacteristic(WAHOO_HEADWIND_CONTROL_CHAR_UUID);
-
-      // Subscribe to notifications (required by Wahoo protocol to accept control commands)
       try {
-        await characteristic.startNotifications();
-        characteristic.addEventListener('characteristicvaluechanged', (event: any) => {
-          const val: DataView = event.target.value;
-          // Frame format from Headwind status notification often ends with [speed, mode]
-          if (val && val.byteLength >= 2) {
-            const reported = val.getUint8(val.byteLength - 2);
-            if (reported <= 100) {
-              setDeviceReportedSpeed(reported);
+        const service = await server.getPrimaryService(WAHOO_HEADWIND_SERVICE_UUID);
+        const characteristic = await service.getCharacteristic(WAHOO_HEADWIND_CONTROL_CHAR_UUID);
+
+        // Subscribe to notifications (required by Wahoo protocol to accept control commands)
+        try {
+          await characteristic.startNotifications();
+          characteristic.addEventListener('characteristicvaluechanged', (event: any) => {
+            const val: DataView = event.target.value;
+            if (val && val.byteLength >= 2) {
+              const reported = val.getUint8(val.byteLength - 2);
+              if (reported <= 100) {
+                setDeviceReportedSpeed(reported);
+              }
             }
-          }
-        });
+          });
+        } catch {
+          // Fallback if notifications already active
+        }
+
+        controlCharRef.current = characteristic;
+        isManualModeInitializedRef.current = false;
+
+        // Immediately switch Headwind into Manual Mode (0x04, 0x04)
+        const manualCmd = new Uint8Array([0x04, 0x04]);
+        if (characteristic.writeValueWithResponse) {
+          await characteristic.writeValueWithResponse(manualCmd);
+        } else {
+          await characteristic.writeValue(manualCmd);
+        }
+        isManualModeInitializedRef.current = true;
+
+        setConnectionState('connected');
+        pendingSpeedRef.current = baseSpeed;
+        flushBleSpeedQueue();
       } catch {
-        // Fallback if notifications already active
+        // Connected to a Wahoo KICKR CORE trainer (for testing BLE bridge before Headwind arrives)
+        controlCharRef.current = null;
+        setConnectionState('connected');
+        setBleError(
+          `BLE-Verbindungstest mit „${device.name || 'KICKR'}“ erfolgreich! (Smart-Trainer erkannt – sobald dein KICKR Headwind da ist, wird hier direkt der Lüftermotor angesteuert.)`
+        );
       }
-
-      controlCharRef.current = characteristic;
-      isManualModeInitializedRef.current = false;
-
-      // Immediately switch Headwind into Manual Mode (0x04, 0x04)
-      const manualCmd = new Uint8Array([0x04, 0x04]);
-      if (characteristic.writeValueWithResponse) {
-        await characteristic.writeValueWithResponse(manualCmd);
-      } else {
-        await characteristic.writeValue(manualCmd);
-      }
-      isManualModeInitializedRef.current = true;
-
-      setConnectionState('connected');
-      // Sync current baseSpeed
-      pendingSpeedRef.current = baseSpeed;
-      flushBleSpeedQueue();
     } catch (err: any) {
       setConnectionState('disconnected');
       if (err?.name !== 'NotFoundError') {

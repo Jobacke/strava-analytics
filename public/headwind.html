@@ -378,16 +378,39 @@
         return;
       }
       try {
-        document.getElementById('connStatusText').textContent = 'Suche KICKR Headwind...';
-        bleDevice = await navigator.bluetooth.requestDevice({
-          filters: [
-            { services: [SERVICE_UUID] },
-            { namePrefix: 'KICKR HEADWIND' },
-            { namePrefix: 'HEADWIND' },
-            { namePrefix: 'Wahoo' }
-          ],
-          optionalServices: [SERVICE_UUID, 0x180a, 0x180f]
-        });
+        document.getElementById('connStatusText').textContent = 'Suche Wahoo / KICKR via Bluetooth...';
+        const optionalUuids = [
+          SERVICE_UUID,
+          'a026ee0b-0a7d-4ab3-97fa-f1500f9feb8b',
+          '00001818-0000-1000-8000-00805f9b34fb',
+          '00001826-0000-1000-8000-00805f9b34fb',
+          '0000180a-0000-1000-8000-00805f9b34fb',
+          '0000180f-0000-1000-8000-00805f9b34fb'
+        ];
+
+        try {
+          bleDevice = await navigator.bluetooth.requestDevice({
+            filters: [
+              { services: [SERVICE_UUID] },
+              { namePrefix: 'KICKR' },
+              { namePrefix: 'HEADWIND' },
+              { namePrefix: 'Wahoo' },
+              { namePrefix: 'WAHOO' },
+              { namePrefix: 'ELEMNT' }
+            ],
+            optionalServices: optionalUuids
+          });
+        } catch (filterErr) {
+          // If user cancelled the picker, stop here
+          if (filterErr && (filterErr.name === 'NotFoundError' || String(filterErr.message).includes('cancelled') || String(filterErr.message).includes('canceled'))) {
+            throw filterErr;
+          }
+          // Fallback for Bluefy iOS if filter syntax is rejected: show all BLE devices
+          bleDevice = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: optionalUuids
+          });
+        }
 
         bleDevice.addEventListener('gattserverdisconnected', () => {
           isConnected = false;
@@ -397,21 +420,38 @@
           document.getElementById('btnConnect').textContent = 'Koppeln';
         });
 
+        document.getElementById('connStatusText').textContent = `Verbinde mit ${bleDevice.name || 'Wahoo-Gerät'}...`;
         const server = await bleDevice.gatt.connect();
-        const service = await server.getPrimaryService(SERVICE_UUID);
-        controlChar = await service.getCharacteristic(CHAR_UUID);
-        try { await controlChar.startNotifications(); } catch (e) {}
 
-        const modeCmd = new Uint8Array([0x04, 0x04]);
-        await (controlChar.writeValueWithResponse ? controlChar.writeValueWithResponse(modeCmd) : controlChar.writeValue(modeCmd));
-        manualInitialized = true;
-        isConnected = true;
+        // Check if this is the KICKR Headwind (has fan service) or e.g. a KICKR CORE trainer (for connection test)
+        try {
+          const service = await server.getPrimaryService(SERVICE_UUID);
+          controlChar = await service.getCharacteristic(CHAR_UUID);
+          try { await controlChar.startNotifications(); } catch (e) {}
 
-        document.getElementById('connStatusText').textContent = `Verbunden: ${bleDevice.name || 'KICKR Headwind'}`;
-        document.getElementById('btnConnect').textContent = 'Trennen';
-        pushSpeedToHardware(baseSpeed);
+          const modeCmd = new Uint8Array([0x04, 0x04]);
+          await (controlChar.writeValueWithResponse ? controlChar.writeValueWithResponse(modeCmd) : controlChar.writeValue(modeCmd));
+          manualInitialized = true;
+          isConnected = true;
+
+          document.getElementById('connStatusText').textContent = `✅ Verbunden: ${bleDevice.name || 'KICKR Headwind'}`;
+          document.getElementById('btnConnect').textContent = 'Trennen';
+          pushSpeedToHardware(baseSpeed);
+        } catch (serviceErr) {
+          // Connected to another Wahoo BLE device (e.g. KICKR CORE smart trainer)
+          isConnected = true;
+          controlChar = null;
+          document.getElementById('connStatusText').textContent = `✅ BLE-Test OK mit ${bleDevice.name || 'KICKR'} (Kein Lüfter-Service, Demo-Steuerung aktiv)`;
+          document.getElementById('btnConnect').textContent = 'Trennen';
+          updateUI();
+        }
       } catch (e) {
-        document.getElementById('connStatusText').textContent = 'Nicht gekoppelt';
+        const msg = e && e.message ? e.message : '';
+        if (msg && !msg.includes('cancelled') && !msg.includes('canceled') && e.name !== 'NotFoundError') {
+          document.getElementById('connStatusText').textContent = `BLE-Hinweis: ${msg}`;
+        } else {
+          document.getElementById('connStatusText').textContent = 'Suche abgebrochen / Nicht gekoppelt';
+        }
       }
     }
 
