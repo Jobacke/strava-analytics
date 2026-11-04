@@ -631,32 +631,14 @@ export const KickrHeadwindModal: React.FC<KickrHeadwindModalProps> = ({ isOpen, 
                   Trennen
                 </button>
               ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleConnectBle}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-slate-950 shadow-md shadow-cyan-500/20 transition cursor-pointer"
-                  >
-                    <Bluetooth className="w-4 h-4" />
-                    <span>Headwind koppeln</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setConnectionState(
-                        connectionState === 'simulation' ? 'disconnected' : 'simulation'
-                      )
-                    }
-                    className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition ${
-                      connectionState === 'simulation'
-                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
-                    }`}
-                    title="Alle Funktionen vorab ohne gekoppelten Lüfter testen"
-                  >
-                    {connectionState === 'simulation' ? 'Demo aktiv' : 'Demo-Test'}
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={handleConnectBle}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-slate-950 shadow-md shadow-cyan-500/20 transition cursor-pointer"
+                >
+                  <Bluetooth className="w-4 h-4" />
+                  <span>Headwind koppeln</span>
+                </button>
               )}
 
               <button
