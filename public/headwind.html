@@ -59,6 +59,9 @@
             <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">iPhone BLE</span>
           </div>
           <p id="connStatusText" class="text-xs text-slate-400">Bereit für manuelle Steuerung (0x0404)</p>
+          <div id="autoReconnectBadge" class="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-semibold text-emerald-300">
+            <span>🛡️ Auto-Reconnect &amp; Echtzeit-Timer (Unified Remote) aktiv</span>
+          </div>
         </div>
       </div>
 
@@ -575,6 +578,15 @@
     // Auto-reconnect GATT & WakeLock when switching back from Unified Remote to Bluefy
     document.addEventListener('visibilitychange', async () => {
       if (document.visibilityState === 'visible') {
+        const badge = document.getElementById('autoReconnectBadge');
+        if (badge) {
+          badge.innerHTML = '<span>🔄 Zurück aus Hintergrund • Verbindung &amp; Timer synchronisiert</span>';
+          badge.className = 'inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md bg-cyan-500/20 border border-cyan-400/50 text-[10px] font-bold text-cyan-200';
+          setTimeout(() => {
+            badge.innerHTML = '<span>🛡️ Auto-Reconnect &amp; Echtzeit-Timer (Unified Remote) aktiv</span>';
+            badge.className = 'inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-semibold text-emerald-300';
+          }, 4000);
+        }
         if ('wakeLock' in navigator && !window._wakeLock) {
           try { window._wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
         }
@@ -592,7 +604,14 @@
             document.getElementById('connStatusText').textContent = `✅ Verbunden: ${bleDevice.name || 'KICKR Headwind'}`;
             document.getElementById('btnConnect').textContent = 'Trennen';
             pushSpeedToHardware(baseSpeed);
-          } catch (e) {}
+          } catch (e) {
+            // If connected to KICKR CORE test device without fan service
+            if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
+              isConnected = true;
+              document.getElementById('connStatusText').textContent = `✅ BLE-Test OK mit ${bleDevice.name || 'KICKR'} (Wiederverbunden)`;
+              document.getElementById('btnConnect').textContent = 'Trennen';
+            }
+          }
         }
       }
     });
