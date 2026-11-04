@@ -62,9 +62,12 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
-        <button id="btnConnect" onclick="connectHeadwind()" class="px-3.5 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-md shadow-cyan-500/20 active:scale-95 transition">
+      <div class="flex items-center gap-1.5">
+        <button id="btnConnect" onclick="connectHeadwind(false)" class="px-3.5 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-md shadow-cyan-500/20 active:scale-95 transition">
           Koppeln
+        </button>
+        <button id="btnScanAll" onclick="connectHeadwind(true)" title="Alle Bluetooth-Geräte in Reichweite ungefiltert anzeigen" class="px-2.5 py-2.5 rounded-xl text-xs font-bold bg-slate-800 text-cyan-300 border border-cyan-500/30 active:scale-95 transition">
+          Alle BLE
         </button>
         <button id="btnDemo" onclick="toggleDemo()" class="px-2.5 py-2.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 active:scale-95 transition">
           Demo
@@ -368,7 +371,7 @@
       setManualSpeed(baseSpeed + delta, false);
     }
 
-    async function connectHeadwind() {
+    async function connectHeadwind(scanAll = false) {
       if (isConnected && bleDevice?.gatt?.connected) {
         bleDevice.gatt.disconnect();
         return;
@@ -378,7 +381,9 @@
         return;
       }
       try {
-        document.getElementById('connStatusText').textContent = 'Suche Wahoo / KICKR via Bluetooth...';
+        document.getElementById('connStatusText').textContent = scanAll
+          ? 'Suche ALLE Bluetooth-Geräte...'
+          : 'Suche KICKR / Wahoo via Bluetooth...';
         const optionalUuids = [
           SERVICE_UUID,
           'a026ee0b-0a7d-4ab3-97fa-f1500f9feb8b',
@@ -388,26 +393,22 @@
           '0000180f-0000-1000-8000-00805f9b34fb'
         ];
 
-        try {
+        if (scanAll) {
+          bleDevice = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: optionalUuids
+          });
+        } else {
+          // IMPORTANT for iOS Bluefy: Do NOT put { services: [SERVICE_UUID] } inside filters,
+          // because iOS CoreBluetooth then blocks all devices that don't advertise the fan UUID in their beacon!
           bleDevice = await navigator.bluetooth.requestDevice({
             filters: [
-              { services: [SERVICE_UUID] },
               { namePrefix: 'KICKR' },
               { namePrefix: 'HEADWIND' },
               { namePrefix: 'Wahoo' },
               { namePrefix: 'WAHOO' },
               { namePrefix: 'ELEMNT' }
             ],
-            optionalServices: optionalUuids
-          });
-        } catch (filterErr) {
-          // If user cancelled the picker, stop here
-          if (filterErr && (filterErr.name === 'NotFoundError' || String(filterErr.message).includes('cancelled') || String(filterErr.message).includes('canceled'))) {
-            throw filterErr;
-          }
-          // Fallback for Bluefy iOS if filter syntax is rejected: show all BLE devices
-          bleDevice = await navigator.bluetooth.requestDevice({
-            acceptAllDevices: true,
             optionalServices: optionalUuids
           });
         }

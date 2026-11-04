@@ -257,9 +257,10 @@ export const KickrHeadwindModal: React.FC<KickrHeadwindModalProps> = ({ isOpen, 
 
       let device: any;
       try {
+        // IMPORTANT for iOS Bluefy: Only filter by namePrefix here (keep WAHOO_HEADWIND_SERVICE_UUID in optionalServices),
+        // because iOS CoreBluetooth otherwise ignores devices that don't broadcast the fan UUID in their advertising packet.
         device = await navBle.requestDevice({
           filters: [
-            { services: [WAHOO_HEADWIND_SERVICE_UUID] },
             { namePrefix: 'KICKR' },
             { namePrefix: 'HEADWIND' },
             { namePrefix: 'Wahoo' },
