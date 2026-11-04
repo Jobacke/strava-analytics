@@ -517,7 +517,7 @@
 
       activeTimer = setInterval(() => {
         if (!automationState) return;
-        automationState.remaining--;
+        automationState.remaining = Math.max(0, Math.round((automationState.endTime - Date.now()) / 1000));
         document.getElementById('timerClock').textContent = formatClock(automationState.remaining);
 
         if (automationState.remaining <= 0) {
@@ -545,7 +545,7 @@
       const mins = Number(document.getElementById('warmupMin').value) || 8;
       const target = Number(document.getElementById('warmupTarget').value) || 50;
       const total = mins * 60;
-      automationState = { type: 'warmup', start: 15, finalSpeed: target, total, remaining: total };
+      automationState = { type: 'warmup', start: 15, finalSpeed: target, total, remaining: total, endTime: Date.now() + total * 1000 };
       document.getElementById('timerLabel').textContent = `🔥 Warmup: 15% → ${target}%`;
       document.getElementById('timerClock').textContent = formatClock(total);
       setManualSpeed(15, false);
@@ -555,7 +555,7 @@
     function startBoost(mins, boostVal) {
       const ret = baseSpeed > 0 ? baseSpeed : 45;
       const total = mins * 60;
-      automationState = { type: 'boost', finalSpeed: ret, total, remaining: total };
+      automationState = { type: 'boost', finalSpeed: ret, total, remaining: total, endTime: Date.now() + total * 1000 };
       document.getElementById('timerLabel').textContent = `⚡ Boost (${boostVal}%) → zurück auf ${ret}%`;
       document.getElementById('timerClock').textContent = formatClock(total);
       setManualSpeed(boostVal, false);
@@ -565,12 +565,37 @@
     function startCooldown(mins) {
       const high = Math.max(baseSpeed, 65);
       const total = mins * 60;
-      automationState = { type: 'cooldown', high, finalSpeed: 0, total, remaining: total };
+      automationState = { type: 'cooldown', high, finalSpeed: 0, total, remaining: total, endTime: Date.now() + total * 1000 };
       document.getElementById('timerLabel').textContent = `❄️ Cooldown (${high}% → 30% → Aus)`;
       document.getElementById('timerClock').textContent = formatClock(total);
       setManualSpeed(high, false);
       runAutomationLoop();
     }
+
+    // Auto-reconnect GATT & WakeLock when switching back from Unified Remote to Bluefy
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible') {
+        if ('wakeLock' in navigator && !window._wakeLock) {
+          try { window._wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+        }
+        if (bleDevice && !bleDevice.gatt.connected) {
+          try {
+            document.getElementById('connStatusText').textContent = 'Verbinde automatisch neu...';
+            const server = await bleDevice.gatt.connect();
+            const service = await server.getPrimaryService(SERVICE_UUID);
+            controlChar = await service.getCharacteristic(CHAR_UUID);
+            try { await controlChar.startNotifications(); } catch (e) {}
+            const modeCmd = new Uint8Array([0x04, 0x04]);
+            await (controlChar.writeValueWithResponse ? controlChar.writeValueWithResponse(modeCmd) : controlChar.writeValue(modeCmd));
+            manualInitialized = true;
+            isConnected = true;
+            document.getElementById('connStatusText').textContent = `✅ Verbunden: ${bleDevice.name || 'KICKR Headwind'}`;
+            document.getElementById('btnConnect').textContent = 'Trennen';
+            pushSpeedToHardware(baseSpeed);
+          } catch (e) {}
+        }
+      }
+    });
 
     // Request Screen Wake Lock automatically on first tap
     document.addEventListener('click', async () => {
