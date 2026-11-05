@@ -727,6 +727,18 @@
       }
     }, { once: true });
 
+    // Automatically release Bluetooth connection when closing the Mac window (red X) or quitting
+    window.addEventListener('pagehide', () => {
+      if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
+        try { bleDevice.gatt.disconnect(); } catch (e) {}
+      }
+    });
+    window.addEventListener('beforeunload', () => {
+      if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
+        try { bleDevice.gatt.disconnect(); } catch (e) {}
+      }
+    });
+
     loadTimerPrefs();
     updateUI();
   </script>
