@@ -238,7 +238,7 @@ export const KickrHeadwindModal: React.FC<KickrHeadwindModalProps> = ({ isOpen, 
     if (!isWebBluetoothSupported) {
       setShowIphoneGuide(true);
       setBleError(
-        'Dieser Browser unterstützt kein Web-Bluetooth. Öffne diese Seite auf dem iPhone im kostenlosen „Bluefy“-Browser oder nutze unten den Simulations-Modus.'
+        'Safari unterstützt kein Web-Bluetooth. Nutze auf dem Mac einfach Google Chrome, Edge oder Brave – oder auf dem iPhone den kostenlosen „Bluefy“-Browser.'
       );
       return;
     }
@@ -658,7 +658,7 @@ export const KickrHeadwindModal: React.FC<KickrHeadwindModalProps> = ({ isOpen, 
               <div className="flex items-center justify-between">
                 <span className="font-bold text-cyan-300 flex items-center gap-1.5">
                   <Smartphone className="w-4 h-4" />
-                  So steuerst du den Headwind direkt vom iPhone:
+                  So klappt Bluetooth auf dem Mac &amp; iPhone:
                 </span>
                 <button
                   type="button"
@@ -672,25 +672,22 @@ export const KickrHeadwindModal: React.FC<KickrHeadwindModalProps> = ({ isOpen, 
                 </button>
               </div>
               {bleError && <p className="text-amber-300 font-medium">{bleError}</p>}
-              <ol className="list-decimal list-inside space-y-1 text-slate-300">
+              <ol className="list-decimal list-inside space-y-1.5 text-slate-300">
                 <li>
-                  <strong>Sofort per Web-App:</strong> Lade im iOS App Store einmalig den kostenlosen
-                  Browser <strong>„Bluefy – Web BLE Browser“</strong> herunter (da Apples Safari
-                  Bluetooth sperrt).
+                  <strong>Auf dem Mac (Sofort ohne Zusatz-App):</strong> Öffne{' '}
+                  <code className="px-1.5 py-0.5 rounded bg-slate-900 text-cyan-300">
+                    https://analytics.vjbackhaus.de
+                  </code>{' '}
+                  (oder <code className="px-1.5 py-0.5 rounded bg-slate-900 text-cyan-300">/headwind.html</code>) in{' '}
+                  <strong>Google Chrome, Brave oder Microsoft Edge</strong> – diese Browser haben Web-Bluetooth auf dem Mac bereits fest eingebaut!
                 </li>
                 <li>
-                  Öffne in Bluefy direkt{' '}
+                  <strong>Auf dem iPhone:</strong> Öffne im kostenlosen App-Store-Browser{' '}
+                  <strong>„Bluefy“</strong> direkt{' '}
                   <code className="px-1.5 py-0.5 rounded bg-slate-900 text-cyan-300">
-                    https://analytics.vjbackhaus.de/?headwind=1
-                  </code>{' '}
-                  – das Cockpit startet sofort im Vollbild!
-                </li>
-                <li>
-                  <strong>Optional als native iOS-App:</strong> Im Projektordner liegt unter{' '}
-                  <code className="px-1.5 py-0.5 rounded bg-slate-900 text-cyan-300">
-                    ios-kickr-headwind/
-                  </code>{' '}
-                  zusätzlich der fertige SwiftUI-Code für Xcode bereit.
+                    https://analytics.vjbackhaus.de/headwind.html
+                  </code>
+                  .
                 </li>
               </ol>
             </div>
