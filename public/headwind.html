@@ -74,51 +74,50 @@
 </head>
 <body class="h-full flex flex-col justify-between px-3 pt-1.5 pb-2.5 max-w-md mx-auto gap-2 overflow-y-auto">
 
-  <!-- 1. MODERN CLEAN COCKPIT HEADER (v2.4) -->
-  <header class="glass-card rounded-2xl px-3 py-2 flex items-center justify-between gap-2 shadow-md shrink-0">
-    <!-- Left: Calm Status Indicator -->
-    <div class="flex items-center gap-2.5 min-w-0">
-      <div id="fanBadge" class="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-sm shadow-cyan-500/25 shrink-0">
-        <svg id="fanIcon" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 12c0-3 2.5-5.5 5.5-5.5S23 9 23 12H12z"/>
-          <path d="M12 12c3 0 5.5 2.5 5.5 5.5S15 23 12 23V12z"/>
-          <path d="M12 12c0 3-2.5 5.5-5.5 5.5S1 15 1 12h11z"/>
-          <path d="M12 12c-3 0-5.5-2.5-5.5-5.5S9 1 12 1v11z"/>
-          <circle cx="12" cy="12" r="2"/>
-        </svg>
+  <!-- 1. MODERN CLEAN 2-ROW COCKPIT HEADER (v2.5) -->
+  <header class="glass-card rounded-2xl px-3 py-2 flex flex-col gap-1.5 shadow-md shrink-0">
+    <!-- Top Row: Brand, Clear Version Pill & Connection Controls -->
+    <div class="flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 min-w-0">
+        <div id="fanBadge" class="w-7 h-7 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-sm shadow-cyan-500/25 shrink-0">
+          <svg id="fanIcon" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 12c0-3 2.5-5.5 5.5-5.5S23 9 23 12H12z"/>
+            <path d="M12 12c3 0 5.5 2.5 5.5 5.5S15 23 12 23V12z"/>
+            <path d="M12 12c0 3-2.5 5.5-5.5 5.5S1 15 1 12h11z"/>
+            <path d="M12 12c-3 0-5.5-2.5-5.5-5.5S9 1 12 1v11z"/>
+            <circle cx="12" cy="12" r="2"/>
+          </svg>
+        </div>
+        <span id="connDot" class="w-2 h-2 rounded-full bg-slate-500 shrink-0"></span>
+        <h1 id="connStatusText" class="text-sm font-black text-white tracking-tight whitespace-nowrap">Headwind</h1>
+        <button onclick="location.replace(location.pathname + '?v=' + Date.now())" title="Neu laden (Cache leeren)" class="btn-press px-2 py-0.5 rounded-lg bg-cyan-500/20 border border-cyan-400/50 text-[11px] font-mono font-extrabold text-cyan-200 shrink-0 shadow-sm">
+          v2.5 ↻
+        </button>
       </div>
-      <div class="min-w-0">
-        <div class="flex items-center gap-1.5">
-          <span id="connDot" class="w-2 h-2 rounded-full bg-slate-500 shrink-0"></span>
-          <h1 id="connStatusText" class="text-xs font-extrabold text-white whitespace-nowrap">Headwind</h1>
-          <span class="px-1.5 py-0.5 rounded-md bg-slate-800/90 border border-cyan-500/30 text-[9px] font-mono font-bold text-cyan-300 shrink-0">v2.4</span>
+
+      <div class="flex items-center gap-1.5 shrink-0">
+        <div id="autoReconnectBadge" class="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-1 rounded-lg whitespace-nowrap">
+          🟢 Mac bereit
         </div>
-        <div id="autoReconnectBadge" class="text-[10px] font-semibold text-emerald-400 whitespace-nowrap">
-          🟢 Mac &amp; Cockpit bereit
-        </div>
+        <button id="btnConnect" onclick="connectHeadwind(false)" class="btn-press px-2.5 py-1 rounded-xl text-[11px] font-black bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-sm">
+          Koppeln
+        </button>
+        <button onclick="openSetupModal()" aria-label="Einstellungen" class="btn-press p-1.5 rounded-xl bg-slate-800/90 text-slate-300 border border-slate-700/80">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
       </div>
     </div>
 
-    <!-- Right: Segmented Mode Switch + Actions -->
-    <div class="flex items-center gap-1.5 shrink-0">
-      <!-- Segmented Pill Switcher -->
-      <div class="bg-slate-950/90 p-0.5 rounded-xl border border-slate-700/80 flex items-center">
-        <button id="segBtnHeadwind" onclick="setMainView('headwind')" class="btn-press px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold bg-cyan-500/25 text-cyan-200 border border-cyan-400/50 transition-all">
-          💨 Lüfter
-        </button>
-        <button id="segBtnRemote" onclick="setMainView('remote')" class="btn-press px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-400 border border-transparent transition-all">
-          🖱️ Mac
-        </button>
-      </div>
-
-      <button id="btnConnect" onclick="connectHeadwind(false)" class="btn-press px-2.5 py-1.5 rounded-xl text-[11px] font-black bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-sm">
-        Koppeln
+    <!-- Bottom Row: Full-Width Segmented Mode Switcher -->
+    <div class="grid grid-cols-2 gap-1.5 bg-slate-950/90 p-1 rounded-xl border border-slate-700/80">
+      <button id="segBtnHeadwind" onclick="setMainView('headwind')" class="btn-press w-full py-1.5 rounded-lg text-xs font-extrabold bg-cyan-500/25 text-cyan-200 border border-cyan-400/50 transition-all">
+        💨 Headwind Lüfter
       </button>
-      <button onclick="openSetupModal()" aria-label="Einstellungen" class="btn-press p-1.5 rounded-xl bg-slate-800/90 text-slate-300 border border-slate-700/80">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-        </svg>
+      <button id="segBtnRemote" onclick="setMainView('remote')" class="btn-press w-full py-1.5 rounded-lg text-xs font-bold text-slate-400 border border-transparent transition-all">
+        🖱️ Mac &amp; Zwift
       </button>
     </div>
   </header>
@@ -275,8 +274,8 @@
 
       <!-- Row 2: Direct Zwift Menu & Workout Bar (No tab-switching needed!) -->
       <div class="grid grid-cols-5 gap-1.5 h-10 shrink-0">
-        <button onclick="urKey('e')" class="btn-press glass-card rounded-xl font-extrabold text-[11px] text-amber-300 border border-amber-500/35">
-          📋 Workout
+        <button onclick="urKey('e')" class="btn-press glass-card rounded-xl font-extrabold text-[11px] text-amber-300 border border-amber-500/40 bg-amber-500/10">
+          🏋️ Workout
         </button>
         <button onclick="urKey('a')" class="btn-press glass-card rounded-xl font-extrabold text-[11px] text-cyan-300 border border-cyan-500/35">
           📡 Pairing
@@ -310,7 +309,7 @@
       <div class="glass-card rounded-2xl p-2 flex flex-col gap-1.5">
         <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Zwift Menüs &amp; Auswahl (ohne Maus)</div>
         <div class="grid grid-cols-3 gap-1.5">
-          <button onclick="urKey('e')" class="btn-press py-2.5 rounded-xl font-black text-xs bg-amber-500/20 text-amber-300 border border-amber-500/40">📋 Workouts (E)</button>
+          <button onclick="urKey('e')" class="btn-press py-2.5 rounded-xl font-black text-xs bg-amber-500/20 text-amber-300 border border-amber-500/40">🏋️ Workouts (E)</button>
           <button onclick="urKey('a')" class="btn-press py-2.5 rounded-xl font-black text-xs bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">📡 Sensoren (A)</button>
           <button onclick="urKey('t')" class="btn-press py-2.5 rounded-xl font-black text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">🚲 Garage (T)</button>
         </div>
@@ -523,20 +522,20 @@
       if (!badge) return;
       if (currentMainView !== 'remote') {
         if (urP2pReady || urWssReady) {
-          badge.textContent = '🟢 Mac & Cockpit bereit';
-          badge.className = 'text-[10px] font-semibold text-emerald-400 whitespace-nowrap';
+          badge.textContent = '🟢 Mac bereit';
+          badge.className = 'text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-1 rounded-lg whitespace-nowrap';
         }
         return;
       }
       if (urP2pReady) {
-        badge.textContent = '⚡ Direkt-WLAN aktiv (120Hz)';
-        badge.className = 'text-[10px] font-bold text-emerald-400 whitespace-nowrap';
+        badge.textContent = '⚡ 120Hz WLAN';
+        badge.className = 'text-[10px] font-extrabold text-emerald-300 bg-emerald-950/80 border border-emerald-400/50 px-2 py-1 rounded-lg whitespace-nowrap';
       } else if (urWssReady) {
-        badge.textContent = '🟢 Mac Remote verbunden';
-        badge.className = 'text-[10px] font-semibold text-cyan-300 whitespace-nowrap';
+        badge.textContent = '🟢 Mac verbunden';
+        badge.className = 'text-[10px] font-bold text-cyan-300 bg-cyan-950/60 border border-cyan-500/30 px-2 py-1 rounded-lg whitespace-nowrap';
       } else {
-        badge.textContent = '⏳ Verbinde Mac...';
-        badge.className = 'text-[10px] font-semibold text-slate-400 whitespace-nowrap';
+        badge.textContent = '⏳ Verbinde...';
+        badge.className = 'text-[10px] font-semibold text-slate-400 bg-slate-900/80 border border-slate-700/60 px-2 py-1 rounded-lg whitespace-nowrap';
       }
     }
 
@@ -668,8 +667,8 @@
         hw.classList.remove('flex');
         rm.classList.remove('hidden');
         rm.classList.add('flex');
-        if (segRm) segRm.className = 'btn-press px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold bg-emerald-500/25 text-emerald-300 border border-emerald-400/50 transition-all';
-        if (segHw) segHw.className = 'btn-press px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-400 border border-transparent transition-all';
+        if (segRm) segRm.className = 'btn-press w-full py-1.5 rounded-lg text-xs font-extrabold bg-emerald-500/25 text-emerald-300 border border-emerald-400/50 transition-all';
+        if (segHw) segHw.className = 'btn-press w-full py-1.5 rounded-lg text-xs font-bold text-slate-400 border border-transparent transition-all';
         if (btnConnect) btnConnect.classList.add('hidden');
         if (connTxt) connTxt.textContent = 'Mac Remote';
         if (connDot) connDot.className = 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
@@ -680,8 +679,8 @@
         rm.classList.remove('flex');
         hw.classList.remove('hidden');
         hw.classList.add('flex');
-        if (segHw) segHw.className = 'btn-press px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold bg-cyan-500/25 text-cyan-200 border border-cyan-400/50 transition-all';
-        if (segRm) segRm.className = 'btn-press px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-400 border border-transparent transition-all';
+        if (segHw) segHw.className = 'btn-press w-full py-1.5 rounded-lg text-xs font-extrabold bg-cyan-500/25 text-cyan-200 border border-cyan-400/50 transition-all';
+        if (segRm) segRm.className = 'btn-press w-full py-1.5 rounded-lg text-xs font-bold text-slate-400 border border-transparent transition-all';
         if (btnConnect) btnConnect.classList.remove('hidden');
         if (connTxt) connTxt.textContent = isConnected ? (bleDevice?.name || 'Headwind') : 'Headwind';
         if (connDot) connDot.className = isConnected ? 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0' : 'w-2 h-2 rounded-full bg-slate-500 shrink-0';
