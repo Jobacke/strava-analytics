@@ -89,22 +89,22 @@
         <div class="flex items-center gap-1.5">
           <span id="connDot" class="w-2 h-2 rounded-full bg-slate-500 shrink-0"></span>
           <h1 id="connStatusText" class="text-xs font-extrabold text-white truncate">Nicht gekoppelt</h1>
-          <span class="px-1.5 py-0.5 rounded bg-slate-800 border border-cyan-500/30 text-[9px] font-mono font-bold text-cyan-300 shrink-0">v1.2</span>
+          <span class="px-1.5 py-0.5 rounded bg-slate-800 border border-cyan-500/30 text-[9px] font-mono font-bold text-cyan-300 shrink-0">v2.0</span>
         </div>
         <div id="autoReconnectBadge" class="text-[10px] font-semibold text-emerald-400 truncate">
-          🛡️ Auto-Reconnect &amp; Echtzeit-Timer aktiv
+          🛡️ All-in-One: Headwind + Mac Remote
         </div>
       </div>
     </div>
 
     <div class="flex items-center gap-1.5 shrink-0">
-      <a id="btnRemoteLink" href="http://192.168.178.133:9510/client/" onclick="return handleRemoteClick(event)" title="Zu Unified Remote wechseln" class="btn-press px-2.5 py-2 rounded-xl text-xs font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1 no-underline">
-        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+      <button id="btnViewSwitch" onclick="toggleMainView()" title="Zwischen Headwind &amp; Mac Remote umschalten" class="btn-press px-3 py-2 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 flex items-center gap-1.5 shadow-sm">
+        <svg id="iconViewSwitch" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
           <rect x="5" y="2" width="14" height="20" rx="7"></rect>
           <line x1="12" y1="6" x2="12" y2="10"></line>
         </svg>
-        <span>Remote</span>
-      </a>
+        <span id="txtViewSwitch">Remote</span>
+      </button>
       <button id="btnConnect" onclick="connectHeadwind(false)" class="btn-press px-3 py-2 rounded-xl text-xs font-black tracking-wide bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-sm">
         Koppeln
       </button>
@@ -117,6 +117,8 @@
     </div>
   </header>
 
+  <!-- VIEW A: KICKR HEADWIND COCKPIT -->
+  <div id="viewHeadwind" class="flex-1 min-h-0 flex flex-col justify-between gap-2">
   <!-- 2. HERO SPEED GAUGE + TOUCH SLIDER + 4 BIG FINE BUTTONS -->
   <section class="glass-card rounded-3xl p-3 shadow-lg flex flex-col justify-between gap-2 shrink-0">
     <div class="flex items-center justify-between">
@@ -209,6 +211,131 @@
       <span id="waveBadge" class="text-[10px] font-black px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 shrink-0 ml-1">Aus</span>
     </button>
   </section>
+  </div>
+
+  <!-- VIEW B: INTEGRATED MAC UNIFIED REMOTE PRO (Trackpad, Zwift, Media, Keyboard) -->
+  <div id="viewRemote" class="hidden flex-1 min-h-0 flex-col justify-between gap-2 pb-1">
+    <!-- Sub-Tabs inside Remote View -->
+    <div class="glass-card rounded-2xl p-1 grid grid-cols-3 gap-1 shrink-0">
+      <button id="urSubBtnPad" onclick="switchUrSubTab('pad')" class="btn-press py-2 rounded-xl text-xs font-extrabold bg-emerald-500/25 text-emerald-300 border border-emerald-500/40">
+        🖱️ Trackpad
+      </button>
+      <button id="urSubBtnZwift" onclick="switchUrSubTab('zwift')" class="btn-press py-2 rounded-xl text-xs font-bold text-slate-300 border border-transparent">
+        🚴 Zwift &amp; Media
+      </button>
+      <button id="urSubBtnKeys" onclick="switchUrSubTab('keys')" class="btn-press py-2 rounded-xl text-xs font-bold text-slate-300 border border-transparent">
+        ⌨️ Tastatur
+      </button>
+    </div>
+
+    <!-- SUB-TAB 1: MULTI-TOUCH TRACKPAD -->
+    <div id="urSubPad" class="flex-1 min-h-0 flex flex-col gap-2">
+      <div class="flex-1 min-h-0 flex gap-2">
+        <!-- Main Touchpad Surface -->
+        <div id="urTouchpad" class="flex-1 glass-card rounded-3xl relative overflow-hidden flex flex-col items-center justify-center border border-slate-700/80 select-none" style="touch-action: none; background: radial-gradient(circle at center, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.9) 100%);">
+          <div id="urRipple" class="w-11 h-11 rounded-full border-2 border-emerald-400 bg-emerald-400/20 absolute pointer-events-none opacity-0 transition-all duration-150" style="transform: translate(-50%, -50%) scale(0.5);"></div>
+          <div class="text-center pointer-events-none px-4 text-slate-400/50 text-xs font-semibold leading-relaxed">
+            <div class="text-lg mb-1">🖱️ Mac Trackpad</div>
+            1 Finger: Bewegen &amp; Tippen (Klick)<br>
+            Doppeltipp: Doppelklick • Rechts: Scrollleiste
+          </div>
+        </div>
+        <!-- Scroll Strip -->
+        <div id="urScrollStrip" class="w-12 glass-card rounded-3xl flex flex-col items-center justify-between py-4 text-slate-400/60 text-xs font-bold border border-slate-700/80 select-none" style="touch-action: none;">
+          <span>▲</span>
+          <span style="writing-mode: vertical-rl; text-orientation: mixed; letter-spacing: 2px; font-size: 10px;">SCROLL</span>
+          <span>▼</span>
+        </div>
+      </div>
+
+      <!-- Mouse Buttons -->
+      <div class="grid grid-cols-3 gap-2 h-12 shrink-0">
+        <button onclick="urClick('left')" class="btn-press glass-card rounded-2xl font-extrabold text-xs text-white border border-slate-700">
+          Linksklick
+        </button>
+        <button id="urDragBtn" onclick="urToggleDrag()" class="btn-press glass-card rounded-2xl font-extrabold text-xs text-slate-300 border border-slate-700">
+          🔒 Halten (Drag)
+        </button>
+        <button onclick="urClick('right')" class="btn-press glass-card rounded-2xl font-extrabold text-xs text-white border border-slate-700">
+          Rechtsklick
+        </button>
+      </div>
+
+      <!-- Quick Media & Space Row -->
+      <div class="grid grid-cols-5 gap-1.5 h-11 shrink-0">
+        <button onclick="urMedia('volume_down')" class="btn-press glass-card rounded-xl font-bold text-xs text-slate-200 border border-slate-700">🔉-</button>
+        <button onclick="urMedia('volume_mute')" class="btn-press glass-card rounded-xl font-bold text-xs text-slate-200 border border-slate-700">🔇</button>
+        <button onclick="urMedia('volume_up')" class="btn-press glass-card rounded-xl font-bold text-xs text-slate-200 border border-slate-700">🔊+</button>
+        <button onclick="urMedia('play_pause')" class="btn-press glass-card rounded-xl font-bold text-xs text-cyan-300 border border-cyan-500/30">⏯️</button>
+        <button onclick="urKey('space')" class="btn-press glass-card rounded-xl font-extrabold text-xs text-emerald-300 border border-emerald-500/40">Space</button>
+      </div>
+    </div>
+
+    <!-- SUB-TAB 2: ZWIFT & MEDIA -->
+    <div id="urSubZwift" class="hidden flex-1 min-h-0 flex-col justify-between gap-2 overflow-y-auto">
+      <div class="glass-card rounded-2xl p-2.5 flex flex-col gap-2">
+        <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Zwift Steuerung</div>
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="urKey('space')" class="btn-press py-3 rounded-xl font-black text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">⚡ PowerUp</button>
+          <button onclick="urKey('down')" class="btn-press py-3 rounded-xl font-black text-xs bg-slate-800 text-white border border-slate-700">🔄 U-Turn (↓)</button>
+          <button onclick="urKey('g')" class="btn-press py-3 rounded-xl font-black text-xs bg-slate-800 text-cyan-300 border border-slate-700">📊 Graph (G)</button>
+        </div>
+        <div class="grid grid-cols-4 gap-1.5">
+          <button onclick="urKey('left')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-white border border-slate-700">⬅️ Links</button>
+          <button onclick="urKey('up')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-white border border-slate-700">⬆️ Gerade</button>
+          <button onclick="urKey('right')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-white border border-slate-700">➡️ Rechts</button>
+          <button onclick="urKey('escape')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30">Esc</button>
+        </div>
+        <div class="grid grid-cols-4 gap-1.5">
+          <button onclick="urKey('pageup')" class="btn-press py-2 rounded-xl font-bold text-xs bg-slate-800 text-amber-300 border border-slate-700">Bias +</button>
+          <button onclick="urKey('pagedown')" class="btn-press py-2 rounded-xl font-bold text-xs bg-slate-800 text-amber-300 border border-slate-700">Bias -</button>
+          <button onclick="urKey('f3')" class="btn-press py-2 rounded-xl font-bold text-xs bg-slate-800 text-cyan-300 border border-slate-700">👍 RideOn</button>
+          <button onclick="urKey('f10')" class="btn-press py-2 rounded-xl font-bold text-xs bg-slate-800 text-slate-200 border border-slate-700">📷 Foto</button>
+        </div>
+      </div>
+
+      <div class="glass-card rounded-2xl p-2.5 flex flex-col gap-2">
+        <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Pfeiltasten &amp; Navigation</div>
+        <div class="grid grid-cols-3 gap-1.5 max-w-[240px] mx-auto w-full">
+          <button onclick="urKey('escape')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-slate-300 border border-slate-700">Esc</button>
+          <button onclick="urKey('up')" class="btn-press py-2.5 rounded-xl font-black text-sm bg-slate-800 text-white border border-slate-700">▲</button>
+          <button onclick="urKey('back')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-slate-300 border border-slate-700">⌫</button>
+          <button onclick="urKey('left')" class="btn-press py-2.5 rounded-xl font-black text-sm bg-slate-800 text-white border border-slate-700">◀</button>
+          <button onclick="urKey('return')" class="btn-press py-2.5 rounded-xl font-black text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">Enter</button>
+          <button onclick="urKey('right')" class="btn-press py-2.5 rounded-xl font-black text-sm bg-slate-800 text-white border border-slate-700">▶</button>
+          <button onclick="urKey('tab')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-slate-300 border border-slate-700">Tab</button>
+          <button onclick="urKey('down')" class="btn-press py-2.5 rounded-xl font-black text-sm bg-slate-800 text-white border border-slate-700">▼</button>
+          <button onclick="urKey('space')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-slate-300 border border-slate-700">Space</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUB-TAB 3: KEYBOARD & MAC SHORTCUTS -->
+    <div id="urSubKeys" class="hidden flex-1 min-h-0 flex-col gap-2 overflow-y-auto">
+      <div class="glass-card rounded-2xl p-3 flex flex-col gap-2.5">
+        <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Text direkt an Mac tippen</div>
+        <div class="flex gap-2">
+          <input id="urTextInput" type="text" placeholder="Text eingeben..." autocomplete="off" onkeydown="if(event.key==='Enter') urSendText()" class="flex-1 px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white outline-none" style="user-select: text; -webkit-user-select: text;" />
+          <button onclick="urSendText()" class="btn-press px-4 py-2.5 rounded-xl font-black text-xs bg-emerald-500 text-slate-950">Senden</button>
+        </div>
+        <div class="grid grid-cols-4 gap-1.5">
+          <button onclick="urKey('return')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-white border border-slate-700">Enter ↵</button>
+          <button onclick="urKey('back')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-white border border-slate-700">Löschen ⌫</button>
+          <button onclick="urKey('space')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-white border border-slate-700">Leertaste</button>
+          <button onclick="urKey('escape')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-white border border-slate-700">Esc</button>
+        </div>
+      </div>
+
+      <div class="glass-card rounded-2xl p-3 flex flex-col gap-2">
+        <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Mac Aktionen</div>
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="urMac('run')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-cyan-300 border border-slate-700">🔍 Spotlight</button>
+          <button onclick="urMac('maximize')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-white border border-slate-700">⛶ Vollbild</button>
+          <button onclick="urMac('close')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30">✕ Cmd+W</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- SETUP / CUSTOMIZATION MODAL -->
   <div id="setupModal" class="fixed inset-0 z-50 hidden bg-slate-950/90 backdrop-blur-md p-4 overflow-y-auto">
@@ -308,54 +435,240 @@
     const STORAGE_KEY = 'strava_pulse_headwind_presets_v1';
     const TIMERS_KEY = 'strava_pulse_headwind_timers_v1';
     const UR_PREFS_KEY = 'strava_pulse_ur_prefs_v2';
+    const UR_BRIDGE_URL = 'https://ntfy.sh/ur_mac_jb_8386e4cb';
+    let currentMainView = 'headwind'; // 'headwind' | 'remote'
+
+    function toggleMainView() {
+      const hw = document.getElementById('viewHeadwind');
+      const rm = document.getElementById('viewRemote');
+      const btn = document.getElementById('btnViewSwitch');
+      const txt = document.getElementById('txtViewSwitch');
+      const badge = document.getElementById('autoReconnectBadge');
+
+      if (currentMainView === 'headwind') {
+        currentMainView = 'remote';
+        hw.classList.add('hidden');
+        hw.classList.remove('flex');
+        rm.classList.remove('hidden');
+        rm.classList.add('flex');
+        txt.textContent = '💨 Lüfter';
+        btn.className = 'btn-press px-3 py-2 rounded-xl text-xs font-black bg-cyan-500/25 text-cyan-200 border border-cyan-400 flex items-center gap-1.5 shadow-sm';
+        if (badge) badge.textContent = '🖱️ Mac Unified Remote aktiv (BLE läuft weiter)';
+      } else {
+        currentMainView = 'headwind';
+        rm.classList.add('hidden');
+        rm.classList.remove('flex');
+        hw.classList.remove('hidden');
+        hw.classList.add('flex');
+        txt.textContent = 'Remote';
+        btn.className = 'btn-press px-3 py-2 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 flex items-center gap-1.5 shadow-sm';
+        if (badge) badge.textContent = '🛡️ All-in-One: Headwind + Mac Remote';
+      }
+    }
+
+    function switchUrSubTab(tab) {
+      const tabs = ['pad', 'zwift', 'keys'];
+      const mapEl = { pad: 'urSubPad', zwift: 'urSubZwift', keys: 'urSubKeys' };
+      const mapBtn = { pad: 'urSubBtnPad', zwift: 'urSubBtnZwift', keys: 'urSubBtnKeys' };
+      tabs.forEach((t) => {
+        const el = document.getElementById(mapEl[t]);
+        const b = document.getElementById(mapBtn[t]);
+        if (t === tab) {
+          el.classList.remove('hidden');
+          el.classList.add('flex');
+          b.className = 'btn-press py-2 rounded-xl text-xs font-extrabold bg-emerald-500/25 text-emerald-300 border border-emerald-500/40';
+        } else {
+          el.classList.add('hidden');
+          el.classList.remove('flex');
+          b.className = 'btn-press py-2 rounded-xl text-xs font-bold text-slate-300 border border-transparent';
+        }
+      });
+    }
+
+    // Queue & batch mouse moves for smooth trackpad over HTTPS Bridge
+    let urMoveQueue = { dx: 0, dy: 0 };
+    let urMoveTimer = null;
+
+    function sendUrBridge(payload) {
+      fetch(UR_BRIDGE_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        keepalive: true
+      }).catch(() => {});
+    }
+
+    function urMove(dx, dy) {
+      urMoveQueue.dx += dx;
+      urMoveQueue.dy += dy;
+      if (!urMoveTimer) {
+        urMoveTimer = setTimeout(() => {
+          const sx = urMoveQueue.dx;
+          const sy = urMoveQueue.dy;
+          urMoveQueue.dx = 0;
+          urMoveQueue.dy = 0;
+          urMoveTimer = null;
+          if (sx !== 0 || sy !== 0) {
+            sendUrBridge({ remote: 'Core.Mouse', action: 'moveraw', args: [sx, sy] });
+          }
+        }, 45);
+      }
+    }
+
+    function urClick(btn) {
+      sendUrBridge({ remote: 'Relmtech.Basic Input', action: btn === 'right' ? 'right' : 'left' });
+    }
+
+    function urDoubleClick() {
+      sendUrBridge({ remote: 'Relmtech.Basic Input', action: 'double' });
+    }
+
+    function urScroll(amount) {
+      sendUrBridge({ remote: 'Core.Mouse', action: 'vscroll', args: [amount] });
+    }
+
+    let urDragging = false;
+    function urToggleDrag() {
+      urDragging = !urDragging;
+      const btn = document.getElementById('urDragBtn');
+      if (urDragging) {
+        btn.className = 'btn-press glass-card rounded-2xl font-extrabold text-xs text-emerald-300 border-2 border-emerald-400';
+        btn.textContent = '🔓 Drag aktiv';
+        sendUrBridge({ remote: 'Relmtech.Basic Input', action: 'hold' });
+      } else {
+        btn.className = 'btn-press glass-card rounded-2xl font-extrabold text-xs text-slate-300 border border-slate-700';
+        btn.textContent = '🔒 Halten (Drag)';
+        sendUrBridge({ remote: 'Relmtech.Basic Input', action: 'tap' });
+      }
+    }
+
+    function urMedia(action) {
+      sendUrBridge({ remote: 'Unified.Media', action });
+    }
+
+    function urMac(action) {
+      sendUrBridge({ remote: 'Unified.MacOSX', action });
+    }
+
+    function urKey(key) {
+      sendUrBridge({ remote: 'Core.Keyboard', action: 'press', args: [key] });
+    }
+
+    function urSendText() {
+      const inp = document.getElementById('urTextInput');
+      if (!inp || !inp.value) return;
+      sendUrBridge({ remote: 'Core.Keyboard', action: 'text', args: [inp.value] });
+      inp.value = '';
+    }
+
+    function initIntegratedTrackpad() {
+      const pad = document.getElementById('urTouchpad');
+      const ripple = document.getElementById('urRipple');
+      const strip = document.getElementById('urScrollStrip');
+      if (!pad || !strip) return;
+
+      let lastX = 0, lastY = 0, startX = 0, startY = 0;
+      let startTime = 0, lastTap = 0, moved = false, maxTouches = 0;
+      let accX = 0, accY = 0, scrollAcc = 0;
+      const sens = 1.9;
+
+      pad.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const t = e.touches[0];
+        maxTouches = Math.max(maxTouches, e.touches.length);
+        lastX = startX = t.clientX;
+        lastY = startY = t.clientY;
+        startTime = Date.now();
+        moved = false;
+        const rect = pad.getBoundingClientRect();
+        ripple.style.left = `${t.clientX - rect.left}px`;
+        ripple.style.top = `${t.clientY - rect.top}px`;
+        ripple.style.opacity = '1';
+        ripple.style.transform = 'translate(-50%, -50%) scale(1)';
+        setTimeout(() => {
+          ripple.style.opacity = '0';
+          ripple.style.transform = 'translate(-50%, -50%) scale(0.5)';
+        }, 180);
+      }, { passive: false });
+
+      pad.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const t = e.touches[0];
+        const dx = t.clientX - lastX;
+        const dy = t.clientY - lastY;
+        lastX = t.clientX;
+        lastY = t.clientY;
+
+        if (Math.hypot(t.clientX - startX, t.clientY - startY) > 6) moved = true;
+
+        if (e.touches.length >= 2) {
+          scrollAcc += dy;
+          if (Math.abs(scrollAcc) >= 12) {
+            const steps = Math.trunc(scrollAcc / 12);
+            urScroll(steps * 2);
+            scrollAcc -= steps * 12;
+          }
+          return;
+        }
+
+        const speed = Math.hypot(dx, dy);
+        const mult = speed > 10 ? sens * 1.4 : sens;
+        accX += dx * mult;
+        accY += dy * mult;
+        const sx = Math.trunc(accX);
+        const sy = Math.trunc(accY);
+        if (sx !== 0 || sy !== 0) {
+          urMove(sx, sy);
+          accX -= sx;
+          accY -= sy;
+        }
+      }, { passive: false });
+
+      pad.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        if (e.touches.length > 0) return;
+        const dt = Date.now() - startTime;
+        if (!moved && dt < 260) {
+          if (maxTouches >= 2) {
+            urClick('right');
+          } else {
+            const now = Date.now();
+            if (now - lastTap < 280) {
+              urDoubleClick();
+              lastTap = 0;
+            } else {
+              urClick('left');
+              lastTap = now;
+            }
+          }
+        }
+        maxTouches = 0;
+      }, { passive: false });
+
+      let sLastY = 0, sAcc = 0;
+      strip.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        sLastY = e.touches[0].clientY;
+        sAcc = 0;
+      }, { passive: false });
+
+      strip.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const y = e.touches[0].clientY;
+        const dy = sLastY - y;
+        sLastY = y;
+        sAcc += dy;
+        if (Math.abs(sAcc) >= 10) {
+          const steps = Math.trunc(sAcc / 10);
+          urScroll(steps * 2);
+          sAcc -= steps * 10;
+        }
+      }, { passive: false });
+    }
 
     function loadUrPrefs() {
-      try {
-        const saved = JSON.parse(localStorage.getItem(UR_PREFS_KEY));
-        if (saved) {
-          if (saved.mode) document.getElementById('urTargetMode').value = saved.mode;
-          if (saved.ip) document.getElementById('urMacIp').value = saved.ip;
-        }
-      } catch (e) {}
-      syncRemoteLinkHref();
+      initIntegratedTrackpad();
     }
-
-    function saveUrPrefs() {
-      const prefs = {
-        mode: document.getElementById('urTargetMode')?.value || 'same',
-        ip: (document.getElementById('urMacIp')?.value || '192.168.178.133').trim()
-      };
-      try { localStorage.setItem(UR_PREFS_KEY, JSON.stringify(prefs)); } catch (e) {}
-      syncRemoteLinkHref();
-    }
-
-    function syncRemoteLinkHref() {
-      const mode = document.getElementById('urTargetMode')?.value || 'same';
-      const ip = (document.getElementById('urMacIp')?.value || '192.168.178.133').trim();
-      const link = document.getElementById('btnRemoteLink');
-      if (!link) return;
-      if (mode === 'app') {
-        link.href = 'ur://intent/show:home';
-      } else if (mode === 'safari') {
-        link.href = `x-safari-http://${ip}:9510/client/`;
-      } else {
-        link.href = `http://${ip}:9510/client/`;
-      }
-    }
-
-    function handleRemoteClick(e) {
-      if (e) e.preventDefault();
-      syncRemoteLinkHref();
-      const link = document.getElementById('btnRemoteLink');
-      const target = link ? link.href : 'http://192.168.178.133:9510/client/';
-      const badge = document.getElementById('autoReconnectBadge');
-      if (badge) {
-        badge.innerHTML = `🚀 Öffne ${target} ...`;
-        badge.className = 'text-[10px] font-bold text-cyan-300 truncate';
-      }
-      window.location.href = target;
-      return false;
-    }
+    function saveUrPrefs() {}
 
     let baseSpeed = 0;
     let effectiveSpeed = 0;
