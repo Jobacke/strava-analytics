@@ -89,7 +89,7 @@
         <div class="flex items-center gap-1.5">
           <span id="connDot" class="w-2 h-2 rounded-full bg-slate-500 shrink-0"></span>
           <h1 id="connStatusText" class="text-xs font-extrabold text-white truncate">Nicht gekoppelt</h1>
-          <span class="px-1.5 py-0.5 rounded bg-slate-800 border border-cyan-500/30 text-[9px] font-mono font-bold text-cyan-300 shrink-0">v1.1</span>
+          <span class="px-1.5 py-0.5 rounded bg-slate-800 border border-cyan-500/30 text-[9px] font-mono font-bold text-cyan-300 shrink-0">v1.2</span>
         </div>
         <div id="autoReconnectBadge" class="text-[10px] font-semibold text-emerald-400 truncate">
           🛡️ Auto-Reconnect &amp; Echtzeit-Timer aktiv
@@ -307,7 +307,7 @@
     const CHAR_UUID = 'a026e038-0a7d-4ab3-97fa-f1500f9feb8b';
     const STORAGE_KEY = 'strava_pulse_headwind_presets_v1';
     const TIMERS_KEY = 'strava_pulse_headwind_timers_v1';
-    const UR_PREFS_KEY = 'strava_pulse_ur_prefs_v1';
+    const UR_PREFS_KEY = 'strava_pulse_ur_prefs_v2';
 
     function loadUrPrefs() {
       try {
@@ -344,12 +344,17 @@
     }
 
     function handleRemoteClick(e) {
+      if (e) e.preventDefault();
       syncRemoteLinkHref();
       const link = document.getElementById('btnRemoteLink');
-      if (link && link.href) {
-        window.location.assign(link.href);
+      const target = link ? link.href : 'http://192.168.178.133:9510/client/';
+      const badge = document.getElementById('autoReconnectBadge');
+      if (badge) {
+        badge.innerHTML = `🚀 Öffne ${target} ...`;
+        badge.className = 'text-[10px] font-bold text-cyan-300 truncate';
       }
-      return true;
+      window.location.href = target;
+      return false;
     }
 
     let baseSpeed = 0;
