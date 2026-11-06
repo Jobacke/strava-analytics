@@ -98,13 +98,13 @@
     </div>
 
     <div class="flex items-center gap-1.5 shrink-0">
-      <button onclick="openUnifiedRemote()" title="Zu Unified Remote wechseln" class="btn-press px-2.5 py-2 rounded-xl text-xs font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+      <a id="btnRemoteLink" href="http://192.168.178.133:9510/client/" onclick="return handleRemoteClick(event)" title="Zu Unified Remote wechseln" class="btn-press px-2.5 py-2 rounded-xl text-xs font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1 no-underline">
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
           <rect x="5" y="2" width="14" height="20" rx="7"></rect>
           <line x1="12" y1="6" x2="12" y2="10"></line>
         </svg>
         <span>Remote</span>
-      </button>
+      </a>
       <button id="btnConnect" onclick="connectHeadwind(false)" class="btn-press px-3 py-2 rounded-xl text-xs font-black tracking-wide bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-sm">
         Koppeln
       </button>
@@ -280,9 +280,9 @@
           <div>
             <label class="text-[11px] text-slate-400 block mb-1">Ziel beim Wechsel</label>
             <select id="urTargetMode" onchange="saveUrPrefs()" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-emerald-300">
-              <option value="safari" selected>Web-App in Safari (Wach)</option>
-              <option value="same">Im aktuellen Browser öffnen</option>
-              <option value="app">Native Unified Remote App</option>
+              <option value="same" selected>Web-Remote direkt öffnen (Bluefy/Safari)</option>
+              <option value="app">Native Unified Remote App (ur://)</option>
+              <option value="safari">In Safari öffnen (x-safari-http)</option>
             </select>
           </div>
           <div>
@@ -317,28 +317,39 @@
           if (saved.ip) document.getElementById('urMacIp').value = saved.ip;
         }
       } catch (e) {}
+      syncRemoteLinkHref();
     }
 
     function saveUrPrefs() {
       const prefs = {
-        mode: document.getElementById('urTargetMode')?.value || 'safari',
+        mode: document.getElementById('urTargetMode')?.value || 'same',
         ip: (document.getElementById('urMacIp')?.value || '192.168.178.133').trim()
       };
       try { localStorage.setItem(UR_PREFS_KEY, JSON.stringify(prefs)); } catch (e) {}
+      syncRemoteLinkHref();
     }
 
-    function openUnifiedRemote() {
-      saveUrPrefs();
-      const mode = document.getElementById('urTargetMode')?.value || 'safari';
+    function syncRemoteLinkHref() {
+      const mode = document.getElementById('urTargetMode')?.value || 'same';
       const ip = (document.getElementById('urMacIp')?.value || '192.168.178.133').trim();
+      const link = document.getElementById('btnRemoteLink');
+      if (!link) return;
       if (mode === 'app') {
-        window.location.href = 'ur://intent/show:home';
-      } else if (mode === 'same') {
-        window.location.href = `http://${ip}:9510/client/`;
+        link.href = 'ur://intent/show:home';
+      } else if (mode === 'safari') {
+        link.href = `x-safari-http://${ip}:9510/client/`;
       } else {
-        // Jump from Bluefy directly into Safari with the Unified Remote Pro Web-App (with WakeLock)
-        window.location.href = `x-safari-http://${ip}:9510/client/`;
+        link.href = `http://${ip}:9510/client/`;
       }
+    }
+
+    function handleRemoteClick(e) {
+      syncRemoteLinkHref();
+      const link = document.getElementById('btnRemoteLink');
+      if (link && link.href) {
+        window.location.assign(link.href);
+      }
+      return true;
     }
 
     let baseSpeed = 0;
