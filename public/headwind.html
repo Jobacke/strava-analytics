@@ -74,11 +74,12 @@
 </head>
 <body class="h-full flex flex-col justify-between px-3 pt-1.5 pb-2.5 max-w-md mx-auto gap-2 overflow-y-auto">
 
-  <!-- 1. COMPACT TOP STATUS & CONNECT BAR -->
+  <!-- 1. MODERN CLEAN COCKPIT HEADER (v2.4) -->
   <header class="glass-card rounded-2xl px-3 py-2 flex items-center justify-between gap-2 shadow-md shrink-0">
-    <div class="flex items-center gap-2 min-w-0">
-      <div id="fanBadge" class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-sm shadow-cyan-500/25 shrink-0">
-        <svg id="fanIcon" class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Left: Calm Status Indicator -->
+    <div class="flex items-center gap-2.5 min-w-0">
+      <div id="fanBadge" class="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-sm shadow-cyan-500/25 shrink-0">
+        <svg id="fanIcon" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 12c0-3 2.5-5.5 5.5-5.5S23 9 23 12H12z"/>
           <path d="M12 12c3 0 5.5 2.5 5.5 5.5S15 23 12 23V12z"/>
           <path d="M12 12c0 3-2.5 5.5-5.5 5.5S1 15 1 12h11z"/>
@@ -89,27 +90,31 @@
       <div class="min-w-0">
         <div class="flex items-center gap-1.5">
           <span id="connDot" class="w-2 h-2 rounded-full bg-slate-500 shrink-0"></span>
-          <h1 id="connStatusText" class="text-xs font-extrabold text-white truncate">Nicht gekoppelt</h1>
-          <span class="px-1.5 py-0.5 rounded bg-slate-800 border border-cyan-500/30 text-[9px] font-mono font-bold text-cyan-300 shrink-0">v2.3</span>
+          <h1 id="connStatusText" class="text-xs font-extrabold text-white whitespace-nowrap">Headwind</h1>
+          <span class="px-1.5 py-0.5 rounded-md bg-slate-800/90 border border-cyan-500/30 text-[9px] font-mono font-bold text-cyan-300 shrink-0">v2.4</span>
         </div>
-        <div id="autoReconnectBadge" class="text-[10px] font-semibold text-emerald-400 truncate">
-          🛡️ All-in-One: Headwind + Mac Remote
+        <div id="autoReconnectBadge" class="text-[10px] font-semibold text-emerald-400 whitespace-nowrap">
+          🟢 Mac &amp; Cockpit bereit
         </div>
       </div>
     </div>
 
+    <!-- Right: Segmented Mode Switch + Actions -->
     <div class="flex items-center gap-1.5 shrink-0">
-      <button id="btnViewSwitch" onclick="toggleMainView()" title="Zwischen Headwind &amp; Mac Remote umschalten" class="btn-press px-3 py-2 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 flex items-center gap-1.5 shadow-sm">
-        <svg id="iconViewSwitch" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="5" y="2" width="14" height="20" rx="7"></rect>
-          <line x1="12" y1="6" x2="12" y2="10"></line>
-        </svg>
-        <span id="txtViewSwitch">Remote</span>
-      </button>
-      <button id="btnConnect" onclick="connectHeadwind(false)" class="btn-press px-3 py-2 rounded-xl text-xs font-black tracking-wide bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-sm">
+      <!-- Segmented Pill Switcher -->
+      <div class="bg-slate-950/90 p-0.5 rounded-xl border border-slate-700/80 flex items-center">
+        <button id="segBtnHeadwind" onclick="setMainView('headwind')" class="btn-press px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold bg-cyan-500/25 text-cyan-200 border border-cyan-400/50 transition-all">
+          💨 Lüfter
+        </button>
+        <button id="segBtnRemote" onclick="setMainView('remote')" class="btn-press px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-400 border border-transparent transition-all">
+          🖱️ Mac
+        </button>
+      </div>
+
+      <button id="btnConnect" onclick="connectHeadwind(false)" class="btn-press px-2.5 py-1.5 rounded-xl text-[11px] font-black bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-sm">
         Koppeln
       </button>
-      <button onclick="openSetupModal()" aria-label="Einstellungen" class="btn-press p-2 rounded-xl bg-slate-800/90 text-slate-300 border border-slate-700/80">
+      <button onclick="openSetupModal()" aria-label="Einstellungen" class="btn-press p-1.5 rounded-xl bg-slate-800/90 text-slate-300 border border-slate-700/80">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"></circle>
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -214,99 +219,157 @@
   </section>
   </div>
 
-  <!-- VIEW B: INTEGRATED MAC UNIFIED REMOTE PRO (Trackpad, Zwift, Media, Keyboard) -->
-  <div id="viewRemote" class="hidden flex-1 min-h-0 flex-col justify-between gap-2 pb-1">
+  <!-- VIEW B: INTEGRATED MAC UNIFIED REMOTE PRO (Trackpad + Direct Zwift Bar + Full Zwift Cockpit + Keyboard) -->
+  <div id="viewRemote" class="hidden flex-1 min-h-0 flex-col justify-between gap-1.5 pb-1">
     <!-- Sub-Tabs inside Remote View -->
     <div class="glass-card rounded-2xl p-1 grid grid-cols-3 gap-1 shrink-0">
-      <button id="urSubBtnPad" onclick="switchUrSubTab('pad')" class="btn-press py-2 rounded-xl text-xs font-extrabold bg-emerald-500/25 text-emerald-300 border border-emerald-500/40">
-        🖱️ Trackpad
+      <button id="urSubBtnPad" onclick="switchUrSubTab('pad')" class="btn-press py-1.5 rounded-xl text-xs font-extrabold bg-emerald-500/25 text-emerald-300 border border-emerald-500/40">
+        🖱️ Trackpad + Zwift
       </button>
-      <button id="urSubBtnZwift" onclick="switchUrSubTab('zwift')" class="btn-press py-2 rounded-xl text-xs font-bold text-slate-300 border border-transparent">
-        🚴 Zwift &amp; Media
+      <button id="urSubBtnZwift" onclick="switchUrSubTab('zwift')" class="btn-press py-1.5 rounded-xl text-xs font-bold text-slate-300 border border-transparent">
+        🚴 Zwift Cockpit
       </button>
-      <button id="urSubBtnKeys" onclick="switchUrSubTab('keys')" class="btn-press py-2 rounded-xl text-xs font-bold text-slate-300 border border-transparent">
-        ⌨️ Tastatur
+      <button id="urSubBtnKeys" onclick="switchUrSubTab('keys')" class="btn-press py-1.5 rounded-xl text-xs font-bold text-slate-300 border border-transparent">
+        ⌨️ Tastatur &amp; Mac
       </button>
     </div>
 
-    <!-- SUB-TAB 1: MULTI-TOUCH TRACKPAD -->
-    <div id="urSubPad" class="flex-1 min-h-0 flex flex-col gap-2">
-      <div class="flex-1 min-h-0 flex gap-2">
+    <!-- SUB-TAB 1: MULTI-TOUCH TRACKPAD + DIRECT ZWIFT QUICK-BAR -->
+    <div id="urSubPad" class="flex-1 min-h-0 flex flex-col gap-1.5">
+      <div class="flex-1 min-h-0 flex gap-1.5">
         <!-- Main Touchpad Surface -->
         <div id="urTouchpad" class="flex-1 glass-card rounded-3xl relative overflow-hidden flex flex-col items-center justify-center border border-slate-700/80 select-none" style="touch-action: none; background: radial-gradient(circle at center, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.9) 100%);">
           <div id="urRipple" class="w-11 h-11 rounded-full border-2 border-emerald-400 bg-emerald-400/20 absolute pointer-events-none opacity-0 transition-all duration-150" style="transform: translate(-50%, -50%) scale(0.5);"></div>
           <div class="text-center pointer-events-none px-4 text-slate-400/50 text-xs font-semibold leading-relaxed">
-            <div class="text-lg mb-1">🖱️ Mac Trackpad</div>
-            1 Finger: Bewegen &amp; Tippen (Klick)<br>
-            Doppeltipp: Doppelklick • Rechts: Scrollleiste
+            <div class="text-base font-bold text-slate-300/60 mb-0.5">🖱️ 120Hz Mac Trackpad</div>
+            1 Finger: Maus &amp; Klick • Doppeltipp: Doppelklick<br>
+            2 Finger oder rechts: Scrollen
           </div>
         </div>
         <!-- Scroll Strip -->
-        <div id="urScrollStrip" class="w-12 glass-card rounded-3xl flex flex-col items-center justify-between py-4 text-slate-400/60 text-xs font-bold border border-slate-700/80 select-none" style="touch-action: none;">
+        <div id="urScrollStrip" class="w-11 glass-card rounded-3xl flex flex-col items-center justify-between py-3 text-slate-400/60 text-xs font-bold border border-slate-700/80 select-none" style="touch-action: none;">
           <span>▲</span>
-          <span style="writing-mode: vertical-rl; text-orientation: mixed; letter-spacing: 2px; font-size: 10px;">SCROLL</span>
+          <span style="writing-mode: vertical-rl; text-orientation: mixed; letter-spacing: 2px; font-size: 9px;">SCROLL</span>
           <span>▼</span>
         </div>
       </div>
 
-      <!-- Mouse Buttons -->
-      <div class="grid grid-cols-3 gap-2 h-12 shrink-0">
-        <button onclick="urClick('left')" class="btn-press glass-card rounded-2xl font-extrabold text-xs text-white border border-slate-700">
+      <!-- Row 1: Mouse Clicks + Enter & Esc directly accessible -->
+      <div class="grid grid-cols-5 gap-1.5 h-10 shrink-0">
+        <button onclick="urClick('left')" class="btn-press glass-card rounded-xl font-extrabold text-[11px] text-white border border-slate-700">
           Linksklick
         </button>
-        <button id="urDragBtn" onclick="urToggleDrag()" class="btn-press glass-card rounded-2xl font-extrabold text-xs text-slate-300 border border-slate-700">
-          🔒 Halten (Drag)
+        <button id="urDragBtn" onclick="urToggleDrag()" class="btn-press glass-card rounded-xl font-extrabold text-[11px] text-slate-300 border border-slate-700">
+          🔒 Drag
         </button>
-        <button onclick="urClick('right')" class="btn-press glass-card rounded-2xl font-extrabold text-xs text-white border border-slate-700">
+        <button onclick="urClick('right')" class="btn-press glass-card rounded-xl font-extrabold text-[11px] text-white border border-slate-700">
           Rechtsklick
+        </button>
+        <button onclick="urKey('return')" class="btn-press rounded-xl font-black text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+          ⏎ Enter
+        </button>
+        <button onclick="urKey('escape')" class="btn-press rounded-xl font-black text-[11px] bg-rose-500/20 text-rose-300 border border-rose-500/35">
+          ⎋ Esc
         </button>
       </div>
 
-      <!-- Quick Media & Space Row -->
-      <div class="grid grid-cols-5 gap-1.5 h-11 shrink-0">
-        <button onclick="urMedia('volume_down')" class="btn-press glass-card rounded-xl font-bold text-xs text-slate-200 border border-slate-700">🔉-</button>
-        <button onclick="urMedia('volume_mute')" class="btn-press glass-card rounded-xl font-bold text-xs text-slate-200 border border-slate-700">🔇</button>
-        <button onclick="urMedia('volume_up')" class="btn-press glass-card rounded-xl font-bold text-xs text-slate-200 border border-slate-700">🔊+</button>
-        <button onclick="urMedia('play_pause')" class="btn-press glass-card rounded-xl font-bold text-xs text-cyan-300 border border-cyan-500/30">⏯️</button>
-        <button onclick="urKey('space')" class="btn-press glass-card rounded-xl font-extrabold text-xs text-emerald-300 border border-emerald-500/40">Space</button>
+      <!-- Row 2: Direct Zwift Menu & Workout Bar (No tab-switching needed!) -->
+      <div class="grid grid-cols-5 gap-1.5 h-10 shrink-0">
+        <button onclick="urKey('e')" class="btn-press glass-card rounded-xl font-extrabold text-[11px] text-amber-300 border border-amber-500/35">
+          📋 Workout
+        </button>
+        <button onclick="urKey('a')" class="btn-press glass-card rounded-xl font-extrabold text-[11px] text-cyan-300 border border-cyan-500/35">
+          📡 Pairing
+        </button>
+        <button onclick="urKey('t')" class="btn-press glass-card rounded-xl font-extrabold text-[11px] text-indigo-300 border border-indigo-500/35">
+          🚲 Garage
+        </button>
+        <button onclick="urKey('space')" class="btn-press glass-card rounded-xl font-extrabold text-[11px] text-emerald-300 border border-emerald-500/40">
+          ⚡ PowerUp
+        </button>
+        <button onclick="urKey('tab')" class="btn-press glass-card rounded-xl font-extrabold text-[11px] text-slate-200 border border-slate-700">
+          ⏭️ Skip
+        </button>
+      </div>
+
+      <!-- Row 3: Quick Direction, RideOn & Volume Bar -->
+      <div class="grid grid-cols-7 gap-1 h-9 shrink-0">
+        <button onclick="urKey('left')" class="btn-press glass-card rounded-xl font-black text-xs text-white border border-slate-700">⬅️</button>
+        <button onclick="urKey('up')" class="btn-press glass-card rounded-xl font-black text-xs text-white border border-slate-700">⬆️</button>
+        <button onclick="urKey('right')" class="btn-press glass-card rounded-xl font-black text-xs text-white border border-slate-700">➡️</button>
+        <button onclick="urKey('down')" class="btn-press glass-card rounded-xl font-bold text-[11px] text-amber-300 border border-slate-700">🔄 U</button>
+        <button onclick="urKey('f3')" class="btn-press glass-card rounded-xl font-bold text-xs text-cyan-300 border border-slate-700">👍</button>
+        <button onclick="urMedia('volume_down')" class="btn-press glass-card rounded-xl font-bold text-[11px] text-slate-300 border border-slate-700">🔉-</button>
+        <button onclick="urMedia('volume_up')" class="btn-press glass-card rounded-xl font-bold text-[11px] text-slate-300 border border-slate-700">🔊+</button>
       </div>
     </div>
 
-    <!-- SUB-TAB 2: ZWIFT & MEDIA -->
-    <div id="urSubZwift" class="hidden flex-1 min-h-0 flex-col justify-between gap-2 overflow-y-auto">
-      <div class="glass-card rounded-2xl p-2.5 flex flex-col gap-2">
-        <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Zwift Steuerung</div>
-        <div class="grid grid-cols-3 gap-2">
-          <button onclick="urKey('space')" class="btn-press py-3 rounded-xl font-black text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">⚡ PowerUp</button>
-          <button onclick="urKey('down')" class="btn-press py-3 rounded-xl font-black text-xs bg-slate-800 text-white border border-slate-700">🔄 U-Turn (↓)</button>
-          <button onclick="urKey('g')" class="btn-press py-3 rounded-xl font-black text-xs bg-slate-800 text-cyan-300 border border-slate-700">📊 Graph (G)</button>
+    <!-- SUB-TAB 2: FULL ZWIFT COMMAND COCKPIT -->
+    <div id="urSubZwift" class="hidden flex-1 min-h-0 flex-col justify-between gap-1.5 overflow-y-auto">
+      <!-- 1. Zwift Direct Menus & Dialog Control -->
+      <div class="glass-card rounded-2xl p-2 flex flex-col gap-1.5">
+        <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Zwift Menüs &amp; Auswahl (ohne Maus)</div>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button onclick="urKey('e')" class="btn-press py-2.5 rounded-xl font-black text-xs bg-amber-500/20 text-amber-300 border border-amber-500/40">📋 Workouts (E)</button>
+          <button onclick="urKey('a')" class="btn-press py-2.5 rounded-xl font-black text-xs bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">📡 Sensoren (A)</button>
+          <button onclick="urKey('t')" class="btn-press py-2.5 rounded-xl font-black text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">🚲 Garage (T)</button>
         </div>
-        <div class="grid grid-cols-4 gap-1.5">
-          <button onclick="urKey('left')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-white border border-slate-700">⬅️ Links</button>
-          <button onclick="urKey('up')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-white border border-slate-700">⬆️ Gerade</button>
-          <button onclick="urKey('right')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-white border border-slate-700">➡️ Rechts</button>
-          <button onclick="urKey('escape')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30">Esc</button>
-        </div>
-        <div class="grid grid-cols-4 gap-1.5">
-          <button onclick="urKey('pageup')" class="btn-press py-2 rounded-xl font-bold text-xs bg-slate-800 text-amber-300 border border-slate-700">Bias +</button>
-          <button onclick="urKey('pagedown')" class="btn-press py-2 rounded-xl font-bold text-xs bg-slate-800 text-amber-300 border border-slate-700">Bias -</button>
-          <button onclick="urKey('f3')" class="btn-press py-2 rounded-xl font-bold text-xs bg-slate-800 text-cyan-300 border border-slate-700">👍 RideOn</button>
-          <button onclick="urKey('f10')" class="btn-press py-2 rounded-xl font-bold text-xs bg-slate-800 text-slate-200 border border-slate-700">📷 Foto</button>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button onclick="urKey('return')" class="btn-press py-2 rounded-xl font-black text-xs bg-emerald-500/25 text-emerald-300 border border-emerald-500/45">✅ OK / Enter</button>
+          <button onclick="urKey('escape')" class="btn-press py-2 rounded-xl font-black text-xs bg-rose-500/20 text-rose-300 border border-rose-500/35">⏹️ Menü (Esc)</button>
+          <button onclick="urKey('m')" class="btn-press py-2 rounded-xl font-bold text-xs bg-slate-800 text-slate-200 border border-slate-700">💬 Chat (M)</button>
         </div>
       </div>
 
-      <div class="glass-card rounded-2xl p-2.5 flex flex-col gap-2">
-        <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Pfeiltasten &amp; Navigation</div>
-        <div class="grid grid-cols-3 gap-1.5 max-w-[240px] mx-auto w-full">
-          <button onclick="urKey('escape')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-slate-300 border border-slate-700">Esc</button>
-          <button onclick="urKey('up')" class="btn-press py-2.5 rounded-xl font-black text-sm bg-slate-800 text-white border border-slate-700">▲</button>
-          <button onclick="urKey('back')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-slate-300 border border-slate-700">⌫</button>
-          <button onclick="urKey('left')" class="btn-press py-2.5 rounded-xl font-black text-sm bg-slate-800 text-white border border-slate-700">◀</button>
-          <button onclick="urKey('return')" class="btn-press py-2.5 rounded-xl font-black text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">Enter</button>
-          <button onclick="urKey('right')" class="btn-press py-2.5 rounded-xl font-black text-sm bg-slate-800 text-white border border-slate-700">▶</button>
-          <button onclick="urKey('tab')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-slate-300 border border-slate-700">Tab</button>
-          <button onclick="urKey('down')" class="btn-press py-2.5 rounded-xl font-black text-sm bg-slate-800 text-white border border-slate-700">▼</button>
-          <button onclick="urKey('space')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-slate-300 border border-slate-700">Space</button>
+      <!-- 2. Workout & ERG / View Control -->
+      <div class="glass-card rounded-2xl p-2 flex flex-col gap-1.5">
+        <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Workout-Steuerung &amp; HUD</div>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button onclick="urKey('tab')" class="btn-press py-2.5 rounded-xl font-black text-xs bg-cyan-500/15 text-cyan-200 border border-cyan-500/35">⏭️ Intervall Skip</button>
+          <button onclick="urKey('pageup')" class="btn-press py-2.5 rounded-xl font-black text-xs bg-slate-800 text-amber-300 border border-slate-700">📈 Bias + (PgUp)</button>
+          <button onclick="urKey('pagedown')" class="btn-press py-2.5 rounded-xl font-black text-xs bg-slate-800 text-amber-300 border border-slate-700">📉 Bias - (PgDn)</button>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button onclick="urKey('g')" class="btn-press py-2 rounded-xl font-bold text-xs bg-slate-800 text-cyan-300 border border-slate-700">📊 Graph (G)</button>
+          <button onclick="urKey('h')" class="btn-press py-2 rounded-xl font-bold text-xs bg-slate-800 text-slate-200 border border-slate-700">👁️ HUD an/aus (H)</button>
+          <button onclick="urKey('f10')" class="btn-press py-2 rounded-xl font-bold text-xs bg-slate-800 text-slate-200 border border-slate-700">📷 Foto (F10)</button>
+        </div>
+      </div>
+
+      <!-- 3. Route Navigation, PowerUp & Arrow Keys -->
+      <div class="glass-card rounded-2xl p-2 flex flex-col gap-1.5">
+        <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Fahrt, Abzweigungen &amp; Pfeiltasten</div>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button onclick="urKey('space')" class="btn-press py-2.5 rounded-xl font-black text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">⚡ PowerUp</button>
+          <button onclick="urKey('down')" class="btn-press py-2.5 rounded-xl font-black text-xs bg-slate-800 text-amber-300 border border-slate-700">🔄 U-Turn (↓)</button>
+          <button onclick="urKey('f3')" class="btn-press py-2.5 rounded-xl font-black text-xs bg-slate-800 text-cyan-300 border border-slate-700">👍 Ride On!</button>
+        </div>
+        <div class="grid grid-cols-4 gap-1.5">
+          <button onclick="urKey('left')" class="btn-press py-2 rounded-xl font-black text-xs bg-slate-800 text-white border border-slate-700">⬅️ Links</button>
+          <button onclick="urKey('up')" class="btn-press py-2 rounded-xl font-black text-xs bg-slate-800 text-white border border-slate-700">⬆️ Gerade</button>
+          <button onclick="urKey('down')" class="btn-press py-2 rounded-xl font-black text-xs bg-slate-800 text-white border border-slate-700">⬇️ Runter</button>
+          <button onclick="urKey('right')" class="btn-press py-2 rounded-xl font-black text-xs bg-slate-800 text-white border border-slate-700">➡️ Rechts</button>
+        </div>
+      </div>
+
+      <!-- 4. Cameras, Emotes & Media -->
+      <div class="glass-card rounded-2xl p-2 flex flex-col gap-1.5">
+        <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Kameras &amp; Emotes</div>
+        <div class="grid grid-cols-6 gap-1">
+          <button onclick="urKey('1')" class="btn-press py-2 rounded-lg font-bold text-[11px] bg-slate-800 text-slate-200 border border-slate-700">🎥 1</button>
+          <button onclick="urKey('2')" class="btn-press py-2 rounded-lg font-bold text-[11px] bg-slate-800 text-slate-200 border border-slate-700">🎥 2</button>
+          <button onclick="urKey('3')" class="btn-press py-2 rounded-lg font-bold text-[11px] bg-slate-800 text-cyan-300 border border-slate-700">👀 POV</button>
+          <button onclick="urKey('6')" class="btn-press py-2 rounded-lg font-bold text-[11px] bg-slate-800 text-slate-200 border border-slate-700">🔙 Rück</button>
+          <button onclick="urKey('8')" class="btn-press py-2 rounded-lg font-bold text-[11px] bg-slate-800 text-slate-200 border border-slate-700">🚁 Heli</button>
+          <button onclick="urKey('0')" class="btn-press py-2 rounded-lg font-bold text-[11px] bg-slate-800 text-amber-300 border border-slate-700">🛸 Frei</button>
+        </div>
+        <div class="grid grid-cols-6 gap-1">
+          <button onclick="urKey('f1')" class="btn-press py-2 rounded-lg font-bold text-[11px] bg-slate-800 text-slate-200 border border-slate-700">💪 F1</button>
+          <button onclick="urKey('f2')" class="btn-press py-2 rounded-lg font-bold text-[11px] bg-slate-800 text-slate-200 border border-slate-700">👋 F2</button>
+          <button onclick="urKey('f4')" class="btn-press py-2 rounded-lg font-bold text-[11px] bg-slate-800 text-slate-200 border border-slate-700">🔨 F4</button>
+          <button onclick="urKey('f8')" class="btn-press py-2 rounded-lg font-bold text-[11px] bg-slate-800 text-amber-300 border border-slate-700">🔔 Klingel</button>
+          <button onclick="urMedia('play_pause')" class="btn-press py-2 rounded-lg font-bold text-[11px] bg-slate-800 text-cyan-300 border border-slate-700">⏯️ Play</button>
+          <button onclick="urMedia('next')" class="btn-press py-2 rounded-lg font-bold text-[11px] bg-slate-800 text-slate-200 border border-slate-700">⏭️ Track</button>
         </div>
       </div>
     </div>
@@ -328,11 +391,16 @@
       </div>
 
       <div class="glass-card rounded-2xl p-3 flex flex-col gap-2">
-        <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Mac Aktionen</div>
+        <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Mac &amp; Medien Steuerung</div>
         <div class="grid grid-cols-3 gap-2">
           <button onclick="urMac('run')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-cyan-300 border border-slate-700">🔍 Spotlight</button>
           <button onclick="urMac('maximize')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-white border border-slate-700">⛶ Vollbild</button>
           <button onclick="urMac('close')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30">✕ Cmd+W</button>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="urMedia('previous')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-slate-200 border border-slate-700">⏮️ Zurück</button>
+          <button onclick="urMedia('play_pause')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">⏯️ Play/Pause</button>
+          <button onclick="urMedia('next')" class="btn-press py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-slate-200 border border-slate-700">⏭️ Weiter</button>
         </div>
       </div>
     </div>
@@ -448,50 +516,79 @@
     let urP2pReady = false;
     let currentMainView = 'headwind'; // 'headwind' | 'remote'
 
+    let p2pReconnectTimer = null;
+
     function updateRemoteBadgeStatus() {
-      if (currentMainView !== 'remote') return;
       const badge = document.getElementById('autoReconnectBadge');
       if (!badge) return;
+      if (currentMainView !== 'remote') {
+        if (urP2pReady || urWssReady) {
+          badge.textContent = '🟢 Mac & Cockpit bereit';
+          badge.className = 'text-[10px] font-semibold text-emerald-400 whitespace-nowrap';
+        }
+        return;
+      }
       if (urP2pReady) {
-        badge.textContent = '⚡ Direktes WLAN-P2P + Native Mac-HID (120Hz • 1ms)';
-        badge.className = 'text-[10px] font-extrabold text-emerald-400 truncate';
+        badge.textContent = '⚡ Direkt-WLAN aktiv (120Hz)';
+        badge.className = 'text-[10px] font-bold text-emerald-400 whitespace-nowrap';
       } else if (urWssReady) {
-        badge.textContent = '🟢 Mac Trackpad aktiv (WSS + Native HID)';
-        badge.className = 'text-[10px] font-semibold text-cyan-300 truncate';
+        badge.textContent = '🟢 Mac Remote verbunden';
+        badge.className = 'text-[10px] font-semibold text-cyan-300 whitespace-nowrap';
       } else {
-        badge.textContent = '🔄 Verbinde Mac Trackpad...';
+        badge.textContent = '⏳ Verbinde Mac...';
+        badge.className = 'text-[10px] font-semibold text-slate-400 whitespace-nowrap';
       }
     }
 
     function startWebRtcP2p() {
       if (!window.RTCPeerConnection || !urMqttClient || !urWssReady) return;
+      // Never tear down an already open P2P DataChannel!
+      if (urP2pReady && urDataChannel && urDataChannel.readyState === 'open') return;
+      if (p2pReconnectTimer) {
+        clearTimeout(p2pReconnectTimer);
+        p2pReconnectTimer = null;
+      }
       try {
+        if (urDataChannel) {
+          urDataChannel.onopen = null;
+          urDataChannel.onclose = null;
+          try { urDataChannel.close(); } catch (e) {}
+          urDataChannel = null;
+        }
         if (urRtcPeer) {
+          urRtcPeer.onicecandidate = null;
           try { urRtcPeer.close(); } catch (e) {}
+          urRtcPeer = null;
         }
         urP2pReady = false;
-        urRtcPeer = new RTCPeerConnection({
+        const pc = new RTCPeerConnection({
           iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
         });
+        urRtcPeer = pc;
 
         // Unordered, 0-retransmit UDP-like DataChannel for zero head-of-line blocking
-        urDataChannel = urRtcPeer.createDataChannel('trackpad', {
+        const dc = pc.createDataChannel('trackpad', {
           ordered: false,
           maxRetransmits: 0
         });
+        urDataChannel = dc;
 
-        urDataChannel.onopen = () => {
+        dc.onopen = () => {
+          if (urDataChannel !== dc) return;
           urP2pReady = true;
           updateRemoteBadgeStatus();
         };
 
-        urDataChannel.onclose = () => {
+        dc.onclose = () => {
+          if (urDataChannel !== dc) return;
           urP2pReady = false;
           updateRemoteBadgeStatus();
-          setTimeout(startWebRtcP2p, 1000);
+          if (p2pReconnectTimer) clearTimeout(p2pReconnectTimer);
+          p2pReconnectTimer = setTimeout(startWebRtcP2p, 2500);
         };
 
-        urRtcPeer.onicecandidate = (e) => {
+        pc.onicecandidate = (e) => {
+          if (urRtcPeer !== pc) return;
           if (e.candidate && urMqttClient && urWssReady) {
             urMqttClient.publish(SIG_TOPIC_TO_MAC, JSON.stringify({
               peerId: MY_PEER_ID,
@@ -502,8 +599,9 @@
           }
         };
 
-        urRtcPeer.createOffer().then((offer) => {
-          return urRtcPeer.setLocalDescription(offer).then(() => {
+        pc.createOffer().then((offer) => {
+          if (urRtcPeer !== pc) return;
+          return pc.setLocalDescription(offer).then(() => {
             if (urMqttClient && urWssReady) {
               urMqttClient.publish(SIG_TOPIC_TO_MAC, JSON.stringify({
                 peerId: MY_PEER_ID,
@@ -554,36 +652,45 @@
       } catch (e) {}
     }
 
-    function toggleMainView() {
+    function setMainView(targetView) {
       const hw = document.getElementById('viewHeadwind');
       const rm = document.getElementById('viewRemote');
-      const btn = document.getElementById('btnViewSwitch');
-      const txt = document.getElementById('txtViewSwitch');
-      const badge = document.getElementById('autoReconnectBadge');
+      const segHw = document.getElementById('segBtnHeadwind');
+      const segRm = document.getElementById('segBtnRemote');
+      const btnConnect = document.getElementById('btnConnect');
+      const connTxt = document.getElementById('connStatusText');
+      const connDot = document.getElementById('connDot');
 
-      if (currentMainView === 'headwind') {
-        currentMainView = 'remote';
+      currentMainView = targetView;
+
+      if (targetView === 'remote') {
         hw.classList.add('hidden');
         hw.classList.remove('flex');
         rm.classList.remove('hidden');
         rm.classList.add('flex');
-        txt.textContent = '💨 Lüfter';
-        btn.className = 'btn-press px-3 py-2 rounded-xl text-xs font-black bg-cyan-500/25 text-cyan-200 border border-cyan-400 flex items-center gap-1.5 shadow-sm';
+        if (segRm) segRm.className = 'btn-press px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold bg-emerald-500/25 text-emerald-300 border border-emerald-400/50 transition-all';
+        if (segHw) segHw.className = 'btn-press px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-400 border border-transparent transition-all';
+        if (btnConnect) btnConnect.classList.add('hidden');
+        if (connTxt) connTxt.textContent = 'Mac Remote';
+        if (connDot) connDot.className = 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
         if (!urP2pReady && urWssReady) startWebRtcP2p();
         updateRemoteBadgeStatus();
       } else {
-        currentMainView = 'headwind';
         rm.classList.add('hidden');
         rm.classList.remove('flex');
         hw.classList.remove('hidden');
         hw.classList.add('flex');
-        txt.textContent = 'Remote';
-        btn.className = 'btn-press px-3 py-2 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 flex items-center gap-1.5 shadow-sm';
-        if (badge) {
-          badge.textContent = '🛡️ All-in-One: Headwind + Mac Remote';
-          badge.className = 'text-[10px] font-semibold text-emerald-400 truncate';
-        }
+        if (segHw) segHw.className = 'btn-press px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold bg-cyan-500/25 text-cyan-200 border border-cyan-400/50 transition-all';
+        if (segRm) segRm.className = 'btn-press px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-400 border border-transparent transition-all';
+        if (btnConnect) btnConnect.classList.remove('hidden');
+        if (connTxt) connTxt.textContent = isConnected ? (bleDevice?.name || 'Headwind') : 'Headwind';
+        if (connDot) connDot.className = isConnected ? 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0' : 'w-2 h-2 rounded-full bg-slate-500 shrink-0';
+        updateRemoteBadgeStatus();
       }
+    }
+
+    function toggleMainView() {
+      setMainView(currentMainView === 'headwind' ? 'remote' : 'headwind');
     }
 
     function switchUrSubTab(tab) {
@@ -596,11 +703,11 @@
         if (t === tab) {
           el.classList.remove('hidden');
           el.classList.add('flex');
-          b.className = 'btn-press py-2 rounded-xl text-xs font-extrabold bg-emerald-500/25 text-emerald-300 border border-emerald-500/40';
+          b.className = 'btn-press py-1.5 rounded-xl text-xs font-extrabold bg-emerald-500/25 text-emerald-300 border border-emerald-500/40';
         } else {
           el.classList.add('hidden');
           el.classList.remove('flex');
-          b.className = 'btn-press py-2 rounded-xl text-xs font-bold text-slate-300 border border-transparent';
+          b.className = 'btn-press py-1.5 rounded-xl text-xs font-bold text-slate-300 border border-transparent';
         }
       });
     }
@@ -667,12 +774,12 @@
       urDragging = !urDragging;
       const btn = document.getElementById('urDragBtn');
       if (urDragging) {
-        btn.className = 'btn-press glass-card rounded-2xl font-extrabold text-xs text-emerald-300 border-2 border-emerald-400';
-        btn.textContent = '🔓 Drag aktiv';
+        btn.className = 'btn-press glass-card rounded-xl font-extrabold text-[11px] text-emerald-300 border-2 border-emerald-400';
+        btn.textContent = '🔓 Drag an';
         sendRawFast('G 1');
       } else {
-        btn.className = 'btn-press glass-card rounded-2xl font-extrabold text-xs text-slate-300 border border-slate-700';
-        btn.textContent = '🔒 Halten (Drag)';
+        btn.className = 'btn-press glass-card rounded-xl font-extrabold text-[11px] text-slate-300 border border-slate-700';
+        btn.textContent = '🔒 Drag';
         sendRawFast('G 0');
       }
     }
@@ -991,9 +1098,9 @@
             manualInitialized = true;
           }
           const badge = document.getElementById('autoReconnectBadge');
-          const modeNames = { 1: 'Standby', 2: 'HF-Modus', 3: 'Speed', 4: 'Manuell', 5: 'Sleep' };
-          if (badge) {
-            badge.textContent = `🟢 Lüfter-Status: ${modeNames[repMode] || 'Bereit'} • Ist: ${repSpeed}%`;
+          const modeNames = { 1: 'Standby', 2: 'HF', 3: 'Speed', 4: 'Manuell', 5: 'Sleep' };
+          if (badge && currentMainView === 'headwind') {
+            badge.textContent = `🟢 ${modeNames[repMode] || 'Bereit'} • Ist: ${repSpeed}%`;
           }
         }
       } catch (e) {}
@@ -1074,15 +1181,21 @@
       const dot = document.getElementById('connDot');
       const txt = document.getElementById('connStatusText');
       const btn = document.getElementById('btnConnect');
-      txt.textContent = label;
+      if (currentMainView === 'headwind') {
+        txt.textContent = connected ? 'Headwind' : 'Headwind';
+      }
       if (connected) {
-        dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0';
+        if (currentMainView === 'headwind') {
+          dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0';
+        }
         btn.textContent = 'Trennen';
-        btn.className = 'btn-press px-3 py-2 rounded-xl text-xs font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/40';
+        btn.className = (currentMainView === 'remote' ? 'hidden ' : '') + 'btn-press px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/40';
       } else {
-        dot.className = 'w-2 h-2 rounded-full bg-slate-500 shrink-0';
+        if (currentMainView === 'headwind') {
+          dot.className = 'w-2 h-2 rounded-full bg-slate-500 shrink-0';
+        }
         btn.textContent = 'Koppeln';
-        btn.className = 'btn-press px-3.5 py-2 rounded-xl text-xs font-black tracking-wide bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-sm';
+        btn.className = (currentMainView === 'remote' ? 'hidden ' : '') + 'btn-press px-2.5 py-1.5 rounded-xl text-[11px] font-black bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-sm';
       }
     }
 
@@ -1316,15 +1429,8 @@
     // Auto-reconnect GATT & WakeLock when switching back from Unified Remote to Bluefy
     document.addEventListener('visibilitychange', async () => {
       if (document.visibilityState === 'visible') {
-        const badge = document.getElementById('autoReconnectBadge');
-        if (badge) {
-          badge.innerHTML = '🔄 Zurück aus Hintergrund • Sync aktiv';
-          badge.className = 'text-[10px] font-bold text-cyan-300 truncate';
-          setTimeout(() => {
-            badge.innerHTML = '🛡️ Auto-Reconnect &amp; Echtzeit-Timer aktiv';
-            badge.className = 'text-[10px] font-semibold text-emerald-400 truncate';
-          }, 3500);
-        }
+        if (!urP2pReady && urWssReady) startWebRtcP2p();
+        updateRemoteBadgeStatus();
         if ('wakeLock' in navigator && !window._wakeLock) {
           try { window._wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
         }
