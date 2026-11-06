@@ -9,6 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='115' fill='%2306b6d4'/%3E%3Cg transform='translate(64,64) scale(16)' fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 12c0-3 2.5-5.5 5.5-5.5S23 9 23 12H12z'/%3E%3Cpath d='M12 12c3 0 5.5 2.5 5.5 5.5S15 23 12 23V12z'/%3E%3Cpath d='M12 12c0 3-2.5 5.5-5.5 5.5S1 15 1 12h11z'/%3E%3Cpath d='M12 12c-3 0-5.5-2.5-5.5-5.5S9 1 12 1v11z'/%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3C/g%3E%3C/svg%3E" />
   <title>KICKR Headwind – Cockpit</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/mqtt@5.10.3/dist/mqtt.min.js"></script>
   <style>
     :root {
       color-scheme: dark;
@@ -89,7 +90,7 @@
         <div class="flex items-center gap-1.5">
           <span id="connDot" class="w-2 h-2 rounded-full bg-slate-500 shrink-0"></span>
           <h1 id="connStatusText" class="text-xs font-extrabold text-white truncate">Nicht gekoppelt</h1>
-          <span class="px-1.5 py-0.5 rounded bg-slate-800 border border-cyan-500/30 text-[9px] font-mono font-bold text-cyan-300 shrink-0">v2.0</span>
+          <span class="px-1.5 py-0.5 rounded bg-slate-800 border border-cyan-500/30 text-[9px] font-mono font-bold text-cyan-300 shrink-0">v2.1</span>
         </div>
         <div id="autoReconnectBadge" class="text-[10px] font-semibold text-emerald-400 truncate">
           🛡️ All-in-One: Headwind + Mac Remote
@@ -435,8 +436,30 @@
     const STORAGE_KEY = 'strava_pulse_headwind_presets_v1';
     const TIMERS_KEY = 'strava_pulse_headwind_timers_v1';
     const UR_PREFS_KEY = 'strava_pulse_ur_prefs_v2';
-    const UR_BRIDGE_URL = 'https://ntfy.sh/ur_mac_jb_8386e4cb';
+    const UR_WSS_TOPIC = 'ur_mac_jb_8386e4cb_v2';
+    let urMqttClient = null;
+    let urWssReady = false;
     let currentMainView = 'headwind'; // 'headwind' | 'remote'
+
+    function initUrWssStream() {
+      if (urMqttClient || typeof mqtt === 'undefined') return;
+      try {
+        urMqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
+          keepalive: 30,
+          reconnectPeriod: 1500
+        });
+        urMqttClient.on('connect', () => {
+          urWssReady = true;
+          if (currentMainView === 'remote') {
+            const badge = document.getElementById('autoReconnectBadge');
+            if (badge) badge.textContent = '🟢 Mac Trackpad Echtzeit-Stream aktiv (60Hz)';
+          }
+        });
+        urMqttClient.on('close', () => {
+          urWssReady = false;
+        });
+      } catch (e) {}
+    }
 
     function toggleMainView() {
       const hw = document.getElementById('viewHeadwind');
@@ -453,7 +476,11 @@
         rm.classList.add('flex');
         txt.textContent = '💨 Lüfter';
         btn.className = 'btn-press px-3 py-2 rounded-xl text-xs font-black bg-cyan-500/25 text-cyan-200 border border-cyan-400 flex items-center gap-1.5 shadow-sm';
-        if (badge) badge.textContent = '🖱️ Mac Unified Remote aktiv (BLE läuft weiter)';
+        if (badge) {
+          badge.textContent = urWssReady
+            ? '🟢 Mac Trackpad Echtzeit-Stream aktiv (60Hz)'
+            : '🔄 Verbinde Echtzeit-Trackpad...';
+        }
       } else {
         currentMainView = 'headwind';
         rm.classList.add('hidden');
@@ -485,16 +512,15 @@
       });
     }
 
-    // Queue & batch mouse moves for smooth trackpad over HTTPS Bridge
+    // High-speed 60Hz WebSocket stream (zero rate limits, ~40ms latency)
     let urMoveQueue = { dx: 0, dy: 0 };
     let urMoveTimer = null;
 
     function sendUrBridge(payload) {
-      fetch(UR_BRIDGE_URL, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-        keepalive: true
-      }).catch(() => {});
+      if (!urMqttClient) initUrWssStream();
+      if (urMqttClient && urWssReady) {
+        urMqttClient.publish(UR_WSS_TOPIC, JSON.stringify(payload), { qos: 0 });
+      }
     }
 
     function urMove(dx, dy) {
@@ -508,9 +534,10 @@
           urMoveQueue.dy = 0;
           urMoveTimer = null;
           if (sx !== 0 || sy !== 0) {
-            sendUrBridge({ remote: 'Core.Mouse', action: 'moveraw', args: [sx, sy] });
+            // Send ultra-compact [dx, dy] packet over persistent WebSocket
+            sendUrBridge([sx, sy]);
           }
-        }, 45);
+        }, 16); // ~60 FPS
       }
     }
 
@@ -666,6 +693,7 @@
     }
 
     function loadUrPrefs() {
+      initUrWssStream();
       initIntegratedTrackpad();
     }
     function saveUrPrefs() {}
