@@ -175,44 +175,58 @@ export const KickrHeadwindModal: React.FC<KickrHeadwindModalProps> = ({ isOpen, 
     const char = controlCharRef.current;
     if (!char || pendingSpeedRef.current === null) return;
 
+    const sleepMs = (ms: number) => new Promise((res) => setTimeout(res, ms));
+    const safeWrite = async (bytes: number[]) => {
+      const data = new Uint8Array(bytes);
+      try {
+        if (char.writeValue) {
+          await char.writeValue(data);
+          return;
+        }
+      } catch {
+        try {
+          if (char.writeValueWithResponse) {
+            await char.writeValueWithResponse(data);
+            return;
+          }
+        } catch {
+          if (char.writeValueWithoutResponse) {
+            await char.writeValueWithoutResponse(data);
+          }
+        }
+      }
+    };
+
     isWritingRef.current = true;
     try {
       while (pendingSpeedRef.current !== null) {
         const target = Math.max(0, Math.min(100, Math.round(pendingSpeedRef.current)));
         pendingSpeedRef.current = null;
 
-        if (target === 0) {
-          // Set speed 0 and put into Manual/Standby
-          const speedCmd = new Uint8Array([0x02, 0x00]);
-          if (char.writeValueWithResponse) {
-            await char.writeValueWithResponse(speedCmd);
-          } else {
-            await char.writeValue(speedCmd);
-          }
+        if (target <= 0) {
+          // Turn fan off and require Manual Mode (0x04, 0x04) again on next wakeup
+          await safeWrite([0x02, 0x00]);
+          await sleepMs(120);
+          await safeWrite([0x04, 0x01]);
+          isManualModeInitializedRef.current = false;
         } else {
-          // Ensure Headwind is in Manual Mode (0x04, 0x04) before sending speed
+          // Ensure Headwind is in Manual Mode (0x04, 0x04) and given 200ms before sending speed
           if (!isManualModeInitializedRef.current) {
-            const modeCmd = new Uint8Array([0x04, 0x04]);
-            if (char.writeValueWithResponse) {
-              await char.writeValueWithResponse(modeCmd);
-            } else {
-              await char.writeValue(modeCmd);
-            }
+            await safeWrite([0x04, 0x04]);
+            await sleepMs(200);
             isManualModeInitializedRef.current = true;
           }
-
-          const speedCmd = new Uint8Array([0x02, target]);
-          if (char.writeValueWithResponse) {
-            await char.writeValueWithResponse(speedCmd);
-          } else {
-            await char.writeValue(speedCmd);
-          }
+          await safeWrite([0x02, target]);
+          await sleepMs(80);
         }
       }
     } catch (err: any) {
       console.warn('BLE Write warn:', err);
     } finally {
       isWritingRef.current = false;
+      if (pendingSpeedRef.current !== null) {
+        flushBleSpeedQueue();
+      }
     }
   }, []);
 
@@ -315,18 +329,28 @@ export const KickrHeadwindModal: React.FC<KickrHeadwindModalProps> = ({ isOpen, 
         controlCharRef.current = characteristic;
         isManualModeInitializedRef.current = false;
 
+        const sleepMs = (ms: number) => new Promise((res) => setTimeout(res, ms));
+        await sleepMs(150);
+
         // Immediately switch Headwind into Manual Mode (0x04, 0x04)
         const manualCmd = new Uint8Array([0x04, 0x04]);
-        if (characteristic.writeValueWithResponse) {
-          await characteristic.writeValueWithResponse(manualCmd);
-        } else {
-          await characteristic.writeValue(manualCmd);
+        try {
+          if (characteristic.writeValue) {
+            await characteristic.writeValue(manualCmd);
+          } else if (characteristic.writeValueWithResponse) {
+            await characteristic.writeValueWithResponse(manualCmd);
+          }
+        } catch {
+          // will retry on first speed command
         }
+        await sleepMs(200);
         isManualModeInitializedRef.current = true;
 
         setConnectionState('connected');
-        pendingSpeedRef.current = baseSpeed;
-        flushBleSpeedQueue();
+        if (baseSpeed > 0) {
+          pendingSpeedRef.current = baseSpeed;
+          flushBleSpeedQueue();
+        }
       } catch {
         // Connected to a Wahoo KICKR CORE trainer (for testing BLE bridge before Headwind arrives)
         controlCharRef.current = null;

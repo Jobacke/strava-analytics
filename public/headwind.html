@@ -89,7 +89,7 @@
         <div class="flex items-center gap-1.5">
           <span id="connDot" class="w-2 h-2 rounded-full bg-slate-500 shrink-0"></span>
           <h1 id="connStatusText" class="text-xs font-extrabold text-white truncate">Nicht gekoppelt</h1>
-          <span class="px-1.5 py-0.5 rounded bg-slate-800 border border-cyan-500/30 text-[9px] font-mono font-bold text-cyan-300 shrink-0">v1.0</span>
+          <span class="px-1.5 py-0.5 rounded bg-slate-800 border border-cyan-500/30 text-[9px] font-mono font-bold text-cyan-300 shrink-0">v1.1</span>
         </div>
         <div id="autoReconnectBadge" class="text-[10px] font-semibold text-emerald-400 truncate">
           🛡️ Auto-Reconnect &amp; Echtzeit-Timer aktiv
@@ -147,7 +147,7 @@
     <!-- Thick Sweat-Proof Touch Slider -->
     <div class="slider-track relative h-11 bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden flex items-center px-1.5">
       <div id="sliderFill" class="absolute inset-y-0 left-0 bg-gradient-to-r from-cyan-600/60 via-cyan-500/70 to-blue-500/80 pointer-events-none transition-all duration-75" style="width: 0%;"></div>
-      <input id="speedSlider" type="range" min="0" max="100" step="1" value="0" oninput="setManualSpeed(Number(this.value), true)" aria-label="Lüfterstärke" class="relative z-10" />
+      <input id="speedSlider" type="range" min="0" max="100" step="1" value="0" oninput="setManualSpeed(Number(this.value), true, true)" onchange="setManualSpeed(Number(this.value), true, false)" aria-label="Lüfterstärke" class="relative z-10" />
     </div>
 
     <!-- 4 Extra-Wide Fine Tuning Buttons (-5%, -1%, +1%, +5%) -->
@@ -424,6 +424,63 @@
       renderPresets();
     }
 
+    const sleepMs = (ms) => new Promise((res) => setTimeout(res, ms));
+    let deviceMode = 0; // 0x01=Off, 0x02=HR, 0x03=Speed, 0x04=Manual
+    let sliderDebounceTimer = null;
+
+    async function safeBleWrite(char, bytes) {
+      if (!char) return false;
+      const data = new Uint8Array(bytes);
+      try {
+        if (char.writeValue) {
+          await char.writeValue(data);
+          return true;
+        }
+      } catch (e1) {
+        try {
+          if (char.writeValueWithResponse) {
+            await char.writeValueWithResponse(data);
+            return true;
+          }
+        } catch (e2) {
+          try {
+            if (char.writeValueWithoutResponse) {
+              await char.writeValueWithoutResponse(data);
+              return true;
+            }
+          } catch (e3) {
+            console.warn('All BLE write methods failed:', e3);
+            return false;
+          }
+        }
+      }
+      return false;
+    }
+
+    function handleHeadwindNotification(event) {
+      try {
+        const val = event.target.value;
+        if (!val || val.byteLength < 2) return;
+        const b0 = val.getUint8(0);
+        if (b0 === 0xfd && val.byteLength >= 4) {
+          const repSpeed = val.getUint8(2);
+          const repMode = val.getUint8(3);
+          deviceMode = repMode;
+          // If Headwind reports it is NOT in Manual Mode (0x04), force re-init on next command
+          if (repMode !== 0x04) {
+            manualInitialized = false;
+          } else {
+            manualInitialized = true;
+          }
+          const badge = document.getElementById('autoReconnectBadge');
+          const modeNames = { 1: 'Standby', 2: 'HF-Modus', 3: 'Speed', 4: 'Manuell', 5: 'Sleep' };
+          if (badge) {
+            badge.textContent = `🟢 Lüfter-Status: ${modeNames[repMode] || 'Bereit'} • Ist: ${repSpeed}%`;
+          }
+        }
+      } catch (e) {}
+    }
+
     async function flushBleQueue() {
       if (isWriting || !controlChar || pendingSpeed === null) return;
       isWriting = true;
@@ -431,42 +488,61 @@
         while (pendingSpeed !== null) {
           const target = pendingSpeed;
           pendingSpeed = null;
-          if (target === 0) {
-            const cmd = new Uint8Array([0x02, 0x00]);
-            await (controlChar.writeValueWithResponse ? controlChar.writeValueWithResponse(cmd) : controlChar.writeValue(cmd));
+          if (target <= 0) {
+            // Turn fan off and mark that Manual Mode (0x04 0x04) must be sent again on next wakeup!
+            await safeBleWrite(controlChar, [0x02, 0x00]);
+            await sleepMs(120);
+            await safeBleWrite(controlChar, [0x04, 0x01]);
+            manualInitialized = false;
+            deviceMode = 0x01;
           } else {
-            if (!manualInitialized) {
-              const modeCmd = new Uint8Array([0x04, 0x04]);
-              await (controlChar.writeValueWithResponse ? controlChar.writeValueWithResponse(modeCmd) : controlChar.writeValue(modeCmd));
+            const clamped = Math.max(1, Math.min(100, target));
+            // CRITICAL: Wahoo Headwind ignores [0x02, speed] unless it is in Manual Mode (0x04)
+            // and given ~180ms to switch state before the speed byte arrives!
+            if (!manualInitialized || deviceMode !== 0x04) {
+              await safeBleWrite(controlChar, [0x04, 0x04]);
+              await sleepMs(200);
               manualInitialized = true;
+              deviceMode = 0x04;
             }
-            const speedCmd = new Uint8Array([0x02, target]);
-            await (controlChar.writeValueWithResponse ? controlChar.writeValueWithResponse(speedCmd) : controlChar.writeValue(speedCmd));
+            await safeBleWrite(controlChar, [0x02, clamped]);
+            await sleepMs(80);
           }
         }
       } catch (e) {
-        console.warn('BLE write warn:', e);
+        console.warn('BLE queue error:', e);
       } finally {
         isWriting = false;
+        // If user moved slider while we were awaiting BLE writes, flush final value
+        if (pendingSpeed !== null) {
+          flushBleQueue();
+        }
       }
     }
 
-    function pushSpeedToHardware(val) {
+    function pushSpeedToHardware(val, immediate = false) {
       effectiveSpeed = Math.max(0, Math.min(100, Math.round(val)));
+      updateUI();
       if (isConnected && controlChar) {
         pendingSpeed = effectiveSpeed;
-        flushBleQueue();
+        if (sliderDebounceTimer) clearTimeout(sliderDebounceTimer);
+        if (immediate || effectiveSpeed === 0) {
+          flushBleQueue();
+        } else {
+          sliderDebounceTimer = setTimeout(() => {
+            flushBleQueue();
+          }, 90);
+        }
       }
-      updateUI();
     }
 
-    function setManualSpeed(val, cancelAuto) {
+    function setManualSpeed(val, cancelAuto, isFromSlider = false) {
       baseSpeed = Math.max(0, Math.min(100, Math.round(val)));
       if (cancelAuto && automationState) {
         stopAutomation();
       }
       if (!waveMode || baseSpeed === 0) {
-        pushSpeedToHardware(baseSpeed);
+        pushSpeedToHardware(baseSpeed, !isFromSlider);
       } else {
         updateUI();
       }
@@ -505,7 +581,10 @@
         document.getElementById('connStatusText').textContent = 'Suche KICKR...';
         const optionalUuids = [
           SERVICE_UUID,
+          'a026ee01-0a7d-4ab3-97fa-f1500f9feb8b',
+          'a026ee07-0a7d-4ab3-97fa-f1500f9feb8b',
           'a026ee0b-0a7d-4ab3-97fa-f1500f9feb8b',
+          '00001801-0000-1000-8000-00805f9b34fb',
           '00001818-0000-1000-8000-00805f9b34fb',
           '00001826-0000-1000-8000-00805f9b34fb',
           '0000180a-0000-1000-8000-00805f9b34fb',
@@ -520,8 +599,8 @@
         } else {
           bleDevice = await navigator.bluetooth.requestDevice({
             filters: [
-              { namePrefix: 'KICKR' },
               { namePrefix: 'HEADWIND' },
+              { namePrefix: 'KICKR' },
               { namePrefix: 'Wahoo' },
               { namePrefix: 'WAHOO' },
               { namePrefix: 'ELEMNT' }
@@ -534,28 +613,61 @@
           isConnected = false;
           controlChar = null;
           manualInitialized = false;
+          deviceMode = 0;
           setConnectionStatusUI(false, 'Verbindung getrennt');
         });
 
         document.getElementById('connStatusText').textContent = `Verbinde...`;
         const server = await bleDevice.gatt.connect();
 
+        // Discover the Headwind Control Characteristic (a026e038-...)
+        let foundChar = null;
         try {
           const service = await server.getPrimaryService(SERVICE_UUID);
-          controlChar = await service.getCharacteristic(CHAR_UUID);
-          try { await controlChar.startNotifications(); } catch (e) {}
+          foundChar = await service.getCharacteristic(CHAR_UUID);
+        } catch (err1) {
+          // Fallback: scan all available primary services on the connected device
+          try {
+            const services = await server.getPrimaryServices();
+            for (const svc of services) {
+              try {
+                const c = await svc.getCharacteristic(CHAR_UUID);
+                if (c) {
+                  foundChar = c;
+                  break;
+                }
+              } catch (_) {}
+            }
+          } catch (_) {}
+        }
 
-          const modeCmd = new Uint8Array([0x04, 0x04]);
-          await (controlChar.writeValueWithResponse ? controlChar.writeValueWithResponse(modeCmd) : controlChar.writeValue(modeCmd));
-          manualInitialized = true;
+        if (foundChar) {
+          controlChar = foundChar;
           isConnected = true;
-
+          manualInitialized = false;
           setConnectionStatusUI(true, bleDevice.name || 'KICKR Headwind');
-          pushSpeedToHardware(baseSpeed);
-        } catch (serviceErr) {
+
+          try {
+            await controlChar.startNotifications();
+            controlChar.addEventListener('characteristicvaluechanged', handleHeadwindNotification);
+            await sleepMs(150);
+          } catch (e) {}
+
+          // Switch Headwind to Manual Mode (0x04, 0x04)
+          await safeBleWrite(controlChar, [0x04, 0x04]);
+          await sleepMs(200);
+          manualInitialized = true;
+          deviceMode = 0x04;
+
+          // Only send speed immediately if user already pre-selected > 0% before connecting!
+          // (Sending [0x02, 0x00] here would immediately turn the Headwind back OFF!)
+          if (baseSpeed > 0) {
+            pushSpeedToHardware(baseSpeed, true);
+          }
+        } else {
           isConnected = true;
           controlChar = null;
-          setConnectionStatusUI(true, `${bleDevice.name || 'KICKR'} (Test-Modus)`);
+          setConnectionStatusUI(true, `${bleDevice.name || 'KICKR'} (Kein Lüfter)`);
           updateUI();
         }
       } catch (e) {
@@ -704,13 +816,20 @@
             const server = await bleDevice.gatt.connect();
             const service = await server.getPrimaryService(SERVICE_UUID);
             controlChar = await service.getCharacteristic(CHAR_UUID);
-            try { await controlChar.startNotifications(); } catch (e) {}
-            const modeCmd = new Uint8Array([0x04, 0x04]);
-            await (controlChar.writeValueWithResponse ? controlChar.writeValueWithResponse(modeCmd) : controlChar.writeValue(modeCmd));
+            try {
+              await controlChar.startNotifications();
+              controlChar.addEventListener('characteristicvaluechanged', handleHeadwindNotification);
+              await sleepMs(150);
+            } catch (e) {}
+            await safeBleWrite(controlChar, [0x04, 0x04]);
+            await sleepMs(200);
             manualInitialized = true;
+            deviceMode = 0x04;
             isConnected = true;
             setConnectionStatusUI(true, bleDevice.name || 'KICKR Headwind');
-            pushSpeedToHardware(baseSpeed);
+            if (baseSpeed > 0) {
+              pushSpeedToHardware(baseSpeed, true);
+            }
           } catch (e) {
             if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
               isConnected = true;
