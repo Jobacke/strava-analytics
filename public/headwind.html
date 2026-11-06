@@ -74,11 +74,11 @@
 </head>
 <body class="h-full flex flex-col justify-between px-3 pt-1.5 pb-2.5 max-w-md mx-auto gap-2 overflow-y-auto">
 
-  <!-- 1. MODERN CLEAN 2-ROW COCKPIT HEADER (v2.5) -->
+  <!-- 1. MODERN CLEAN 2-ROW COCKPIT HEADER (v2.6) -->
   <header class="glass-card rounded-2xl px-3 py-2 flex flex-col gap-1.5 shadow-md shrink-0">
-    <!-- Top Row: Brand, Clear Version Pill & Connection Controls -->
+    <!-- Top Row: Brand + Prominent Version Badge on Left, Single Action + Gear on Right -->
     <div class="flex items-center justify-between gap-2">
-      <div class="flex items-center gap-2 min-w-0">
+      <div class="flex items-center gap-2 shrink-0">
         <div id="fanBadge" class="w-7 h-7 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-sm shadow-cyan-500/25 shrink-0">
           <svg id="fanIcon" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 12c0-3 2.5-5.5 5.5-5.5S23 9 23 12H12z"/>
@@ -90,16 +90,16 @@
         </div>
         <span id="connDot" class="w-2 h-2 rounded-full bg-slate-500 shrink-0"></span>
         <h1 id="connStatusText" class="text-sm font-black text-white tracking-tight whitespace-nowrap">Headwind</h1>
-        <button onclick="location.replace(location.pathname + '?v=' + Date.now())" title="Neu laden (Cache leeren)" class="btn-press px-2 py-0.5 rounded-lg bg-cyan-500/20 border border-cyan-400/50 text-[11px] font-mono font-extrabold text-cyan-200 shrink-0 shadow-sm">
-          v2.5 ↻
+        <button onclick="location.replace(location.pathname + '?v=' + Date.now())" title="Neu laden (Cache leeren)" class="btn-press px-2.5 py-0.5 rounded-lg bg-amber-400 text-slate-950 text-xs font-mono font-black shrink-0 shadow-sm">
+          v2.6 ↻
         </button>
       </div>
 
       <div class="flex items-center gap-1.5 shrink-0">
-        <div id="autoReconnectBadge" class="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-1 rounded-lg whitespace-nowrap">
-          🟢 Mac bereit
+        <div id="autoReconnectBadge" class="hidden text-[10px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-500/40 px-2 py-1 rounded-lg whitespace-nowrap">
+          ⚡ 120Hz WLAN
         </div>
-        <button id="btnConnect" onclick="connectHeadwind(false)" class="btn-press px-2.5 py-1 rounded-xl text-[11px] font-black bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-sm">
+        <button id="btnConnect" onclick="connectHeadwind(false)" class="btn-press px-3 py-1 rounded-xl text-xs font-black bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-sm">
           Koppeln
         </button>
         <button onclick="openSetupModal()" aria-label="Einstellungen" class="btn-press p-1.5 rounded-xl bg-slate-800/90 text-slate-300 border border-slate-700/80">
@@ -519,19 +519,20 @@
 
     function updateRemoteBadgeStatus() {
       const badge = document.getElementById('autoReconnectBadge');
+      const segRm = document.getElementById('segBtnRemote');
+      if (segRm) {
+        segRm.innerHTML = (urP2pReady || urWssReady) ? '🟢 Mac &amp; Zwift' : '🖱️ Mac &amp; Zwift';
+      }
       if (!badge) return;
       if (currentMainView !== 'remote') {
-        if (urP2pReady || urWssReady) {
-          badge.textContent = '🟢 Mac bereit';
-          badge.className = 'text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-1 rounded-lg whitespace-nowrap';
-        }
+        badge.className = 'hidden';
         return;
       }
       if (urP2pReady) {
         badge.textContent = '⚡ 120Hz WLAN';
         badge.className = 'text-[10px] font-extrabold text-emerald-300 bg-emerald-950/80 border border-emerald-400/50 px-2 py-1 rounded-lg whitespace-nowrap';
       } else if (urWssReady) {
-        badge.textContent = '🟢 Mac verbunden';
+        badge.textContent = '🟢 Verbunden';
         badge.className = 'text-[10px] font-bold text-cyan-300 bg-cyan-950/60 border border-cyan-500/30 px-2 py-1 rounded-lg whitespace-nowrap';
       } else {
         badge.textContent = '⏳ Verbinde...';
