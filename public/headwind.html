@@ -90,7 +90,7 @@
         <div class="flex items-center gap-1.5">
           <span id="connDot" class="w-2 h-2 rounded-full bg-slate-500 shrink-0"></span>
           <h1 id="connStatusText" class="text-xs font-extrabold text-white truncate">Nicht gekoppelt</h1>
-          <span class="px-1.5 py-0.5 rounded bg-slate-800 border border-cyan-500/30 text-[9px] font-mono font-bold text-cyan-300 shrink-0">v2.1</span>
+          <span class="px-1.5 py-0.5 rounded bg-slate-800 border border-cyan-500/30 text-[9px] font-mono font-bold text-cyan-300 shrink-0">v2.2</span>
         </div>
         <div id="autoReconnectBadge" class="text-[10px] font-semibold text-emerald-400 truncate">
           🛡️ All-in-One: Headwind + Mac Remote
@@ -437,9 +437,83 @@
     const TIMERS_KEY = 'strava_pulse_headwind_timers_v1';
     const UR_PREFS_KEY = 'strava_pulse_ur_prefs_v2';
     const UR_WSS_TOPIC = 'ur_mac_jb_8386e4cb_v2';
+    const SIG_TOPIC_TO_MAC = 'ur_mac_jb_8386e4cb_sig_to_mac';
+    const SIG_TOPIC_TO_IOS = 'ur_mac_jb_8386e4cb_sig_to_ios';
+    const MY_PEER_ID = 'ios_' + Math.random().toString(36).substring(2, 9);
+
     let urMqttClient = null;
     let urWssReady = false;
+    let urRtcPeer = null;
+    let urDataChannel = null;
+    let urP2pReady = false;
     let currentMainView = 'headwind'; // 'headwind' | 'remote'
+
+    function updateRemoteBadgeStatus() {
+      if (currentMainView !== 'remote') return;
+      const badge = document.getElementById('autoReconnectBadge');
+      if (!badge) return;
+      if (urP2pReady) {
+        badge.textContent = '⚡ Direktes WLAN-P2P + Native Mac-HID (120Hz • 1ms)';
+        badge.className = 'text-[10px] font-extrabold text-emerald-400 truncate';
+      } else if (urWssReady) {
+        badge.textContent = '🟢 Mac Trackpad aktiv (WSS + Native HID)';
+        badge.className = 'text-[10px] font-semibold text-cyan-300 truncate';
+      } else {
+        badge.textContent = '🔄 Verbinde Mac Trackpad...';
+      }
+    }
+
+    function startWebRtcP2p() {
+      if (!window.RTCPeerConnection || !urMqttClient || !urWssReady) return;
+      try {
+        if (urRtcPeer) {
+          try { urRtcPeer.close(); } catch (e) {}
+        }
+        urP2pReady = false;
+        urRtcPeer = new RTCPeerConnection({
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        });
+
+        // Unordered, 0-retransmit UDP-like DataChannel for zero head-of-line blocking
+        urDataChannel = urRtcPeer.createDataChannel('trackpad', {
+          ordered: false,
+          maxRetransmits: 0
+        });
+
+        urDataChannel.onopen = () => {
+          urP2pReady = true;
+          updateRemoteBadgeStatus();
+        };
+
+        urDataChannel.onclose = () => {
+          urP2pReady = false;
+          updateRemoteBadgeStatus();
+        };
+
+        urRtcPeer.onicecandidate = (e) => {
+          if (e.candidate && urMqttClient && urWssReady) {
+            urMqttClient.publish(SIG_TOPIC_TO_MAC, JSON.stringify({
+              peerId: MY_PEER_ID,
+              type: 'cand',
+              candidate: e.candidate.candidate,
+              mid: e.candidate.sdpMid || '0'
+            }), { qos: 0 });
+          }
+        };
+
+        urRtcPeer.createOffer().then((offer) => {
+          return urRtcPeer.setLocalDescription(offer).then(() => {
+            if (urMqttClient && urWssReady) {
+              urMqttClient.publish(SIG_TOPIC_TO_MAC, JSON.stringify({
+                peerId: MY_PEER_ID,
+                type: 'offer',
+                sdp: offer.sdp
+              }), { qos: 0 });
+            }
+          });
+        }).catch(() => {});
+      } catch (e) {}
+    }
 
     function initUrWssStream() {
       if (urMqttClient || typeof mqtt === 'undefined') return;
@@ -450,13 +524,31 @@
         });
         urMqttClient.on('connect', () => {
           urWssReady = true;
-          if (currentMainView === 'remote') {
-            const badge = document.getElementById('autoReconnectBadge');
-            if (badge) badge.textContent = '🟢 Mac Trackpad Echtzeit-Stream aktiv (60Hz)';
-          }
+          urMqttClient.subscribe(SIG_TOPIC_TO_IOS, { qos: 0 });
+          updateRemoteBadgeStatus();
+          startWebRtcP2p();
+        });
+        urMqttClient.on('message', (topic, message) => {
+          if (topic !== SIG_TOPIC_TO_IOS || !urRtcPeer) return;
+          try {
+            const sig = JSON.parse(message.toString());
+            if (!sig || sig.peerId !== MY_PEER_ID) return;
+            if (sig.type === 'sdp' && sig.sdp) {
+              urRtcPeer.setRemoteDescription(new RTCSessionDescription({
+                type: sig.sdpType || 'answer',
+                sdp: sig.sdp
+              })).catch(() => {});
+            } else if (sig.type === 'cand' && sig.candidate) {
+              urRtcPeer.addIceCandidate(new RTCIceCandidate({
+                candidate: sig.candidate,
+                sdpMid: sig.mid || '0'
+              })).catch(() => {});
+            }
+          } catch (e) {}
         });
         urMqttClient.on('close', () => {
           urWssReady = false;
+          updateRemoteBadgeStatus();
         });
       } catch (e) {}
     }
@@ -476,11 +568,8 @@
         rm.classList.add('flex');
         txt.textContent = '💨 Lüfter';
         btn.className = 'btn-press px-3 py-2 rounded-xl text-xs font-black bg-cyan-500/25 text-cyan-200 border border-cyan-400 flex items-center gap-1.5 shadow-sm';
-        if (badge) {
-          badge.textContent = urWssReady
-            ? '🟢 Mac Trackpad Echtzeit-Stream aktiv (60Hz)'
-            : '🔄 Verbinde Echtzeit-Trackpad...';
-        }
+        if (!urP2pReady && urWssReady) startWebRtcP2p();
+        updateRemoteBadgeStatus();
       } else {
         currentMainView = 'headwind';
         rm.classList.add('hidden');
@@ -489,7 +578,10 @@
         hw.classList.add('flex');
         txt.textContent = 'Remote';
         btn.className = 'btn-press px-3 py-2 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 flex items-center gap-1.5 shadow-sm';
-        if (badge) badge.textContent = '🛡️ All-in-One: Headwind + Mac Remote';
+        if (badge) {
+          badge.textContent = '🛡️ All-in-One: Headwind + Mac Remote';
+          badge.className = 'text-[10px] font-semibold text-emerald-400 truncate';
+        }
       }
     }
 
@@ -512,45 +604,61 @@
       });
     }
 
-    // High-speed 60Hz WebSocket stream (zero rate limits, ~40ms latency)
-    let urMoveQueue = { dx: 0, dy: 0 };
-    let urMoveTimer = null;
-
-    function sendUrBridge(payload) {
+    // Send raw string or JSON over 1ms WebRTC P2P DataChannel if open, else WSS
+    function sendRawFast(str) {
+      if (urP2pReady && urDataChannel && urDataChannel.readyState === 'open') {
+        try {
+          urDataChannel.send(str);
+          return;
+        } catch (e) {}
+      }
       if (!urMqttClient) initUrWssStream();
       if (urMqttClient && urWssReady) {
-        urMqttClient.publish(UR_WSS_TOPIC, JSON.stringify(payload), { qos: 0 });
+        urMqttClient.publish(UR_WSS_TOPIC, str, { qos: 0 });
+      }
+    }
+
+    function sendUrBridge(payload) {
+      sendRawFast(JSON.stringify(payload));
+    }
+
+    let urMoveQueue = { dx: 0, dy: 0 };
+    let urMoveRaf = null;
+
+    function flushUrMove() {
+      urMoveRaf = null;
+      const sx = Math.round(urMoveQueue.dx * 10) / 10;
+      const sy = Math.round(urMoveQueue.dy * 10) / 10;
+      urMoveQueue.dx = 0;
+      urMoveQueue.dy = 0;
+      if (sx !== 0 || sy !== 0) {
+        sendRawFast(`M ${sx} ${sy}`);
       }
     }
 
     function urMove(dx, dy) {
       urMoveQueue.dx += dx;
       urMoveQueue.dy += dy;
-      if (!urMoveTimer) {
-        urMoveTimer = setTimeout(() => {
-          const sx = urMoveQueue.dx;
-          const sy = urMoveQueue.dy;
-          urMoveQueue.dx = 0;
-          urMoveQueue.dy = 0;
-          urMoveTimer = null;
-          if (sx !== 0 || sy !== 0) {
-            // Send ultra-compact [dx, dy] packet over persistent WebSocket
-            sendUrBridge([sx, sy]);
-          }
-        }, 16); // ~60 FPS
+      if (urP2pReady) {
+        // Direct 0-1ms UDP DataChannel: flush immediately at native iOS touch rate (60-120Hz)
+        flushUrMove();
+      } else {
+        if (!urMoveRaf) {
+          urMoveRaf = setTimeout(flushUrMove, 12);
+        }
       }
     }
 
     function urClick(btn) {
-      sendUrBridge({ remote: 'Relmtech.Basic Input', action: btn === 'right' ? 'right' : 'left' });
+      sendRawFast(btn === 'right' ? 'C R' : 'C L');
     }
 
     function urDoubleClick() {
-      sendUrBridge({ remote: 'Relmtech.Basic Input', action: 'double' });
+      sendRawFast('C D');
     }
 
     function urScroll(amount) {
-      sendUrBridge({ remote: 'Core.Mouse', action: 'vscroll', args: [amount] });
+      sendRawFast(`S ${amount}`);
     }
 
     let urDragging = false;
@@ -560,11 +668,11 @@
       if (urDragging) {
         btn.className = 'btn-press glass-card rounded-2xl font-extrabold text-xs text-emerald-300 border-2 border-emerald-400';
         btn.textContent = '🔓 Drag aktiv';
-        sendUrBridge({ remote: 'Relmtech.Basic Input', action: 'hold' });
+        sendRawFast('G 1');
       } else {
         btn.className = 'btn-press glass-card rounded-2xl font-extrabold text-xs text-slate-300 border border-slate-700';
         btn.textContent = '🔒 Halten (Drag)';
-        sendUrBridge({ remote: 'Relmtech.Basic Input', action: 'tap' });
+        sendRawFast('G 0');
       }
     }
 
@@ -629,25 +737,18 @@
 
         if (e.touches.length >= 2) {
           scrollAcc += dy;
-          if (Math.abs(scrollAcc) >= 12) {
-            const steps = Math.trunc(scrollAcc / 12);
-            urScroll(steps * 2);
-            scrollAcc -= steps * 12;
+          if (Math.abs(scrollAcc) >= 4) {
+            const steps = Math.trunc(scrollAcc / 4);
+            urScroll(steps);
+            scrollAcc -= steps * 4;
           }
           return;
         }
 
+        // Smooth continuous macOS-style pointer ballistics + sub-pixel precision
         const speed = Math.hypot(dx, dy);
-        const mult = speed > 10 ? sens * 1.4 : sens;
-        accX += dx * mult;
-        accY += dy * mult;
-        const sx = Math.trunc(accX);
-        const sy = Math.trunc(accY);
-        if (sx !== 0 || sy !== 0) {
-          urMove(sx, sy);
-          accX -= sx;
-          accY -= sy;
-        }
+        const mult = sens * (1.0 + Math.min(2.2, speed * 0.08));
+        urMove(dx * mult, dy * mult);
       }, { passive: false });
 
       pad.addEventListener('touchend', (e) => {
@@ -684,10 +785,10 @@
         const dy = sLastY - y;
         sLastY = y;
         sAcc += dy;
-        if (Math.abs(sAcc) >= 10) {
-          const steps = Math.trunc(sAcc / 10);
-          urScroll(steps * 2);
-          sAcc -= steps * 10;
+        if (Math.abs(sAcc) >= 4) {
+          const steps = Math.trunc(sAcc / 4);
+          urScroll(steps);
+          sAcc -= steps * 4;
         }
       }, { passive: false });
     }
